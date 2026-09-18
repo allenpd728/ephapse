@@ -24,6 +24,25 @@
 #   p_corrected — corrected p-value, or null
 #   confounds_checked — which confounds were tested (list)
 #   confounds_fired   — which of those fired (list)
+#   paraphrase_controls — surface-form controls run (list):
+#                         "zero_shared_tokens", "lexical_shuffle", ...
+#   paraphrase_survived — bool; true only if the overlap survived them
+#   intervention — causal test result (object or null):
+#                         {"hook": ..., "layer": ..., "method": "ablation"|"patching",
+#                          "cause": <float|bool>, "isolate": <float|bool>,
+#                          "interference_control": <result>}
+#   causal_claim  — bool; true only if the feature was causally load-bearing
+#                   in BOTH domains, above the interference control
 #   verdict     — "flagged" | "null"  (a label, NOT a conclusion)
 #
 # A record with no null_model / correction / n is not evidence.
+#
+# A record whose verdict is "flagged" is NOT a finding unless
+# paraphrase_survived == true AND causal_claim == true. Activity alone is a
+# correlation. The claim this log supports is causal and surface-form-robust:
+# "feature F is causally load-bearing in both domains A and B, and the overlap
+# survives surface-form controls" (PRIOR_ART.md section 11, DEC-013).
+#
+# Never record a mathematical claim here. Whether a pair is mathematically
+# interesting is a human judgment made at the Maith handoff, not something
+# this log asserts.
