@@ -257,24 +257,48 @@ threshold does real work (e.g. the `semantic similarity < 0.2` filter in
 
 ---
 
-## 9. A risk to the receiving pipeline (Maith), not to Ephapse
+## 9. Causal abstraction: a strengthening for the receiving pipeline, not a risk to it
 
-Ephapse hands candidates to Maith's gate 1, the homomorphism obligation.
-Sutter et al. (*The Non-Linear Representation Dilemma: Is Causal Abstraction
-Enough for Mechanistic Interpretability?*, arXiv:2507.08802, NeurIPS 2025
-spotlight) prove that if the alignment map in a causal-abstraction analysis
-is allowed to be arbitrarily expressive, **any network can be aligned to any
-algorithm** — they demonstrate 100% interchange-intervention accuracy on
-randomly initialized models that cannot perform the task at all. Causal
-abstraction becomes vacuous without an assumption about how the model
-encodes information; in practice the saving constraint is linearity.
+**Corrected 2026-09-18 — an earlier version of this section over-claimed.**
 
-This is flagged here because it is cross-repo relevant and easy to miss: if
-Maith's gate 1 tests the homomorphism obligation with a flexible, learned,
-or high-capacity alignment map, the gate can pass trivially. The gate needs
-its map complexity constrained (linear, or otherwise explicitly bounded) for
-a pass to mean anything. Worth raising on the Maith side; nothing in Ephapse
-changes as a result.
+This section previously warned that Maith's gate 1 could be passed vacuously,
+citing Sutter et al. (*The Non-Linear Representation Dilemma*, arXiv:2507.08802,
+NeurIPS 2025 spotlight), who prove that causal-abstraction analyses become
+vacuous when the alignment map is arbitrarily expressive — 100% interchange
+intervention accuracy on randomly initialized models that cannot perform the
+task.
+
+**That warning did not apply.** Maith's gate 1 is a written Lean obligation
+(`AXIOM_DISCOVERY.md` §Validation pipeline: *"Prove φ(x ∘ y) = φ(x) ⊕ φ(y)…
+Fails to typecheck → candidate dead"*). Its complexity is fixed by the term a
+human wrote; it is not a learned, fitted, or capacity-selected map. Sutter's
+result is about *learned* alignment maps (DAS-style), where map capacity is
+what makes the test vacuous. Maith's gate 2 also already rejects the
+Unit-collapse degenerate case by name.
+
+**The properly-aimed version.** The causal-abstraction literature is worth
+borrowing *for* Maith, not warning about:
+
+- **Geiger et al., *Finding Alignments Between Interpretable Causal Variables
+  and Distributed Neural Representations*** (arXiv:2303.02536) — distributed
+  alignment search and interchange intervention accuracy (IIA), a graded
+  metric for "does this map preserve structure?"
+- **Causal abstraction in model interpretability: a compact survey**
+  (arXiv:2410.20161) — the unified framing over causal scrubbing, DAS, and
+  related intervention methods.
+- **Sutter et al.** (arXiv:2507.08802) — useful not as a warning but as the
+  boundary condition: it tells you *when* a structure-preservation test
+  carries information, which is the question gates 1–2 ask.
+
+Maith's gates 1–2 test whether a map preserves structure. That is the same
+question causal abstraction formalizes, with a graded metric and known theory
+about its failure conditions. The borrowable value is a sharper statement of
+what gate 2's kernel characterization should establish — in particular for a
+non-injective φ into a target with weak operations, where the homomorphism law
+can hold for uninteresting reasons.
+
+**No change to Ephapse follows from this.** Recorded because the interface is
+created by this repo's handoff and the correction belongs on the record.
 
 ---
 

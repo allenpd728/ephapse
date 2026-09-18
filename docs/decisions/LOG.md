@@ -196,22 +196,46 @@ to produce a plausible-looking artifact.
 
 ---
 
-## DEC-010 — Cross-repo risk raised: constraining Maith's gate-1 alignment map
+## DEC-010 — Cross-repo note: gate 1 is not vulnerable; causal abstraction is borrowable
 
-**Date:** 2026-09-18 · **Status:** raised, not actioned here
+**Date:** 2026-09-18 · **Status:** corrected same day (see revision below)
 
-Noting a risk to the receiving pipeline. Sutter et al. (arXiv:2507.08802,
-NeurIPS 2025 spotlight) prove that causal-abstraction analyses become
-vacuous if the alignment map is allowed to be arbitrarily expressive: any
-network can be aligned to any algorithm, demonstrated at 100% interchange
-intervention accuracy on randomly initialized models that cannot perform
-the task. Linearity is the constraint that saves it.
+**Original claim (now withdrawn as mis-sized).** This entry originally
+flagged a risk that Maith's gate 1 (homomorphism obligation) could be passed
+vacuously, citing Sutter et al. (arXiv:2507.08802, NeurIPS 2025 spotlight) —
+the proof that causal-abstraction analyses become vacuous when the alignment
+map is arbitrarily expressive, demonstrated at 100% interchange intervention
+accuracy on randomly initialized models.
 
-If Maith's gate 1 (homomorphism obligation) tests candidates using a
-flexible, learned, or high-capacity alignment map, the gate can pass
-trivially. The gate needs its map complexity explicitly bounded for a pass
-to carry information.
+**Why that was wrong.** Reading Maith's actual gate definitions
+(`AXIOM_DISCOVERY.md` §Validation pipeline) shows gate 1 is a *written Lean
+obligation* — "Prove φ(x ∘ y) = φ(x) ⊕ φ(y) for the relevant operation pairs.
+Fails to typecheck → candidate dead, no partial credit." Its complexity is
+fixed by the term a human wrote; it is not a fitted, learned, or
+capacity-selected map. The Sutter result concerns *learned* alignment maps in
+causal-abstraction analyses (DAS-style), where it is the map's capacity that
+makes the test vacuous. The result does not transfer to a kernel-checked Lean
+term, so the warning did not apply.
 
-**Scope:** flag for the Maith side; nothing in Ephapse changes. Recorded
-here because the risk is created by this repo's handoff and is easy to miss
-from Maith's own vantage point.
+Maith also already covers the degenerate case this entry was gesturing at:
+gate 2 exists to reject the Unit-collapse, and Maith's own `AGENT_HANDOFF.md`
+#29 starter names it explicitly ("a φ that passes gate 1 and fails gate 2").
+Flagging a known-handled failure mode as a new risk is worse than not
+flagging it — it spends the receiving project's attention on a non-issue.
+
+**Correctly-aimed residue (minor).** A non-injective φ into a target whose
+operations are weak enough that the homomorphism law holds for uninteresting
+reasons is only partly caught by gate 2's "prove *or characterize* φ's
+kernel." Worth a line in Maith's own docs at most; not a cross-repo risk.
+
+**What is actually borrowable.** The causal-abstraction / interchange
+intervention literature (Geiger et al., arXiv:2303.02536; causal abstraction
+survey arXiv:2410.20161) is the rigorous formalization of the *question
+gates 1–2 ask* — does a map preserve structure? It supplies a graded metric
+(interchange intervention accuracy) and theory about when such a test is
+meaningful. That is a strengthening for gates 1–2, not a defect in them, and
+belongs in Maith's active-track prior art rather than here.
+
+**Scope:** this repo's handoff creates the interface, so the note lives here;
+the substance belongs on the Maith side. Raised there as an issue (see the
+prior-art gap), not as a risk.
