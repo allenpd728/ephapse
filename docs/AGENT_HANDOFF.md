@@ -230,6 +230,17 @@ interesting. The filter has to be specified before the run, or
   feature is known to transfer to semantically unrelated features on
   Pythia-70M and GPT-2-small specifically); and treat a *failed*
   intervention as inconclusive rather than as evidence against the feature.
+  **Use RAVEL's two-part decomposition** (`PRIOR_ART.md` §11, Q1): a good
+  feature both **Causes** the target attribute to change and **Isolates** the
+  change (leaves other attributes intact). Carry RAVEL's ceiling as context —
+  SAEs scored 48.6/46.8 against 60.1/65.6 for supervised methods, so SAE
+  features are measurably worse at isolation than supervised featurizers.
+- **The claim a finding actually supports is causal, not mathematical.**
+  State it as: feature F is causally load-bearing in both domains A and B, and
+  the overlap survives surface-form controls (`PRIOR_ART.md` §11). That claim
+  needs no mathematical oracle and is falsifiable. Do not phrase findings as
+  though "statistical significance" answers a question about mathematical
+  truth — it doesn't, and the question it invites has no answer here.
 - **A null result is a result — but check absorption first.** A null may
   mean no cross-domain structure, *or* it may mean the SAE cannot represent
   it. Feature absorption produces false negatives, occurs in every model
@@ -333,11 +344,29 @@ it) — don't repeat it here at a smaller scale.
    filter, and confound checklist from "Method notes" must be fixed *before*
    the run. This is a methodology proof-of-concept, not a math-discovery
    attempt. Blocked on issue 4.
-6. **Log the result in `findings.jsonl` regardless of outcome** — a null
+6. **Add a causal positive control using interchange intervention.** Patching
+   is cheap here (~217 ms per forward pass, so hundreds of interventions are
+   minutes of compute) and needs no mathematical ground truth. Score candidate
+   features on RAVEL's two properties — **Cause** (intervention changes the
+   target attribute) and **Isolate** (it leaves other attributes intact) — per
+   `PRIOR_ART.md` §11 Q1. This converts "F is active in both domains" into
+   "F is causally load-bearing in both domains," which is the strongest claim
+   this repo can support on its own. Blocked on issue 4; can run alongside
+   issue 5 if the intervention harness is independent of the probe.
+7. **Log the result in `findings.jsonl` regardless of outcome** — a null
    result (no meaningful co-activation found) is informative about whether
    this method works at all at this model scale, and should be recorded
    with the same care as a positive one — with the feature-absorption
-   caveat stated (`PRIOR_ART.md` §4).
+   caveat stated (`PRIOR_ART.md` §4). Records should carry the **causal**
+   claim, not a mathematical one (`PRIOR_ART.md` §11).
+
+**Optional, if the detector needs a ground-truth panel:** train and evaluate
+against SynthSAEBench-16k (`PRIOR_ART.md` §11 Q2), which supplies 16,384
+ground-truth feature directions with hierarchy, correlation, and superposition,
+and extends the SAELens this repo already uses. Two conditions: confirm CPU
+feasibility first (the paper assumes a single GPU), and carry the ceiling — the
+best SAE tested reaches probing F1 0.88 vs 0.974 for a logistic-regression
+probe, so no SAE recovers ground truth cleanly.
 
 Do not attempt a "search for novel math" experiment until issue 5 has run
 at least once and the method's basic signal-to-noise has been assessed.

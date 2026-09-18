@@ -370,7 +370,117 @@ created by this repo's handoff and the correction belongs on the record.
 
 ---
 
-## 11. What this means for the issues
+## 11. The oracle problem, decomposed (added 2026-09-18)
+
+Ephapse has no kernel oracle — unlike Maith — and this document has treated
+that as *the* structural weakness of the project. Decomposed, it is three
+separate questions. Instruments exist for the first two. The third is not
+Ephapse's to solve, and the handoff already outsources it correctly.
+
+### Q1 — Is feature F causally active? Does it *do* anything?
+
+**Instrument: interchange intervention** (activation patching). Swap F's value
+from a *source* input into a *base* input; if the model's output changes in the
+way the aligned causal model predicts, F is causally load-bearing rather than
+merely correlated. This is the field's workhorse for turning "which feature is
+active" into "which feature is responsible" (Geiger et al., NeurIPS 2021 /
+ICML 2022; the JMLR causal-abstraction formalization defines interchange
+intervention accuracy).
+
+For SAE features specifically, **RAVEL** (Huang, Wu, Potts, Geva & Geiger, ACL
+2024) applies it directly and names the two properties Ephapse would need:
+
+- **Cause** — intervening on F changes the target attribute.
+- **Isolate** — intervening on F does *not* change other attributes.
+
+RAVEL's own numbers are a ceiling worth carrying before building on SAE
+features: SAE scored 48.6 (entity) / 46.8 (context) disentanglement against
+60.1 / 65.6 for supervised methods (MDAS). SAEs are measurably worse than
+supervised featurizers at isolating a causal attribute.
+
+**No mathematical ground truth is required for any of this**, and the cost is
+low: one forward pass per intervention, 217 ms on this sandbox, so a few
+hundred interventions is minutes of compute. A causal positive control is
+therefore *cheap to construct* — this is the answer to "solve the oracle
+problem" for Q1.
+
+### Q2 — Is a cross-domain overlap real, or an artifact of tokenization?
+
+**Instruments: (a) the paraphrase and zero-shared-token controls (§6); (b)
+synthetic models with planted ground truth.**
+
+SynthSAEBench (Chanin & Garriga-Alonso, arXiv:2602.14687) supplies a model with
+**16,384 ground-truth feature directions**, including 128 hierarchical trees
+(branching factor 4, depth 3, children mutually exclusive, a child fires only
+if its parent does) plus correlation and superposition. It extends SAELens,
+which this repo already uses. Because the latent structure is known by
+construction, a detector can be scored against truth rather than against a
+proxy.
+
+Two cautions:
+
+1. **Its headline number is itself a ceiling.** The best SAE tested (Matryoshka)
+   reaches probing F1 0.88 against a logistic-regression probe's 0.974, and MCC
+   0.78 against ground-truth directions. *No SAE recovers ground truth
+   cleanly.* Any Ephapse result inherits that ceiling.
+2. **CPU feasibility is unconfirmed here.** The paper describes generation
+   "on a single GPU." The model is small and synthetic so reduced-width runs
+   are likely fine on CPU, but that is a measurement to take, not an
+   assumption to make — same discipline as `SANDBOX_BASELINE.md`.
+
+### Q3 — Is the correspondence mathematically *true*?
+
+No instrument exists in this repo, and **this is correctly Maith's problem, not
+Ephapse's.** The one-way handoff exists precisely to outsource this to the
+kernel. Ephapse should stop behaving as though it needs a kernel.
+
+### The reframe
+
+Ephapse's weakness is not the absence of an oracle. It is that the project has
+been *phrased* as though it needed one — "statistical significance is the bar
+for worth a human looking at it" invites the unanswerable question "significant
+by what standard?"
+
+The claim Ephapse can actually support is narrower and fully falsifiable:
+
+> Feature F is **causally load-bearing** in both domain A and domain B, and the
+> overlap **survives surface-form controls**.
+
+That claim needs no mathematical oracle, has a constructible positive control,
+and is exactly the thing a human needs at the handoff. Whether the pair is
+mathematically *interesting* remains human judgment — which is already the
+design.
+
+### Retrospective rediscovery already has a decades-old protocol
+
+Literature-based discovery's **replication** method is the time-cut design
+Maith §9.5.1 adopts, with a mature evaluation literature: given a known
+discovery at time *t*, provide pre-*t* literature, produce a ranked candidate
+list, and score by how highly the known target ranks. Swanson's
+magnesium–migraine and fish-oil–Raynaud links are the canonical targets.
+
+Two documented concerns worth importing rather than rediscovering: the protocol
+rests on a **very small set of confirmed discoveries**, and those discoveries
+were made by a researcher with **personal experience of the conditions** — a
+selection concern about the target set, not the method. Any Ephapse analogue
+must state its target set and selection process rather than relying on a
+handful of famous hits.
+
+### What decomposition does not fix
+
+Even with Q1 and Q2 answered, a causally load-bearing shared feature can
+correspond to something uninteresting — "both inputs involve counting" is
+causally real and mathematically vacuous.
+
+That is a **base-rate problem, not an oracle problem**, and it resists
+technical solution. Mitigations are procedural, and already partly in place:
+choose domain pairs whose overlap is *a priori* improbable, and keep the human
+gate at the handoff. The honest framing is that Ephapse can make a candidate
+*credible* but never *interesting*; interestingness is the human's call.
+
+---
+
+## 12. What this means for the issues
 
 **Issue 3 should be re-specified**, not just executed. Concretely:
 
@@ -392,10 +502,24 @@ created by this repo's handoff and the correction belongs on the record.
    prompt sets, plus a lexical-shuffle control. This is a *different* filter
    from item 2 — that one screens similar **features**, this one screens
    shared **input surface form**.
+8. **Make the causal claim explicit and test it** (§11 Q1): score flagged
+   features with interchange intervention on RAVEL's **Cause** and **Isolate**
+   properties. "F is active in both domains" is not the finding; "F is
+   causally load-bearing in both domains" is. Report the RAVEL ceiling
+   alongside (SAE 48.6/46.8 vs supervised 60.1/65.6).
 
 **New issue warranted:** a detector validation task — the injected-correlation
 positive control — which must run *before* issue 3, since issue 3's
 interpretation depends on the detector's measured recovery rate.
+
+**New issue warranted:** a causal positive control via interchange intervention
+(§11 Q1). Cheap and oracle-free, and it is what upgrades a correlation into a
+finding.
+
+**Phrasing consequence of §11:** findings state a *causal* claim, never a
+mathematical one. The unanswerable question "significant by what standard?" is
+replaced by "does intervention change behavior in both domains, above the
+interference control?" — which has an answer here.
 
 **Issue ordering consequence of §6:** the paraphrase-invariance probe is
 promoted to the *first* experiment, ahead of the general cross-domain probe,
@@ -436,3 +560,7 @@ Maith already has.
 | Causal abstraction vacuity | arXiv:2507.08802 (Sutter et al.) |
 | Retrospective time-cut benchmark design | ProjectionBench, arXiv:2605.30284 (progressive information disclosure, post-cutoff papers); IdeaBench, PMC11923747 (post-2024 target papers to prevent leakage) |
 | Non-verbal robustness / latent-space-as-evidence critique | General cross-domain hypothesis-generation review (2026-09-18); see §6 and DEC-011 |
+| Interchange intervention / causal role of features | Geiger et al., NeurIPS 2021 & ICML 2022; causal-abstraction formalization, JMLR 26 (2025); SAIL blog overview |
+| Cause / Isolate scoring of SAE features | RAVEL, Huang, Wu, Potts, Geva & Geiger, ACL 2024 (arXiv:2402.17700); SAE 48.6/46.8 vs MDAS 60.1/65.6 |
+| Synthetic ground-truth SAE benchmark | SynthSAEBench, arXiv:2602.14687 (Chanin & Garriga-Alonso); 16,384 ground-truth features, extends SAELens |
+| Retrospective rediscovery protocol (LBD replication) | Swanson (1986) fish-oil/Raynaud, (1988) magnesium/migraine; ARROWSMITH; LBD evaluation-methodology critique, PMC9945845 |

@@ -323,3 +323,63 @@ deadline 2026-11-04, recurring first Wednesday in November.
 problem class with a defined outcome measure and an accessible oracle is
 identified — at which point the decision to build is about a concrete domain,
 not about the general idea.
+
+---
+
+## DEC-013 — The oracle problem decomposes; findings are causal claims
+
+**Date:** 2026-09-18 · **Status:** adopted
+
+Ephapse's lack of a kernel oracle has been treated in this repo as its central
+structural weakness. It is actually three questions
+(`docs/reference/PRIOR_ART.md` §11). Instruments exist for the first two; the
+third is correctly Maith's.
+
+- **Q1 — is feature F causally active?** Yes, testable: **interchange
+  intervention** (activation patching), scored on RAVEL's **Cause** and
+  **Isolate** properties (Huang, Wu, Potts, Geva & Geiger, ACL 2024). No
+  mathematical ground truth needed, and cheap here — one forward pass per
+  intervention at ~217 ms, so hundreds of interventions are minutes of compute.
+  A causal positive control is therefore *constructible*.
+- **Q2 — is the cross-domain overlap real, or tokenization?** Yes, testable:
+  the paraphrase and zero-shared-token controls (DEC-011), plus optionally
+  SynthSAEBench (arXiv:2602.14687), which supplies 16,384 ground-truth feature
+  directions and extends the SAELens this repo already uses.
+- **Q3 — is the correspondence mathematically true?** No instrument here, and
+  none is needed: the one-way handoff outsources this to the kernel. Ephapse
+  should stop behaving as though it requires a kernel.
+
+**The reframe.** The weakness was never the absence of an oracle — it was that
+the project was *phrased* as though it needed one. "Statistical significance is
+the bar for worth a human looking at it" invites "significant by what
+standard?", which has no answer here. The claim this repo can actually support
+is narrower and falsifiable:
+
+> Feature F is **causally load-bearing** in both domains A and B, and the
+> overlap **survives surface-form controls**.
+
+**Ceilings carried, not buried.** RAVEL: SAE features score 48.6/46.8
+disentanglement against 60.1/65.6 for supervised methods — SAEs are measurably
+worse at isolation. SynthSAEBench: the best SAE reaches probing F1 0.88 against
+a logistic-regression probe's 0.974, MCC 0.78 against ground truth — no SAE
+recovers ground truth cleanly. Any Ephapse result inherits these. Both are
+recorded in §11 and the references.
+
+**What decomposition does not fix.** A causally load-bearing shared feature can
+still be uninteresting ("both inputs involve counting"). That is a base-rate
+problem, not an oracle problem, and resists technical solution. Mitigation is
+procedural: choose domain pairs whose overlap is *a priori* improbable, and
+keep the human gate. Ephapse can make a candidate *credible*, never
+*interesting*.
+
+**Consequences:** findings in `findings.jsonl` state causal claims, not
+mathematical ones. A new issue adds the causal positive control (handoff
+§ Immediate first issues, item 6). SynthSAEBench is recorded as optional and
+conditional on measuring CPU feasibility — the paper assumes a single GPU, so
+that is a measurement to take, not an assumption.
+
+**Also imported:** the retrospective rediscovery protocol already exists as
+literature-based discovery's **replication** method, with a mature evaluation
+literature and two documented concerns worth carrying — it rests on a very
+small set of confirmed discoveries, and those were made by a researcher with
+personal experience of the conditions (a target-set selection concern).
