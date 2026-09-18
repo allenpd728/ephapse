@@ -197,13 +197,32 @@ interesting. The filter has to be specified before the run, or
 - **Rank by surprise, not magnitude.** The field's convention for
   cross-domain candidate ranking is `structural similarity x semantic
   distance`, which prefers candidates that are structurally alike but
-  semantically far apart (see PRIOR_ART §7). Raw co-activation magnitude
+  semantically far apart (see PRIOR_ART §8). Raw co-activation magnitude
   prefers frequent, uninteresting features.
 - **Record the known confounds.** Same literal token in both prompt sets;
   same sequence position; high-frequency catch-all features (check the
   activation histogram — broad and weak is a red flag); syntactic or
   discourse-marker features. At 160M these may account for essentially all
   cross-domain overlap.
+- **Require paraphrase invariance — a co-activation claim is a vocabulary
+  claim until proven otherwise.** This is the strongest objection to the
+  project's premise and it is detector-side, not a small-model artifact
+  (`PRIOR_ART.md` §6). Two controls, both cheap:
+  1. **Lexical-shuffle control** — flag a feature only if it survives
+     paraphrases with the domain-identifying tokens removed or swapped. A
+     feature that fires only on the original wording is a token feature.
+  2. **Zero shared tokens** — the two prompt sets should share no lexical
+     items at all, and the co-activation must survive that. This is a much
+     stricter gate than "unrelated topics" and is what makes a flagged pair
+     non-trivial.
+
+  Note this is a *different* filter from the NPMI + semantic-distance screen
+  above: that one kills pairs whose **features** are similar, this one kills
+  pairs whose **inputs** share surface form. Both are needed.
+
+  Because this gates the interpretation of everything else, the paraphrase-
+  invariance probe should be the *first* experiment run, not a later
+  validation step.
 - **Correlation triages; intervention evidences — with caveats.** The
   intervention literature is weaker than it looks (PRIOR_ART §5). Prefer
   **ablation** over additive steering; require **in-distribution**
@@ -298,17 +317,27 @@ it) — don't repeat it here at a smaller scale.
    because the probe's interpretation depends on the detector's measured
    sensitivity — a null from an unvalidated detector is uninterpretable.
    Blocked on issue 2.
-4. **Design one small, well-defined cross-domain probe** — two sets of
+4. **Establish paraphrase invariance.** Zero shared lexical items between the
+   two prompt sets, plus a lexical-shuffle control, per
+   `docs/reference/PRIOR_ART.md` §6 and DEC-011. Promote this *ahead of* the
+   general cross-domain probe: a flagged co-activation is a vocabulary claim
+   until surface form is ruled out, so running the general probe first would
+   produce results whose interpretation depends on an untested assumption.
+   A negative result here is informative and likely — it would mean the
+   detector is reading tokens, not relations, and it should be recorded with
+   the same care as a positive one. Blocked on issue 3.
+5. **Design one small, well-defined cross-domain probe** — two sets of
    prompts from genuinely unrelated topics, scored for co-activation above
-   baseline. The null model, positive control, multiplicity correction,
-   NPMI + semantic-distance filter, and confound checklist from "Method
-   notes" must be fixed *before* the run. This is a methodology
-   proof-of-concept, not a math-discovery attempt. Blocked on issue 3.
-5. **Log the result in `findings.jsonl` regardless of outcome** — a null
+   baseline, with the paraphrase controls from issue 4 in place. The null
+   model, positive control, multiplicity correction, NPMI + semantic-distance
+   filter, and confound checklist from "Method notes" must be fixed *before*
+   the run. This is a methodology proof-of-concept, not a math-discovery
+   attempt. Blocked on issue 4.
+6. **Log the result in `findings.jsonl` regardless of outcome** — a null
    result (no meaningful co-activation found) is informative about whether
    this method works at all at this model scale, and should be recorded
    with the same care as a positive one — with the feature-absorption
    caveat stated (`PRIOR_ART.md` §4).
 
-Do not attempt a "search for novel math" experiment until issue 4 has run
+Do not attempt a "search for novel math" experiment until issue 5 has run
 at least once and the method's basic signal-to-noise has been assessed.

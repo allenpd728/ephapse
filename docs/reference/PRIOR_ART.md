@@ -166,7 +166,75 @@ the anti-steerability finding.
 
 ---
 
-## 6. Does the substrate even contain the structure? (the math-specific risk)
+## 6. Non-verbal robustness: a co-activation claim is a vocabulary claim until proven otherwise
+
+**Added 2026-09-18.** This failure mode was reached independently from two
+directions and is the strongest objection to Ephapse's premise, so it gets its
+own section.
+
+The external form of the objection: a language model's latent space is not a
+clean database of facts, and a system that reads it will blend genuine
+regularities with conventional associations, outdated claims, and
+**linguistic patterns that sound explanatory without being true**. The
+prescribed consequence is that the research objective should not be "can AI
+uncover hidden truths directly from representations?"
+
+The internal form: sections 1–5 of this document already establish the same
+thing from three angles — feature universality makes overlap the default
+(§1), feature absorption makes firing unreliable (§4), and surface artifacts
+(tokenization, syntax, sequence position) are expected to dominate at 160M
+(§1, method notes). Put together: **a flagged co-activation is a hypothesis
+about shared semantics that has not yet been separated from shared surface
+form.**
+
+### The test this implies
+
+A "feature F fires on domains A and B" observation is a **verbal** similarity
+claim unless it survives paraphrase. If F fires on both prompt sets and stops
+firing when the same meanings are expressed in different words, F tracks
+wording, not meaning.
+
+**Two probes, both cheap, neither currently in the method notes:**
+
+1. **The lexical-shuffle control.** Flag a feature only if it survives
+   paraphrases where the domain-identifying tokens are *removed*. Concretely:
+   strip or swap the tokens that differ between set A and set B while
+   preserving the semantic content, and re-run. A feature that only fires on
+   the original wording is a token feature.
+2. **Non-verbal pattern confirmation.** The stronger version borrows from
+   analogy work on structure without shared vocabulary: the two prompts should
+   contain no shared lexical items, and the co-activation must survive that.
+   The strongest available form is *no shared tokens at all plus paraphrases*
+   — which is a much stricter gate than "unrelated topics" and is what makes
+   the claim non-trivial.
+
+**Implication for the detector.** The NPMI + semantic-distance filter (§2)
+already kills pairs whose *features* are semantically similar. It does not
+kill pairs whose *inputs* share surface tokens. Those are different filters
+and both are needed; the confound checklist in the handoff doc currently
+covers only the first.
+
+### Why this is not just a small-model artifact
+
+It is tempting to file this under "at 160M everything is surface-level
+anyway." That is the wrong reading. The mechanism is *detector-side*: a
+co-activation detector will find whatever the SAE represents, and if the SAE
+represents tokens well and relations poorly, the detector's output is
+token-shaped regardless of model size. Scaling the model changes the mix, not
+the necessity of the control.
+
+### What would falsify this concern
+
+If paraphrase-invariant co-activations turn out to be findable — the same
+feature firing on lexically disjoint inputs asserting the same relation —
+then the surface-form objection is answered empirically and a flagged pair
+means something. That is the experiment worth running, and it should be the
+*first* probe rather than a later validation step, because it gates the
+interpretation of everything else.
+
+---
+
+## 7. Does the substrate even contain the structure? (the math-specific risk)
 
 This is the section that should most temper expectations, and it has no
 equivalent in the handoff doc.
@@ -202,7 +270,7 @@ direction, not a current capability.
 
 ---
 
-## 7. Cross-domain hypothesis generation: the older field Ephapse sits in
+## 8. Cross-domain hypothesis generation: the older field Ephapse sits in
 
 The idea of detecting structural correspondence between unrelated domains to
 generate hypotheses is decades old and has its own literature.
@@ -237,7 +305,7 @@ magnitude, and it is already the field's convention.
 
 ---
 
-## 8. A metric caution: cosine similarity may be the wrong geometry
+## 9. A metric caution: cosine similarity may be the wrong geometry
 
 Ephapse's screens will naturally reach for cosine similarity between feature
 vectors or activations. Park, Choe & Veitch (*The Linear Representation
@@ -257,7 +325,7 @@ threshold does real work (e.g. the `semantic similarity < 0.2` filter in
 
 ---
 
-## 9. Causal abstraction: a strengthening for the receiving pipeline, not a risk to it
+## 10. Causal abstraction: a strengthening for the receiving pipeline, not a risk to it
 
 **Corrected 2026-09-18 — an earlier version of this section over-claimed.**
 
@@ -302,7 +370,7 @@ created by this repo's handoff and the correction belongs on the record.
 
 ---
 
-## 10. What this means for the issues
+## 11. What this means for the issues
 
 **Issue 3 should be re-specified**, not just executed. Concretely:
 
@@ -311,23 +379,41 @@ created by this repo's handoff and the correction belongs on the record.
    corpus and confirm the detector recovers it (§2). Report recovery rate
    as a function of injection rate, as the reference work does.
 2. Adopt the **NPMI + semantic-distance** filter as the primary screen
-   (§2, §7), rather than raw co-activation magnitude.
+   (§2, §8), rather than raw co-activation magnitude.
 3. Cluster co-activating features before counting them as independent hits,
    to control for splitting (§4).
 4. Rank surviving candidates by a **surprise**-style score (structural
-   similarity x semantic distance) rather than activation magnitude (§7).
+   similarity x semantic distance) rather than activation magnitude (§8).
 5. Report the **absorption caveat** on any null result: a null may reflect
    SAE representational limits rather than absence of structure (§4).
 6. For any numerical/arithmetic pair, explicitly test the **bag-of-heuristics**
-   explanation before promoting it (§6).
+   explanation before promoting it (§7).
+7. **Require paraphrase invariance** (§6): zero shared tokens between the two
+   prompt sets, plus a lexical-shuffle control. This is a *different* filter
+   from item 2 — that one screens similar **features**, this one screens
+   shared **input surface form**.
 
 **New issue warranted:** a detector validation task — the injected-correlation
 positive control — which must run *before* issue 3, since issue 3's
 interpretation depends on the detector's measured recovery rate.
 
+**Issue ordering consequence of §6:** the paraphrase-invariance probe is
+promoted to the *first* experiment, ahead of the general cross-domain probe,
+because a flagged co-activation is uninterpretable as a semantic claim until
+surface form is ruled out. Running the general probe first would produce
+results whose meaning depends on a test that has not yet been run.
+
 **A possible future direction, not a current one:** probe a task-trained
 model (per the grokking circuit results) rather than a general-purpose
 checkpoint, if pretrained-model probing proves structurally empty.
+
+**A reviewed and declined direction.** A general-purpose (non-mathematical)
+cross-domain hypothesis-generation pipeline was reviewed and deliberately not
+started as a third repo — see `docs/decisions/LOG.md` DEC-012 for the reasoning
+and for what was carried over instead. The short version: it is the same
+intellectual ancestor with a weaker search mechanism and no validation oracle,
+and its evaluation apparatus is the expensive substitute for the kernel oracle
+Maith already has.
 
 ---
 
@@ -348,3 +434,5 @@ checkpoint, if pretrained-model probing proves structurally empty.
 | Cross-domain analogy / LBD | Swanson ABC model & ARROWSMITH; Kang et al., ACM TOCHI 2022; `rudybear/cross-domain-analogy` |
 | Representation geometry | Park, Choe & Veitch, ICML 2024; Park et al., ICLR 2025 |
 | Causal abstraction vacuity | arXiv:2507.08802 (Sutter et al.) |
+| Retrospective time-cut benchmark design | ProjectionBench, arXiv:2605.30284 (progressive information disclosure, post-cutoff papers); IdeaBench, PMC11923747 (post-2024 target papers to prevent leakage) |
+| Non-verbal robustness / latent-space-as-evidence critique | General cross-domain hypothesis-generation review (2026-09-18); see §6 and DEC-011 |

@@ -239,3 +239,87 @@ belongs in Maith's active-track prior art rather than here.
 **Scope:** this repo's handoff creates the interface, so the note lives here;
 the substance belongs on the Maith side. Raised there as an issue (see the
 prior-art gap), not as a risk.
+
+---
+
+## DEC-011 — Paraphrase invariance is a precondition, not a validation step
+
+**Date:** 2026-09-18 · **Status:** adopted
+
+A co-activation claim is a **vocabulary claim until proven otherwise**. Two
+controls are added to the method notes (`AGENT_HANDOFF.md` § Method notes,
+`PRIOR_ART.md` §6): the lexical-shuffle control, and a zero-shared-token
+requirement between the two prompt sets.
+
+**Rationale:** this objection arrived independently from two directions.
+Externally (from a review of a general-purpose cross-domain hypothesis-
+generation pipeline): a model's latent space blends genuine regularities with
+conventional associations, outdated claims, and linguistic patterns that sound
+explanatory without being true — so "search representations for insight" is not
+a defensible objective as stated. Internally: this repo's own prior-art review
+had already established the same thing three ways — universality makes overlap
+the default (§1), absorption makes firing unreliable (§4), and surface artifacts
+dominate at 160M. The combined statement is that a flagged co-activation is a
+hypothesis about shared semantics that has not yet been separated from shared
+surface form.
+
+**Crucially, this is detector-side, not a small-model artifact.** The detector
+finds whatever the SAE represents; if the SAE represents tokens well and
+relations poorly, the output is token-shaped at any scale. Scaling changes the
+mix, not the necessity of the control.
+
+**Also note it is a different filter from NPMI + semantic distance.** That
+screen kills pairs whose *features* are semantically similar. It does not kill
+pairs whose *inputs* share surface tokens. The confound checklist previously
+covered only the first.
+
+**Consequence for issue ordering:** because paraphrase invariance gates the
+interpretation of every other result, the paraphrase probe is promoted to the
+*first* experiment rather than a later validation step.
+
+---
+
+## DEC-012 — No third repo for real-world cross-domain search (yet)
+
+**Date:** 2026-09-18 · **Status:** adopted
+
+A general-purpose, non-mathematical cross-domain hypothesis-generation pipeline
+(document-dossier → candidate generation → adversarial critique → blind expert
+scoring → retrospective validation) was reviewed as a possible new sibling
+project. **Decision: do not start one now.** The useful parts are carried into
+Maith and Ephapse instead.
+
+**Rationale:** the reviewed design is the same intellectual ancestor as Maith
+and Ephapse — cross-domain analogical transfer producing falsifiable candidates
+— but with a different search mechanism (prompted LLM over text dossiers) and,
+decisively, **no validation oracle**. Its entire apparatus — blinded expert
+panels, a `ProbePriority = I×P×L/(C×R)` score, adversarial critique — exists to
+substitute for the kernel oracle that Maith already has. Building it would mean
+building the expensive substitute for an oracle, in a domain where validation
+cost is the binding constraint, while the existing projects have not yet
+produced a first result. This is the same failure mode as Maith's earlier
+"infrastructure ahead of results" mistake.
+
+**Reviewer note:** the reviewed document's NSF framing was also partly wrong
+and should not be relied on. NSF 26-512 ("AI Datasets") is explicitly a
+*data-readiness* program ("proposals must focus on enhancing the value of
+existing scientific datasets… rather than new data collection"), not a
+hypothesis-generation program; the relevant broad framing is the Genesis
+Mission DCL (NSF 26-023). Separately, its eligibility claim was overstated in
+the pessimistic direction: eligible proposers include for-profit organizations,
+so an LLC is a cheaper route to eligibility than university partnership.
+Verified: $60–100M total, Planning ≤$200k, Impact ≤$2M, Flagship ≤$5M,
+deadline 2026-11-04, recurring first Wednesday in November.
+
+**What was carried over instead:**
+
+- **To Maith:** the retrospective time-cut validation design as the preferred
+  answer to the missing ground-truth recovery setting (`PRIOR_ART.md` §9.5),
+  with the training-cutoff caveat the source document omitted.
+- **To Ephapse:** the non-verbal robustness requirement (`PRIOR_ART.md` §6,
+  DEC-011).
+
+**Reconsider when:** either project has a first result, or a specific real-world
+problem class with a defined outcome measure and an accessible oracle is
+identified — at which point the decision to build is about a concrete domain,
+not about the general idea.
