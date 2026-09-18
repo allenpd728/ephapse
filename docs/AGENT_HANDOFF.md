@@ -112,23 +112,36 @@ provisioning can change.
 
 - **RAM**: measured **15 GiB total** (~13 GiB available), CPU only, no GPU,
   shared across OS, Python environment, and the probed model simultaneously.
-  Pythia-160M in fp32 peaks at **2.65 GB RSS**; Pythia-70M at **1.52 GB**.
-  The doc's older "24GB" figure was wrong — do not size against it.
-- **CPU**: 4 cores. Pythia-160M forward pass ≈ **217 ms/call** (one core);
-  Pythia-70M ≈ **121 ms/call**. This is the real ceiling on experiment
-  size: a 2,000-prompt sweep at 160M is ~7 minutes of pure forward-pass
-  time before any SAE overhead.
-- **Disk**: 55 GB free on `/`. Pythia-160M checkpoint ≈ 1.1 GB in the HF
-  cache. Separate budget from RAM, but not currently tight.
-- **Network egress**: huggingface.co, neuronpedia.org, and pypi.org were all
-  reachable (HTTP 200) from the sandbox. Egress is not currently
-  allowlist-restricted, but confirm before designing an experiment around
-  a new host rather than discovering this mid-task.
+  **No cgroup cap is enforced** (`memory.max` = `max`), so this is host RAM —
+  budget **~10 GB per run**, not 13. Pythia-160M in fp32 peaks at **2.68 GB
+  RSS**; Pythia-70M at **1.52 GB**. Cached activations are negligible
+  (0.11 MB/prompt for 3 layers) as long as you aggregate rather than
+  accumulate them. The doc's older "24GB" figure was wrong — do not size
+  against it.
+- **CPU**: 4 cores. Latency depends entirely on batching, and the earlier
+  guidance here was off by ~10x for sweeps: Pythia-160M is **207 ms** for a
+  single prompt (per-call overhead) but **21 ms/prompt** at batch 64. Size
+  *sweeps* on the batched figure (2,000 prompts ≈ 40 s); size *interactive
+  single-prompt iteration* on the 207 ms figure. Full table in
+  `docs/reference/SANDBOX_BASELINE.md`.
+- **Disk**: 58 GB free on `/` (overlay). Pythia-160M ≈ 1.1 GB cached; egress
+  runs at ~25 MB/s, so a 1 GB checkpoint is under a minute. Not a binding
+  constraint.
+- **Network egress**: not allowlist-restricted. huggingface.co, the full LFS
+  download path, neuronpedia.org, pypi.org, and api.github.com all work.
+  Confirm per session rather than assuming, but do not plan around a
+  restriction that is not currently present.
+- **Environment is not persistent across sessions** — torch and the
+  interpretability libraries had to be reinstalled at the start of the issue-1
+  run. Assume a cold environment or install from `requirements.txt` first
+  thing.
 - **Model size ceiling**: the doc's "70M–1B" is directionally right but the
   mechanism matters. TransformerLens loads **fp32 by default** (hence
-  160M → 2.65 GB). With dtype control (fp16) and no autograd, ~1–2B
-  params is feasible in 13 GiB. So: don't declare something "blocked"
-  purely on parameter count — state the dtype and whether hooks cache
+  160M → 2.68 GB). With dtype control (fp16) and no autograd, ~1–2B
+  params is feasible. Note that batched evaluation is far cheaper than
+  interactive use, so "larger models are impractical" applies to iteration,
+  not to a fixed eval sweep. Don't declare something "blocked" purely on
+  parameter count — state the dtype, the batch size, and whether hooks cache
   activations.
 - State the exact model size used in every experiment writeup. Don't
   imply a finding generalizes to a different model size without
