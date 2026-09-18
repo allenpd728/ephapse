@@ -1,0 +1,29 @@
+# Findings log — append-only, observations only.
+#
+# One JSON object per line, one line per flagged co-activation event.
+# NO conclusions field. This is a lab notebook, not a results table.
+#
+# Required keys:
+#   ts          — UTC ISO8601 timestamp of the run
+#   issue       — GitHub issue number that produced this record
+#   run_id      — agent run-id (see docs/MULTI_AGENT_WORKFLOW.md)
+#   model       — exact model id, e.g. "pythia-160m"
+#   revision    — HF revision/commit if pinned, else null
+#   dtype       — e.g. "float32"
+#   sae         — SAE id, e.g. "res-jb" or null if raw activations
+#   layer       — layer index or hook name
+#   feature_id  — SAE feature index, or null
+#   hook        — TransformerLens hook name if applicable
+#   inputs_a    — the first input set / prompts (list)
+#   inputs_b    — the second input set / prompts (list)
+#   activation_a, activation_b — observed activation values
+#   null_model  — how the baseline was constructed (REQUIRED)
+#   correction  — multiplicity correction applied (REQUIRED)
+#   n           — number of comparisons in the family (REQUIRED)
+#   statistic   — observed value of the test statistic
+#   p_corrected — corrected p-value, or null
+#   confounds_checked — which confounds were tested (list)
+#   confounds_fired   — which of those fired (list)
+#   verdict     — "flagged" | "null"  (a label, NOT a conclusion)
+#
+# A record with no null_model / correction / n is not evidence.

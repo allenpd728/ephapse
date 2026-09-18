@@ -1,0 +1,13 @@
+# CPU-only PyTorch build. Install with:
+#   pip install -r requirements.txt
+# On a GPU host, swap the torch line for the matching CUDA wheel index.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# Versions confirmed working in the OpenHands Cloud sandbox on 2026-09-18.
+# See docs/reference/SANDBOX_BASELINE.md for the evidence.
+torch==2.14.0+cpu
+transformer-lens==3.9.0
+sae-lens==6.51.0
+
+# numpy/pandas come in transitively; pin only if a version conflict appears.
+numpy
