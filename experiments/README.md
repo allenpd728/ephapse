@@ -32,7 +32,28 @@ results land in `docs/reference/SANDBOX_BASELINE.md` rather than
 |---|---|---|---|
 | 2026-09-18 | `2026-09-18-sandbox-baseline-hooked.py` | #1 | Peak RSS for a hooked run (`run_with_cache`) vs bare forward pass; cache size per prompt |
 | 2026-09-18 | `2026-09-18-latency-vs-batch.py` | #1 | Amortized latency across batch sizes; resolves the 207 ms (batch 1) vs 21 ms (batch 64) discrepancy |
+| 2026-09-18 | `2026-09-18-toolchain-neuronpedia-crosscheck.py` | #2 | End-to-end TransformerLens + SAELens, cross-checked against Neuronpedia's hosted copy of the same feature |
 
-Note: these two are the pre-existing exceptions to the naming convention above
-(they omit the `null`/`correction` headers deliberately). Future files should
-carry the full header.
+Note: the first two are the pre-existing exceptions to the naming convention
+above (they omit the `null`/`correction` headers deliberately). Future files
+should carry the full header.
+
+## Target model and SAE (settled, issue #2)
+
+**Use `pythia-70m-deduped` with `pythia-70m-deduped-res-sm`** (7 hooks,
+resid_pre + resid_post L0–L5). This is not a preference — it is the only
+Pythia pair that exists in SAELens. There is no Pythia-160M release. See
+DEC-014 and `docs/reference/SANDBOX_BASELINE.md`.
+
+Working values from the verified run:
+
+```python
+MODEL      = "pythia-70m-deduped"          # TransformerLens
+SAE_RELEASE = "pythia-70m-deduped-res-sm"  # SAELens
+SAE_ID      = "blocks.3.hook_resid_post"   # d_in=512, d_sae=32768
+NP_MODEL    = "pythia-70m-deduped"         # Neuronpedia
+NP_SAE      = "3-res-sm"
+```
+
+Decoder directions come from local `sae.W_dec`. Neuronpedia does **not**
+serve vectors (DEC-015).

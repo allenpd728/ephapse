@@ -80,20 +80,34 @@ happen inside an agent's plan too.
   has changed repeatedly — GLM → Kimi K3 → DeepSeek V4 Flash in the
   release notes — and account-level config can differ from the default.
   Check the account's Settings if it matters.)
-- **The probed model** (a small open-weight model such as Pythia-70M to
-  ~410M) — downloaded separately via HuggingFace and loaded locally,
-  in-process, inside the sandbox. This is the only kind of model
-  TransformerLens/SAELens can actually instrument. It has nothing to do
-  with which LLM is powering the agent.
+- **The probed model** (a small open-weight model) — downloaded separately via
+  HuggingFace and loaded locally, in-process, inside the sandbox. This is the
+  only kind of model TransformerLens/SAELens can actually instrument. It has
+  nothing to do with which LLM is powering the agent.
+
+  **The model choice is constrained by SAE availability, not by size.**
+  Measured (issue #2): SAELens has **7 Pythia SAE releases, all for
+  `pythia-70m-deduped`** — there is no Pythia-160M release and no
+  non-deduped Pythia-70M release. So the target is **`pythia-70m-deduped`**
+  (`d_model=512`, `n_layers=6`), not the "Pythia-70M to ~410M" the earlier
+  guidance implied. A 160M target would require training an SAE first.
+  Full table in `SANDBOX_BASELINE.md` §Model and SAE availability.
 
 - **The remote probing API** (Neuronpedia, and nnsight/NDIF for larger
   models) is a **third path, not a smaller local one.** It runs the model
-  and SAE on someone else's GPU and returns only a result: top-k
-  activations, or a feature's decoder vector. You get no arbitrary
-  activation matrix, so you cannot compute a full PMI/FDR sweep through
-  it. Its binding constraint is **rate limit**, not sandbox RAM. Use it
-  for targeted validation of a feature that already looks interesting;
-  use the local path for exploration.
+  and SAE on someone else's GPU and returns only a summary: dashboards,
+  top-k activations, `maxActApprox`, autointerp labels. You get no arbitrary
+  activation matrix, so you cannot compute a full PMI/FDR sweep through it.
+  Its binding constraint is **rate limit**, not sandbox RAM. Use it for
+  targeted inspection of a feature that already looks interesting; use the
+  local path for exploration.
+
+  **Correction (issue #2):** this section previously said the API returns
+  "a feature's decoder vector." It does not — `hasVector` is `False` and
+  `vector` is an empty list even with `?includeVector=true`, verified on both
+  a Pythia and a GPT-2 SAE. The decoder direction comes from **local**
+  `sae.W_dec`, which is strictly better (no rate limit, no network, no
+  hosted copy to trust). See `SANDBOX_BASELINE.md` §Neuronpedia API.
 
 `get_llm()` / `get_secrets()` are methods on `OpenHandsCloudWorkspace` in
 the OpenHands SDK (see the SDK example
@@ -168,9 +182,12 @@ provisioning can change.
   genuinely insufficient and local GPU isn't available.
 
 **Which models actually have SAE coverage** matters more than parameter
-count when picking a target. GPT-2-small and the Pythia suite have the
-deepest pretrained-SAE coverage on Neuronpedia; pick from those rather
-than choosing a size and hoping an SAE exists.
+count when picking a target, and this is a hard constraint, not a preference.
+Measured (issue #2): SAELens has 7 Pythia releases and **all are
+`pythia-70m-deduped`** — no 160M, no non-deduped 70M. Use
+`sae_lens.loading.pretrained_saes_directory.get_pretrained_saes_directory()`
+to check before choosing any target, and use the release's `neuronpedia_id`
+field to match a local SAE to its hosted copy rather than guessing names.
 
 ## Method notes (read before designing issue 3)
 
@@ -329,11 +346,11 @@ it) — don't repeat it here at a smaller scale.
    `docs/reference/SANDBOX_BASELINE.md`; this issue confirms it and fills
    the gaps (e.g. actual quota vs. observed free space).
 2. **Set up TransformerLens + SAELens against Neuronpedia's hosted
-   features for a Pythia-70M or -160M model.** Confirm the toolchain works
-   end to end in the sandbox, and confirm the Neuronpedia API shape
-   (`/api/search-all` payload is currently unconfirmed — the feature
-   endpoint `/api/feature/{model}/{sae}/{index}` is confirmed working).
-   Blocked on issue 1.
+   features.** **Done 2026-09-18** (run `20260918-1720-altu`, commit pending
+   at time of writing; see the issue). Outcome: the toolchain works end to
+   end at `pythia-70m-deduped` / `blocks.3.hook_resid_post`, and the target
+   model was corrected — there is **no Pythia-160M SAE release**, so 160M is
+   not usable (DEC-014). Blocked on issue 1 (closed).
 3. **Validate the detector with an injected positive control.** Inject a
    known cross-domain co-activation into a background corpus and measure
    the recovery rate as a function of injection rate, per

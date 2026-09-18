@@ -383,3 +383,70 @@ literature-based discovery's **replication** method, with a mature evaluation
 literature and two documented concerns worth carrying — it rests on a very
 small set of confirmed discoveries, and those were made by a researcher with
 personal experience of the conditions (a target-set selection concern).
+
+---
+
+## DEC-014 — Target model is pythia-70m-deduped; the 160M plan was unbuildable
+
+**Date:** 2026-09-18 · **Status:** adopted (supersedes the model guidance in
+DEC-004 and the tooling section as originally written)
+
+**Decision:** the probed model for all experiments is **`pythia-70m-deduped`**
+(`d_model=512`, `n_layers=6`). Every "Pythia-160M" reference in the handoff
+doc and in the issue-#1 baseline is superseded.
+
+**Rationale — measured, issue #2 run `20260918-1720-altu`.** SAELens exposes
+**7 Pythia SAE releases and all of them are `pythia-70m-deduped`.** There is no
+pythia-160m release and no non-deduped pythia-70m release. The handoff doc
+recommended "Pythia-70M to ~410M" and the #1 session measured 160M as the
+working target — both were selecting on parameter count without checking
+whether a pretrained SAE exists. It does not. **The cross-check requirement in
+issue #2 is unsatisfiable at 160M** without training an SAE, which is out of
+scope (this is not a training project).
+
+This is a case of the project's own most-repeated lesson: a decision was made
+from a plausible-sounding range rather than from a query against the actual
+catalogue. The constraint is hard, not a preference.
+
+**Consequences:**
+
+1. `pythia-70m-deduped` is *smaller* than the 160M target, so the #1 measured
+   latencies and memory figures remain valid as upper bounds.
+2. The `neuronpedia_id` field in the SAELens release directory is the
+   authoritative bridge for matching a local SAE to its hosted copy (e.g.
+   `blocks.3.hook_resid_post -> 'pythia-70m-deduped/3-res-sm'`). Do not
+   guess hosted naming.
+3. Later issues must check SAE availability before naming a model, not after.
+
+---
+
+## DEC-015 — Neuronpedia does not serve decoder vectors; use local `W_dec`
+
+**Date:** 2026-09-18 · **Status:** adopted (corrects DEC-003)
+
+**Decision:** the decoder direction comes from **local** `sae.W_dec`
+(shape `(d_sae, d_model)`, confirmed `(32768, 512)`). The remote-probing path
+is for *inspection* only: dashboards, top-k activations, `maxActApprox`,
+autointerp labels.
+
+**Rationale — measured.** An earlier claim in DEC-003 and the handoff doc said
+the Neuronpedia feature endpoint returns a feature's decoder vector usable for
+held-out-text testing. It does not: `hasVector` is `False`, `vector` is an
+empty list, and `?includeVector=true` does not change either — verified on
+five `pythia-70m-deduped/3-res-sm` features and one `gpt2-small/9-res-jb`
+feature. The claim was written from the API's *field names* rather than from a
+response, and the field exists but is empty.
+
+**Why this is not a loss:** local `W_dec` is strictly better for the purpose —
+no rate limit, no network dependency, no hosted copy to trust, and it is the
+actual direction the local SAE uses. DEC-003's core distinction still stands
+(remote is a different path, not a smaller local one); only the claim about
+what it *returns* was wrong.
+
+**Also recorded from the same run:** the cross-check between local SAE
+activations and Neuronpedia's `maxActApprox` agrees in magnitude for 4 of 5
+features but spans 0.275x–4.7x. That spread is expected, because
+`maxActApprox` is Neuronpedia's maximum over their dataset while the local
+figure is over 8 prompts — **neither bounds the other.** The endpoint is a
+sanity check on feature *identity* only; `maxActApprox` must not be used as a
+reference value for anything quantitative.

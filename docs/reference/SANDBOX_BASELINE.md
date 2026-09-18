@@ -9,8 +9,104 @@ can change.
 > added the three gaps the scaffolding session left open (disk quota,
 > egress stability, hooked-run RSS) and corrected a latency figure that
 > would have mis-sized every later experiment. See §Latency.
+>
+> **Revised again 2026-09-18 (issue #2, run `20260918-1720-altu`).** Added
+> the §Model and SAE availability section, which constrains the model choice
+> for every later issue, and corrected the §Neuronpedia API claim about
+> decoder vectors. See that section.
 
-## Host resources
+## Model and SAE availability — this constrains the model choice
+
+**Measured 2026-09-18 (issue #2).** The handoff doc recommends "Pythia-70M to
+~410M". That range is **wrong for the cross-check requirement**, and the correct
+set is narrower.
+
+Queried via `sae_lens.loading.pretrained_saes_directory.get_pretrained_saes_directory()`:
+
+| Release | Model | Hooks covered |
+|---|---|---|
+| `pythia-70m-deduped-res-sm` | pythia-**70m-deduped** | 7 (resid_pre + resid_post L0–L5) |
+| `pythia-70m-deduped-att-sm` | pythia-70m-deduped | 6 (attn_out) |
+| `pythia-70m-deduped-mlp-sm` | pythia-70m-deduped | 6 (mlp_out) |
+| 4 × `sae_bench_pythia70m_sweep_*` | pythia-70m-deduped | 40–56 (SAEBench sweeps) |
+
+**Total pythia releases in SAELens: 7. All are pythia-70m-deduped. There is no
+pythia-160m SAE release, and no non-deduped pythia-70m release.**
+
+Consequences, which every later issue must respect:
+
+1. **Use `pythia-70m-deduped`, not `pythia-160m`.** Every "Pythia-160M" reference
+   in the handoff doc and in the #1 baseline is computationally fine but cannot
+   be paired with an SAE. If a 160M target is wanted later, an SAE must be
+   trained — out of scope for this stage.
+2. **`d_model=512`, `n_layers=6`** (smaller than 160M's 768/12). Latency and
+   memory are therefore *better* than the #1 figures; the #1 numbers remain
+   valid as upper bounds.
+3. **`neuronpedia_id` is the bridge.** The SAELens directory carries a
+   per-hook `neuronpedia_id` mapping, e.g.
+   `blocks.3.hook_resid_post -> 'pythia-70m-deduped/3-res-sm'`. That is how a
+   local SAE is matched to its hosted copy — do not guess the naming.
+
+## End-to-end toolchain verification (issue #2)
+
+`experiments/2026-09-18-toolchain-neuronpedia-crosscheck.py`, run
+`20260918-1720-altu`:
+
+```
+d_model=512  n_layers=6
+SAE loaded: d_in=512  d_sae=32768
+local top-5 active features: [(20526, 51.49), (7254, 23.43), (32409, 17.01),
+                             (1812, 16.50), (5355, 16.40)]
+
+   idx  local max  NP maxActApprox    ratio  hookName match
+ 20526     51.491           56.738    0.908            True
+  7254     23.431           26.307    0.891            True
+ 32409     17.007            3.604    4.719            True
+  1812     16.505           43.701    0.378            True
+  5355     16.401           59.604    0.275            True
+
+local W_dec shape: (32768, 512)  (d_sae, d_model)
+```
+
+**Interpretation, stated carefully.** The two sources are the *same feature set*
+(a `d_in` of 512 matches `d_model`, `d_sae=32768` is the documented width, and
+`hookName` agrees on every queried feature). Magnitudes are the same order for
+4 of 5 features.
+
+**But ratios span 0.275x to 4.7x, and that is expected, not a failure.**
+`maxActApprox` is Neuronpedia's maximum over *their* activation dataset; the
+local figure is the max over *8 prompts*. Neither bounds the other, so a local
+max exceeding the hosted approximation (feature 32409, 4.7x) is possible.
+**This is a sanity check on identity, not a calibration of values** — treat
+agreement in magnitude as sufficient, and do not use `maxActApprox` as a
+reference value for anything quantitative.
+
+## Neuronpedia API — corrected
+
+Earlier in this document (and in DEC-003) it was claimed that the feature
+endpoint's `vector` field "is the decoder direction, so it can be used to test
+a candidate feature against held-out text." **That is wrong in practice.**
+
+Measured across five `pythia-70m-deduped/3-res-sm` features and one
+`gpt2-small/9-res-jb` feature:
+
+```
+hasVector: False   vector: [] (length 0)   vectorLabel: None
+...also with ?includeVector=true -> still length 0
+```
+
+**The decoder direction is not retrievable from the API.** The good news is
+that it is unnecessary: the decoder direction is available **locally** from
+SAELens as `sae.W_dec`, shape `(d_sae, d_model)` — confirmed `(32768, 512)` for
+the pythia SAE. Local is strictly better for this purpose: it needs no rate
+limit, no network, and no trust in a hosted copy.
+
+**Consequence:** the remote-probing path (DEC-003) is for *inspecting* hosted
+features — dashboards, top activations, `maxActApprox`, autointerp labels — not
+for obtaining vectors. Any experiment needing a decoder direction uses the
+local `W_dec`.
+
+## Host resources (unchanged)
 
 Command: `free -h; df -h; nproc; nvidia-smi -L`
 
