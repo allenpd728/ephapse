@@ -161,28 +161,67 @@ than choosing a size and hoping an SAE exists.
 
 ## Method notes (read before designing issue 3)
 
-Cross-domain co-activation is expected to fire *a lot*, for reasons that
-are not interesting. The filter has to be specified before the run, or
+**See `docs/reference/PRIOR_ART.md` first — it changes this section's
+premises.** The headline: feature universality is established (arXiv:2410.06981)
+and SAE features are already known to co-occur more than chance (Clarke,
+PIBBSS). So "two unrelated inputs share a feature" is close to the *expected*
+result, not a signal. What matters is what survives a filter built to kill
+the boring cases.
+
+Cross-domain co-activation fires a lot, for reasons that are not
+interesting. The filter has to be specified before the run, or
 `findings.jsonl` fills with noise that looks like signal.
 
-- **Specify the null model first.** Pointwise mutual information between
-  binary feature activations, or a co-activation z-score against a
-  permuted-input baseline. The choice must be recorded in the finding.
+- **Specify the null model first.** Normalized PMI between binary feature
+  activations, or a co-activation z-score against a permuted-input
+  baseline. The choice must be recorded in the finding.
+- **Use a positive control, not just a null.** Inject a known
+  cross-domain correlation into a background corpus and confirm the
+  detector recovers it, reporting recovery rate vs. injection rate. A null
+  baseline tells you your detector isn't too permissive; it cannot tell you
+  the detector works. The reference method does this and compares against
+  an LLM-judge baseline that recovers injected correlations only
+  unreliably. This is the most transferable result in the prior-art review.
+- **Filter on NPMI *and* semantic distance.** The reference method selects
+  candidate pairs at `NPMI > 0.8` and `semantic similarity < 0.2`. The
+  second clause is what excludes pairs whose features are similar to each
+  other — the naive confound.
 - **Correct for multiplicity.** With 10^5 features and many prompt pairs,
   per-pair significance is meaningless. Use BH-FDR or a permutation null
   over the whole feature × pair matrix, and record N and the correction.
+  Anchor for scale: one study finds only ~25% of highly active features in
+  a layer encode genuine task-relevant information (arXiv:2511.11711).
+- **Cluster before counting.** Feature splitting means one coherent
+  structure can appear as several partially-overlapping features. Cluster
+  co-activating features before treating them as independent hits.
+- **Rank by surprise, not magnitude.** The field's convention for
+  cross-domain candidate ranking is `structural similarity x semantic
+  distance`, which prefers candidates that are structurally alike but
+  semantically far apart (see PRIOR_ART §7). Raw co-activation magnitude
+  prefers frequent, uninteresting features.
 - **Record the known confounds.** Same literal token in both prompt sets;
   same sequence position; high-frequency catch-all features (check the
   activation histogram — broad and weak is a red flag); syntactic or
-  discourse-marker features. These are the dominant false-positive
-  sources at small model scale, and at 160M they may account for
-  essentially all cross-domain overlap.
-- **Correlation triages; intervention evidences.** A feature that fires on
-  both domains *and* whose ablation/steering changes behavior on both is
-  the signal worth handing to a human. Co-activation alone is not.
-- **A null result is a result.** At this scale, "the interesting-looking
-  overlaps were surface artifacts" is a likely and fully legitimate
-  outcome, and it should be recorded with the same care as a positive one.
+  discourse-marker features. At 160M these may account for essentially all
+  cross-domain overlap.
+- **Correlation triages; intervention evidences — with caveats.** The
+  intervention literature is weaker than it looks (PRIOR_ART §5). Prefer
+  **ablation** over additive steering; require **in-distribution**
+  contexts; include an **interference control** (intervening on one SAE
+  feature is known to transfer to semantically unrelated features on
+  Pythia-70M and GPT-2-small specifically); and treat a *failed*
+  intervention as inconclusive rather than as evidence against the feature.
+- **A null result is a result — but check absorption first.** A null may
+  mean no cross-domain structure, *or* it may mean the SAE cannot represent
+  it. Feature absorption produces false negatives, occurs in every model
+  tested, and may be structural to the sparsity objective (arXiv:2409.14507).
+  Any null writeup must state this caveat.
+- **For numerical or arithmetic inputs, rule out the bag-of-heuristics
+  explanation.** Models solve arithmetic with memorized heuristics, not
+  algorithms (arXiv:2410.21272), so a math-adjacent co-activation may be
+  two heuristics sharing a trigger pattern rather than a shared
+  mathematical concept. This is the most likely way for the project to
+  produce a plausible artifact.
 
 ## Issue-based task management
 
@@ -252,16 +291,24 @@ it) — don't repeat it here at a smaller scale.
    (`/api/search-all` payload is currently unconfirmed — the feature
    endpoint `/api/feature/{model}/{sae}/{index}` is confirmed working).
    Blocked on issue 1.
-3. **Design one small, well-defined cross-domain probe** — two sets of
-   prompts from genuinely unrelated topics, checking whether any SAE
-   feature co-activates across both sets more than a random baseline.
-   The null model, multiplicity correction, and confound checklist from
-   "Method notes" must be fixed *before* the run. This is a methodology
-   proof-of-concept, not a math-discovery attempt. Blocked on issue 2.
-4. **Log the result in `findings.jsonl` regardless of outcome** — a null
+3. **Validate the detector with an injected positive control.** Inject a
+   known cross-domain co-activation into a background corpus and measure
+   the recovery rate as a function of injection rate, per
+   `docs/reference/PRIOR_ART.md` §2. This must run *before* the real probe,
+   because the probe's interpretation depends on the detector's measured
+   sensitivity — a null from an unvalidated detector is uninterpretable.
+   Blocked on issue 2.
+4. **Design one small, well-defined cross-domain probe** — two sets of
+   prompts from genuinely unrelated topics, scored for co-activation above
+   baseline. The null model, positive control, multiplicity correction,
+   NPMI + semantic-distance filter, and confound checklist from "Method
+   notes" must be fixed *before* the run. This is a methodology
+   proof-of-concept, not a math-discovery attempt. Blocked on issue 3.
+5. **Log the result in `findings.jsonl` regardless of outcome** — a null
    result (no meaningful co-activation found) is informative about whether
    this method works at all at this model scale, and should be recorded
-   with the same care as a positive one.
+   with the same care as a positive one — with the feature-absorption
+   caveat stated (`PRIOR_ART.md` §4).
 
-Do not attempt a "search for novel math" experiment until issue 3 has run
+Do not attempt a "search for novel math" experiment until issue 4 has run
 at least once and the method's basic signal-to-noise has been assessed.

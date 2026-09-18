@@ -113,8 +113,20 @@ findings.jsonl               — append-only log of flagged co-activation
 docs/AGENT_HANDOFF.md        — scope, non-goals, constraints, first issues
 docs/MULTI_AGENT_WORKFLOW.md — claiming, run-ids, dependencies, done-evidence
 docs/reference/SANDBOX_BASELINE.md — measured sandbox numbers + evidence
+docs/reference/PRIOR_ART.md  — literature review; read before designing a probe
 docs/decisions/LOG.md        — decision log (DEC-0xx)
 ```
+
+## Read this before designing an experiment
+
+`docs/reference/PRIOR_ART.md` is not optional background. It establishes
+that SAE feature universality across models is already known, and that SAE
+features co-occur more than chance as a baseline — so raw cross-domain
+co-activation is close to the expected result rather than a signal. The
+interesting object is co-activation that survives a filter built to kill
+the boring cases, and the review specifies that filter (NPMI plus semantic
+distance, a positive control, clustering for feature splitting, a surprise
+criterion).
 
 ## What not to build yet
 

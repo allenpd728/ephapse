@@ -99,3 +99,119 @@ infrastructure ahead of results, one level down.
 
 **Consequence:** a null result at 160M is an expected and legitimate
 outcome, and is recorded with the same care as a positive one.
+
+---
+
+## DEC-006 — Prior-art review performed; core premise revised
+
+**Date:** 2026-09-18 · **Status:** adopted
+
+`docs/reference/PRIOR_ART.md` records the field check performed before the
+first probe. It revises the project's framing in one important way.
+
+**Finding:** the premise that cross-domain co-activation is a
+distinctive, low-base-rate event is not supported. SAE feature universality
+across models is established (arXiv:2410.06981; Anthropic's *Towards
+Monosemanticity*), and SAE features are already known to co-occur more than
+chance even in large SAEs (Clarke, PIBBSS). Co-activation is close to the
+*expected* result.
+
+**Revised framing:** the object of interest is not co-activation, it is
+**co-activation that survives a filter built to kill the boring cases**.
+This keeps the project's premise alive — a filter yielding a small,
+well-characterized residue is still a usable candidate generator — while
+removing the false expectation that raw co-activation is signal.
+
+**Also adopted from the review:** NPMI + semantic-distance filtering rather
+than raw co-activation magnitude; surprise-style ranking
+(`structural similarity x semantic distance`) rather than activation
+magnitude; clustering before counting hits, to control for feature
+splitting; and the feature-absorption caveat on all null results.
+
+---
+
+## DEC-007 — Detector validation (positive control) gates the first probe
+
+**Date:** 2026-09-18 · **Status:** adopted
+
+A new issue — validating the detector against an injected known
+cross-domain correlation — is inserted between toolchain setup and the
+first probe. It is a hard blocker for the probe.
+
+**Rationale:** the reference method in `PRIOR_ART.md` §2 validates by
+injecting known correlations into a background corpus and measuring
+recovery, down to 10/10k injections, and shows an LLM-judge baseline
+recovers them only unreliably. A null baseline alone establishes that a
+detector is not *too permissive*; it cannot establish that the detector
+works at all. Since a null result is an explicitly anticipated outcome of
+the first probe, a null from an unvalidated detector would be
+uninterpretable — we could not distinguish "no structure exists" from
+"the detector cannot see structure." Validating first makes the probe's
+result interpretable either way.
+
+---
+
+## DEC-008 — Intervention guidance qualified; ablation preferred over steering
+
+**Date:** 2026-09-18 · **Status:** adopted
+
+The handoff doc's "correlation triages; intervention evidences" is retained,
+but the intervention bar is specified more carefully than in the original
+draft:
+
+- Prefer **ablation** over additive/contrastive steering. The unreliability
+  results (arXiv:2505.22637; Tan et al. NeurIPS 2024) concern additive
+  steering, where effects are high-variance and frequently opposite to the
+  intended direction, with some concepts effectively "anti-steerable."
+- Require **in-distribution** contexts; out-of-distribution is where
+  steering failures concentrate.
+- Include an **interference control**: intervening on one SAE feature is
+  known to transfer to semantically unrelated features on Pythia-70M and
+  GPT-2-small specifically (ICLR 2026, *Polysemantic Interference
+  Transfers*) — Ephapse's exact target models.
+- Treat a **failed** intervention as inconclusive, not as evidence against
+  the feature.
+
+**Rationale:** an earlier session recommended intervention as the evidence
+bar without qualification. The literature does not support an unqualified
+version of that claim, and the strongest counter-evidence is on this
+repo's exact target models.
+
+---
+
+## DEC-009 — Arithmetic-adjacent candidates need a heuristic check
+
+**Date:** 2026-09-18 · **Status:** adopted
+
+Any flagged pair involving numerical or arithmetic input must explicitly
+rule out the "bag of heuristics" explanation before a human spends time
+articulating it as a mathematical claim.
+
+**Rationale:** circuit analysis shows models solve arithmetic with
+memorized heuristics rather than robust algorithms (arXiv:2410.21272, ~1.5%
+of key MLP neurons suffice for ~96% of arithmetic accuracy). A math-adjacent
+co-activation may therefore be two heuristics sharing a trigger pattern, not
+a shared mathematical concept. This is the most likely way for the project
+to produce a plausible-looking artifact.
+
+---
+
+## DEC-010 — Cross-repo risk raised: constraining Maith's gate-1 alignment map
+
+**Date:** 2026-09-18 · **Status:** raised, not actioned here
+
+Noting a risk to the receiving pipeline. Sutter et al. (arXiv:2507.08802,
+NeurIPS 2025 spotlight) prove that causal-abstraction analyses become
+vacuous if the alignment map is allowed to be arbitrarily expressive: any
+network can be aligned to any algorithm, demonstrated at 100% interchange
+intervention accuracy on randomly initialized models that cannot perform
+the task. Linearity is the constraint that saves it.
+
+If Maith's gate 1 (homomorphism obligation) tests candidates using a
+flexible, learned, or high-capacity alignment map, the gate can pass
+trivially. The gate needs its map complexity explicitly bounded for a pass
+to carry information.
+
+**Scope:** flag for the Maith side; nothing in Ephapse changes. Recorded
+here because the risk is created by this repo's handoff and is easy to miss
+from Maith's own vantage point.
