@@ -851,3 +851,102 @@ document. That is the same class of defect as the ones above, in the process
 rather than the code.
 
 ---
+
+
+## DEC-023 — Two detector bugs found by diagnostic; the max-NPMI statistic does not replicate under corrected thresholds
+
+**Date:** 2026-09-19 · **Status:** adopted
+
+> **Numbering note.** This entry was originally written as DEC-018 and was
+> renumbered to DEC-023 at rebase because a concurrent session claimed
+> DEC-018–022 while this work was in flight. See DEC-018–022 for that
+> session's independent replication of #5 and the tier-0 gate scaffolding —
+> it reached the same 'catch-all features saturate the statistic' conclusion
+> from a different direction (its DEC-019 trap 1). (supersedes DEC-017's pass claim;
+corrects the threshold and input-format guidance)
+
+**Two independent bugs in the co-activation detector, both found by diagnostic
+after #6's first run returned a degenerate `best = cutoff = 1.0` in every arm
+including the null.**
+
+### Bug 1 — the pooled threshold disabled the detector
+
+The 99th percentile of positive activations **pooled across all features** was
+11.08, dominated by a few extreme features. At that threshold **32,764 of
+32,768 features fired on ZERO prompts.** The detector was not discriminating —
+it was switched off. Measured: with per-feature thresholds, 1,632 features
+receive a finite threshold and 533 fire on at least one prompt.
+
+**Fix:** per-feature thresholds (95th pct of each feature's *own* positive
+activations), plus a selectivity band that excludes features firing on almost
+nothing (no signal) or almost everything (bridge saturates to 1.0 under *any*
+pairing, destroying contrast).
+
+### Bug 2 — prompts were too short for the substrate
+
+Median prompt length was **5 tokens**, starving the residual stream. Measured
+usable features (firing on >=20% of prompts) by input format:
+
+| Format | Median tokens | Features firing on >=20% |
+|---|---|---|
+| bare prompt | 5 | 541 |
+| sentence | 10 | 909 |
+| passage | 31 | **1,188** |
+
+**Fix:** all renderings are wrapped in a shared carrier passage, so only the
+rendering itself differs and the comparison stays clean.
+
+### Consequence 1: #5's positive control does not replicate
+
+#5 used the same pooled-threshold rule. Re-run with per-feature thresholds
+(`experiments/2026-09-19-detector-positive-control-rerun.py`):
+
+```
+negative control: best 0.6322, cutoff 0.5830, above=2   <- false positives
+injection sweep : best 0.6322 IDENTICAL at every rate, above=3..4
+```
+
+**`best` is identical with and without injection at every rate**, so the
+top-ranked pair is *not* the injected pair — it is a high-frequency pair
+co-occurring for structural reasons. The negative control yields 2 pairs above
+a 95th-percentile cutoff where ~0 is expected. Pair count exploded to 7.5M
+(from 62,500) because ~2,500–3,000 features per side now fire.
+
+**Verdict: the max-NPMI-over-all-pairs statistic cannot separate the injected
+signal from noise at this selectivity.** DEC-017's pass is withdrawn; #5's
+result is re-classified as a null, with the statistic itself indicted rather
+than the model.
+
+### Consequence 2: the bridge statistic did discriminate
+
+Under the same corrected thresholds, the *bridge* statistic
+(`bridge(f) = P(f fires in both renderings)`, restricted to 63 features in the
+selectivity band) gave, in #6:
+
+```
+matched verbal-symbolic : 6 survivors   (best 0.035 vs cutoff 0.015)
+shuffled null           : 0 survivors   (best 0.010 vs cutoff 0.015)
+paraphrase within-words : 17 survivors  (best 0.050 vs cutoff 0.015)
+```
+
+Matched exceeds null, and paraphrase exceeds matched (expected, since
+paraphrase shares lexical items). **This is a weak but real signal** — and it
+is the first evidence the project has that a feature can bridge two
+lexically-disjoint renderings of the same relation. The effect is small: the
+best feature bridges ~7 of 200 pairs, and only 63 of 32,768 features fall in
+the selectivity band.
+
+**Design consequence for #3:** use the bridge statistic, not max-NPMI. The
+max-statistic-over-millions-of-pairs form is unstable at this feature
+selectivity; a per-feature bridging statistic with a restricted selectivity
+band is what actually discriminates.
+
+### The pattern, stated plainly
+
+This is the third detector/spec parameter in three issues that was wrong in a
+way only execution exposed (#2: a model target with no SAE; #5: a multiplicity
+correction that could never fire; #6/#5: a threshold rule that disabled the
+detector, plus an input format too short for the substrate). Every one was a
+plausible-looking parameter written against an authoritative-sounding source
+rather than measured. The mitigation is not more care in writing — it is
+measuring before claiming, and recording the measurement.

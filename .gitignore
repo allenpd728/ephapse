@@ -4,3 +4,7 @@ __pycache__/
 runs/
 *.safetensors
 wandb/
+
+# fetched corpora (regenerate with experiments/fetch_corpus.py)
+Corpus/paired.json
+Corpus/verbal_symbolic.json

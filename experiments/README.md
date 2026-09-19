@@ -36,6 +36,10 @@ results land in `docs/reference/SANDBOX_BASELINE.md` rather than
 | 2026-09-18 | `2026-09-18-detector-positive-control.py` | #5 | Injected-correlation positive control: detector recovery vs injection rate, permutation null, negative control. **PASSES** on the max-statistic test; BH-FDR layer found broken (DEC-016) |
 | 2026-09-18 | `2026-09-18-injected-positive-control-detector-validation.py` | #5 | Detector recovery vs injected-correlation rate at pythia-70m; **detector recovers 0.87 at rate 0.20 vs 0.00 for a naive raw-co-occurrence baseline**. Four prior runs (same file, preserved as `*-results-initial.json`, `-v2`, `-v3`, `-v4`) returned zero for control-side and test-side reasons documented in DEC-019 |
 | 2026-09-19 | `2026-09-18-intervention-positive-control.py` | #7 | Interchange-intervention harness (ablation). **Known-positive passes 5/5** (full residual swap moves the target); cumulative ablation ladder **MOVES 5/5**; but **0/50 single features** exceed the cause threshold — per-feature claims are inconclusive at this scale, not negative (DEC-020). SAE reconstruction rel. error 0.362 |
+| 2026-09-19 | `2026-09-19-diagnose-saturation.py` | #6 | Feature firing-rate distribution; found 32764/32768 features firing on zero prompts under a pooled threshold |
+| 2026-09-19 | `2026-09-19-diagnose-length-dependence.py` | #6 | Feature activity vs prompt length; passages give 2.2x the usable-feature pool of bare prompts |
+| 2026-09-19 | `2026-09-19-paraphrase-robustness.py` | #6 | Verbal-vs-symbolic bridging. Matched 6 survivors vs null 0 (weak but real); paraphrase 17 |
+| 2026-09-19 | `2026-09-19-detector-positive-control-rerun.py` | #5 | #5 re-run with per-feature thresholds. **Does NOT replicate** — max-NPMI cannot separate the injected pair from noise |
 
 Note: the first two are the pre-existing exceptions to the naming convention
 above (they omit the `null`/`correction` headers deliberately). Future files

@@ -216,14 +216,34 @@ interesting. The filter has to be specified before the run, or
   candidate pairs at `NPMI > 0.8` and `semantic similarity < 0.2`. The
   second clause is what excludes pairs whose features are similar to each
   other — the naive confound.
+- **Use per-feature thresholds, and give prompts enough context.** Two bugs
+  found by measurement (DEC-018), both of which silently disabled the
+  detector:
+  1. **Never threshold on a pooled percentile.** A pooled 99th percentile was
+     dominated by a few extreme features and left **32,764 of 32,768 features
+     firing on zero prompts**. Threshold each feature on its *own* positive
+     activations, then restrict to a selectivity band (e.g. 0.05–0.60) so
+     features that fire on everything (which saturate any bridge statistic)
+     are excluded.
+  2. **Prompts need context.** A 5-token prompt starves the residual stream.
+     Usable features by input format: bare 541, sentence 909, **passage 1,188**
+     (firing on >=20% of prompts). Wrap prompts in a shared carrier passage so
+     only the varied part differs.
+- **Use the bridge statistic, not max-NPMI over all pairs.** Measured
+  (DEC-018): `max NPMI` over 7.5M pairs failed to separate an *injected*
+  signal from noise — `best` was identical (0.6322) with and without
+  injection, and the negative control produced false positives. The
+  per-feature bridge rate (`P(f fires in both renderings)`) over a restricted
+  selectivity band did discriminate. Prefer the restricted statistic.
 - **Correct for multiplicity — with the max-statistic permutation cutoff.**
   With 10^5 features and many prompt pairs, per-pair significance is
-  meaningless. **Use the 95th percentile of the per-permutation maximum NPMI**
+  meaningless. **Use the 95th percentile of the per-permutation maximum**
   (family-wise control). **Do not use BH-FDR unless `N_PERM >= 1e4`**: with
   N_PERM=100 over m=6.3e4 pairs the smallest achievable p is 0.01 while BH
-  needs 1.6e-6, so *nothing can pass and the zero is an artifact* (DEC-016 —
-  this was found by running, and the broken version reported a
-  plausible-looking "no significant pairs" that meant nothing).
+  needs 1.6e-6, so *nothing can pass and the zero is an artifact* (DEC-016).
+  A subtlety from DEC-018: a 100-permutation 95th percentile is itself a noisy
+  null estimate over millions of pairs, and can yield false positives under
+  the null — check the negative control every time.
   Anchor for scale: one study finds only ~25% of highly active features in
   a layer encode genuine task-relevant information (arXiv:2511.11711).
 - **Cluster before counting.** Feature splitting means one coherent
