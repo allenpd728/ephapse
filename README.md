@@ -136,14 +136,15 @@ requirements.txt             — pinned deps (CPU torch build)
 experiments/                 — one dated file per experiment, with a header
                                stating model, inputs, and what's tested;
                                run log in experiments/README.md
-findings.jsonl               — append-only log of flagged co-activation
-                               events. Observations only; no conclusions.
+findings.jsonl               — append-only log of co-activation events,
+                               positives and nulls alike. Observations only;
+                               no conclusions.
 docs/AGENT_HANDOFF.md        — scope, non-goals, constraints, first issues
 docs/MULTI_AGENT_WORKFLOW.md — claiming, run-ids, dependencies, done-evidence
 docs/reference/SANDBOX_BASELINE.md — measured sandbox numbers + evidence
 docs/reference/PRIOR_ART.md  — literature review; read before designing a probe
 docs/reference/TEST_VALIDATION_SPEC.md — the adopted two-tier validation layer
-docs/decisions/LOG.md        — decision log (DEC-001..DEC-024)
+docs/decisions/LOG.md        — decision log (DEC-001 onward)
 tooling/gates/               — Tier-0 integrity gates (fixture-gated) + runner
 ```
 
@@ -168,7 +169,9 @@ check.
 
 Records in `findings.jsonl` sit on a status ladder: rung 0 Observed, rung 1
 tier-0-clean, rung 2 paraphrase-surviving, rung 3 causal at *per-feature*
-granularity (not currently reachable at `pythia-70m` — DEC-020 measured 0/50),
+granularity (not currently reachable at `pythia-70m` — DEC-020 measured 0/50,
+and DEC-025 found the per-feature effect real only on the logit scale at a
+feature's own token, with 3 of 4 features failing context isolation),
 rung 4 causal at *aggregate* granularity (the dose-response ladder — the
 strongest rung currently attainable). **The word "finding" is reserved for
 rung 3 and above.**
@@ -186,11 +189,16 @@ criterion).
 
 ## What not to build yet
 
-No proposal generator, no automated gate-checker, no promoted-findings
-database — not before a single co-activation event has been found and
-reviewed by a human. Maith built infrastructure ahead of any result once
-already and had to justify it afterward. Don't repeat that here at a
-smaller scale.
+No proposal generator, no promoted-findings database — not before a single
+co-activation event has been found and reviewed by a human. Maith built
+infrastructure ahead of any result once already and had to justify it
+afterward. Don't repeat that here at a smaller scale.
+
+The validation layer (`tooling/gates/`, DEC-021) is **not** an exception to
+this: it is process discipline over artifacts that already exist, adopted
+deliberately rather than built ahead of a result, and it generates nothing.
+"Automated gate-checker" in the sense of a system that promotes candidates or
+adjudicates claims remains out of bounds until there is a candidate to check.
 
 ## Working on this repo
 
