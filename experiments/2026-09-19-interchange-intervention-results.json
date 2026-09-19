@@ -1,0 +1,574 @@
+{
+  "run_id": "20260919-0229-to3m",
+  "issue": 7,
+  "model": "pythia-70m-deduped",
+  "sae": "pythia-70m-deduped-res-sm",
+  "hook": "blocks.3.hook_resid_post",
+  "layer": 3,
+  "country_pos": 3,
+  "entity_features": {
+    "France": 21315,
+    "Japan": 11504,
+    "Italy": 24019,
+    "Egypt": 2620
+  },
+  "entity_feature_values": {
+    "France": {
+      "capital_France": 2.3430519104003906,
+      "capital_Japan": 0.0,
+      "capital_Italy": 0.07449084520339966,
+      "capital_Egypt": 0.0,
+      "language_France": 2.6111316680908203,
+      "language_Japan": 0.0,
+      "language_Italy": 0.0,
+      "language_Egypt": 0.0
+    },
+    "Japan": {
+      "capital_France": 0.0,
+      "capital_Japan": 2.226588010787964,
+      "capital_Italy": 0.0,
+      "capital_Egypt": 0.0,
+      "language_France": 0.0,
+      "language_Japan": 2.943082571029663,
+      "language_Italy": 0.0,
+      "language_Egypt": 0.0
+    },
+    "Italy": {
+      "capital_France": 0.07275122404098511,
+      "capital_Japan": 0.0,
+      "capital_Italy": 1.158808708190918,
+      "capital_Egypt": 0.0,
+      "language_France": 0.18429553508758545,
+      "language_Japan": 0.0,
+      "language_Italy": 1.265476942062378,
+      "language_Egypt": 0.0
+    },
+    "Egypt": {
+      "capital_France": 0.0,
+      "capital_Japan": 0.0,
+      "capital_Italy": 0.0,
+      "capital_Egypt": 1.9536612033843994,
+      "language_France": 0.0,
+      "language_Japan": 0.0,
+      "language_Italy": 0.0,
+      "language_Egypt": 2.2090213298797607
+    }
+  },
+  "answer_base_logits": {
+    "capital": {
+      "France": 17.9686,
+      "Japan": 18.5256,
+      "Italy": 16.9995,
+      "Egypt": 16.457
+    },
+    "language": {
+      "France": 20.0257,
+      "Japan": 18.9038,
+      "Italy": 18.2702,
+      "Egypt": 18.3608
+    }
+  },
+  "cutoff_cause": 0.556837511062622,
+  "cutoff_isolate": 0.39960031509399346,
+  "n_null": 200,
+  "n_interchanges": 24,
+  "site_results": {
+    "country_token": {
+      "site_pos": 3,
+      "cutoff_cause": 0.556837511062622,
+      "cutoff_isolate": 0.39960031509399346,
+      "mean_dtarget": 1.3085122505823772,
+      "mean_cause_prob": 0.0008191909040723052,
+      "cause_pass_fraction": 0.75,
+      "mean_iso": 0.1482220490773519,
+      "isolate_pass_fraction": 0.20833333333333334
+    },
+    "final_token": {
+      "site_pos": "final",
+      "cutoff_cause": 0.8465264797210692,
+      "cutoff_isolate": 0.9862613677978513,
+      "mean_dtarget": 0.7754578987757365,
+      "mean_cause_prob": 0.00046060690679420685,
+      "cause_pass_fraction": 0.5,
+      "mean_iso": -0.04963310559590658,
+      "isolate_pass_fraction": 0.0
+    }
+  },
+  "family": [
+    {
+      "feature": 21315,
+      "src": "France",
+      "dst": "Japan",
+      "attr": "capital",
+      "t_pos": 7785,
+      "t_neg": 17413,
+      "w_id": 5112,
+      "d_target": 1.9581432342529297,
+      "iso": -0.07004451751708984,
+      "cause_pass": true,
+      "isolate_pass": false
+    },
+    {
+      "feature": 21315,
+      "src": "France",
+      "dst": "Italy",
+      "attr": "capital",
+      "t_pos": 7785,
+      "t_neg": 12300,
+      "w_id": 5112,
+      "d_target": 0.9601421356201172,
+      "iso": 0.1425628662109375,
+      "cause_pass": true,
+      "isolate_pass": false
+    },
+    {
+      "feature": 21315,
+      "src": "France",
+      "dst": "Egypt",
+      "attr": "capital",
+      "t_pos": 7785,
+      "t_neg": 37068,
+      "w_id": 5112,
+      "d_target": 1.1710500717163086,
+      "iso": 0.0033283233642578125,
+      "cause_pass": true,
+      "isolate_pass": false
+    },
+    {
+      "feature": 21315,
+      "src": "France",
+      "dst": "Japan",
+      "attr": "language",
+      "t_pos": 5112,
+      "t_neg": 6692,
+      "w_id": 7785,
+      "d_target": 1.5002307891845703,
+      "iso": 0.09311389923095703,
+      "cause_pass": true,
+      "isolate_pass": false
+    },
+    {
+      "feature": 21315,
+      "src": "France",
+      "dst": "Italy",
+      "attr": "language",
+      "t_pos": 5112,
+      "t_neg": 9890,
+      "w_id": 7785,
+      "d_target": 0.7441062927246094,
+      "iso": -0.1934041976928711,
+      "cause_pass": true,
+      "isolate_pass": false
+    },
+    {
+      "feature": 21315,
+      "src": "France",
+      "dst": "Egypt",
+      "attr": "language",
+      "t_pos": 5112,
+      "t_neg": 26503,
+      "w_id": 7785,
+      "d_target": 0.9100418090820312,
+      "iso": -0.10369110107421875,
+      "cause_pass": true,
+      "isolate_pass": false
+    },
+    {
+      "feature": 11504,
+      "src": "Japan",
+      "dst": "France",
+      "attr": "capital",
+      "t_pos": 17413,
+      "t_neg": 7785,
+      "w_id": 6692,
+      "d_target": 2.5238962173461914,
+      "iso": 0.11233139038085938,
+      "cause_pass": true,
+      "isolate_pass": false
+    },
+    {
+      "feature": 11504,
+      "src": "Japan",
+      "dst": "Italy",
+      "attr": "capital",
+      "t_pos": 17413,
+      "t_neg": 12300,
+      "w_id": 6692,
+      "d_target": 2.3077545166015625,
+      "iso": 0.6747455596923828,
+      "cause_pass": true,
+      "isolate_pass": true
+    },
+    {
+      "feature": 11504,
+      "src": "Japan",
+      "dst": "Egypt",
+      "attr": "capital",
+      "t_pos": 17413,
+      "t_neg": 37068,
+      "w_id": 6692,
+      "d_target": 2.2692604064941406,
+      "iso": 0.548985481262207,
+      "cause_pass": true,
+      "isolate_pass": true
+    },
+    {
+      "feature": 11504,
+      "src": "Japan",
+      "dst": "France",
+      "attr": "language",
+      "t_pos": 6692,
+      "t_neg": 5112,
+      "w_id": 17413,
+      "d_target": 2.5367698669433594,
+      "iso": 0.4128255844116211,
+      "cause_pass": true,
+      "isolate_pass": true
+    },
+    {
+      "feature": 11504,
+      "src": "Japan",
+      "dst": "Italy",
+      "attr": "language",
+      "t_pos": 6692,
+      "t_neg": 9890,
+      "w_id": 17413,
+      "d_target": 2.049065589904785,
+      "iso": 0.4579505920410156,
+      "cause_pass": true,
+      "isolate_pass": true
+    },
+    {
+      "feature": 11504,
+      "src": "Japan",
+      "dst": "Egypt",
+      "attr": "language",
+      "t_pos": 6692,
+      "t_neg": 26503,
+      "w_id": 17413,
+      "d_target": 1.8080463409423828,
+      "iso": 0.23005104064941406,
+      "cause_pass": true,
+      "isolate_pass": false
+    },
+    {
+      "feature": 24019,
+      "src": "Italy",
+      "dst": "France",
+      "attr": "capital",
+      "t_pos": 12300,
+      "t_neg": 7785,
+      "w_id": 9890,
+      "d_target": 0.26404285430908203,
+      "iso": -0.17060184478759766,
+      "cause_pass": false,
+      "isolate_pass": false
+    },
+    {
+      "feature": 24019,
+      "src": "Italy",
+      "dst": "Japan",
+      "attr": "capital",
+      "t_pos": 12300,
+      "t_neg": 17413,
+      "w_id": 9890,
+      "d_target": 0.36455535888671875,
+      "iso": -0.08560657501220703,
+      "cause_pass": false,
+      "isolate_pass": false
+    },
+    {
+      "feature": 24019,
+      "src": "Italy",
+      "dst": "Egypt",
+      "attr": "capital",
+      "t_pos": 12300,
+      "t_neg": 37068,
+      "w_id": 9890,
+      "d_target": 0.42293834686279297,
+      "iso": -0.15217208862304688,
+      "cause_pass": false,
+      "isolate_pass": false
+    },
+    {
+      "feature": 24019,
+      "src": "Italy",
+      "dst": "France",
+      "attr": "language",
+      "t_pos": 9890,
+      "t_neg": 5112,
+      "w_id": 12300,
+      "d_target": 0.2993659973144531,
+      "iso": 0.08415031433105469,
+      "cause_pass": false,
+      "isolate_pass": false
+    },
+    {
+      "feature": 24019,
+      "src": "Italy",
+      "dst": "Japan",
+      "attr": "language",
+      "t_pos": 9890,
+      "t_neg": 6692,
+      "w_id": 12300,
+      "d_target": 0.42226696014404297,
+      "iso": 0.2425079345703125,
+      "cause_pass": false,
+      "isolate_pass": false
+    },
+    {
+      "feature": 24019,
+      "src": "Italy",
+      "dst": "Egypt",
+      "attr": "language",
+      "t_pos": 9890,
+      "t_neg": 26503,
+      "w_id": 12300,
+      "d_target": 0.3949871063232422,
+      "iso": 0.14729976654052734,
+      "cause_pass": false,
+      "isolate_pass": false
+    },
+    {
+      "feature": 2620,
+      "src": "Egypt",
+      "dst": "France",
+      "attr": "capital",
+      "t_pos": 37068,
+      "t_neg": 7785,
+      "w_id": 26503,
+      "d_target": 1.583113670349121,
+      "iso": 0.053680419921875,
+      "cause_pass": true,
+      "isolate_pass": false
+    },
+    {
+      "feature": 2620,
+      "src": "Egypt",
+      "dst": "Japan",
+      "attr": "capital",
+      "t_pos": 37068,
+      "t_neg": 17413,
+      "w_id": 26503,
+      "d_target": 1.5969657897949219,
+      "iso": 0.2547330856323242,
+      "cause_pass": true,
+      "isolate_pass": false
+    },
+    {
+      "feature": 2620,
+      "src": "Egypt",
+      "dst": "Italy",
+      "attr": "capital",
+      "t_pos": 37068,
+      "t_neg": 12300,
+      "w_id": 26503,
+      "d_target": 1.431126594543457,
+      "iso": -0.12773704528808594,
+      "cause_pass": true,
+      "isolate_pass": false
+    },
+    {
+      "feature": 2620,
+      "src": "Egypt",
+      "dst": "France",
+      "attr": "language",
+      "t_pos": 26503,
+      "t_neg": 5112,
+      "w_id": 37068,
+      "d_target": 1.2212181091308594,
+      "iso": 0.1838359832763672,
+      "cause_pass": true,
+      "isolate_pass": false
+    },
+    {
+      "feature": 2620,
+      "src": "Egypt",
+      "dst": "Japan",
+      "attr": "language",
+      "t_pos": 26503,
+      "t_neg": 6692,
+      "w_id": 37068,
+      "d_target": 1.2734403610229492,
+      "iso": 0.4261789321899414,
+      "cause_pass": true,
+      "isolate_pass": true
+    },
+    {
+      "feature": 2620,
+      "src": "Egypt",
+      "dst": "Italy",
+      "attr": "language",
+      "t_pos": 26503,
+      "t_neg": 9890,
+      "w_id": 37068,
+      "d_target": 1.3917655944824219,
+      "iso": 0.3923053741455078,
+      "cause_pass": true,
+      "isolate_pass": false
+    }
+  ],
+  "per_feature": {
+    "France": {
+      "feature": 21315,
+      "cause": 1.0,
+      "isolate": 0.0,
+      "mean_dtarget": 1.207285722096761,
+      "mean_iso": -0.02135578791300456
+    },
+    "Japan": {
+      "feature": 11504,
+      "cause": 1.0,
+      "isolate": 0.6666666666666666,
+      "mean_dtarget": 2.2491321563720703,
+      "mean_iso": 0.4061482747395833
+    },
+    "Italy": {
+      "feature": 24019,
+      "cause": 0.0,
+      "isolate": 0.0,
+      "mean_dtarget": 0.361359437306722,
+      "mean_iso": 0.010929584503173828
+    },
+    "Egypt": {
+      "feature": 2620,
+      "cause": 1.0,
+      "isolate": 0.16666666666666666,
+      "mean_dtarget": 1.416271686553955,
+      "mean_iso": 0.19716612497965494
+    }
+  },
+  "interference_control": {
+    "n_features": 10,
+    "features": [
+      79,
+      68,
+      102,
+      138,
+      123,
+      6,
+      51,
+      111,
+      62,
+      27
+    ],
+    "n_rows": 240,
+    "spurious_cause_passes": 0,
+    "above_isolate_cutoff": 0,
+    "mean_abs_dtarget": 0.0038714965184529623,
+    "max_abs_dtarget": 0.04287242889404297
+  },
+  "ablation": {
+    "n": 8,
+    "mean_own_delta": -0.6988961696624756,
+    "n_negative": 8,
+    "mean_other_delta": 0.3656680981318152,
+    "rows": [
+      {
+        "feature": 21315,
+        "country": "France",
+        "attr": "capital",
+        "i": 0,
+        "own_delta": -0.8721427917480469,
+        "other_delta": 0.45457776387532434
+      },
+      {
+        "feature": 21315,
+        "country": "France",
+        "attr": "language",
+        "i": 4,
+        "own_delta": -0.8877277374267578,
+        "other_delta": 0.13015778859456262
+      },
+      {
+        "feature": 11504,
+        "country": "Japan",
+        "attr": "capital",
+        "i": 1,
+        "own_delta": -1.0273113250732422,
+        "other_delta": 0.8311971028645839
+      },
+      {
+        "feature": 11504,
+        "country": "Japan",
+        "attr": "language",
+        "i": 5,
+        "own_delta": -0.8821792602539062,
+        "other_delta": 0.8171342213948556
+      },
+      {
+        "feature": 24019,
+        "country": "Italy",
+        "attr": "capital",
+        "i": 2,
+        "own_delta": -0.14791488647460938,
+        "other_delta": 0.11998526255289832
+      },
+      {
+        "feature": 24019,
+        "country": "Italy",
+        "attr": "language",
+        "i": 6,
+        "own_delta": -0.27956581115722656,
+        "other_delta": 0.018817583719890507
+      },
+      {
+        "feature": 2620,
+        "country": "Egypt",
+        "attr": "capital",
+        "i": 3,
+        "own_delta": -0.72442626953125,
+        "other_delta": 0.2986583709716797
+      },
+      {
+        "feature": 2620,
+        "country": "Egypt",
+        "attr": "language",
+        "i": 7,
+        "own_delta": -0.7699012756347656,
+        "other_delta": 0.2548166910807268
+      }
+    ]
+  },
+  "full_residual_upper": [
+    {
+      "src": "Japan",
+      "dst": "France",
+      "d_target": 7.312588691711426
+    },
+    {
+      "src": "Japan",
+      "dst": "Italy",
+      "d_target": 6.622173309326172
+    },
+    {
+      "src": "Japan",
+      "dst": "Egypt",
+      "d_target": 8.608708381652832
+    },
+    {
+      "src": "Egypt",
+      "dst": "France",
+      "d_target": 5.917350769042969
+    },
+    {
+      "src": "Egypt",
+      "dst": "Japan",
+      "d_target": 8.688114166259766
+    },
+    {
+      "src": "Egypt",
+      "dst": "Italy",
+      "d_target": 5.012057304382324
+    }
+  ],
+  "ravel_ceiling": {
+    "sae_entity": 48.6,
+    "sae_context": 46.8,
+    "mdas_entity": 60.1,
+    "mdas_context": 65.6
+  },
+  "mean_cause": 0.75,
+  "mean_isolate": 0.20833333333333331,
+  "verdict": "harness validated"
+}

@@ -1049,3 +1049,169 @@ surfaced it — the claims carried run-ids and the collision was visible — but
 took reading committed result files to resolve it. Recording that the mechanism
 worked, and that resolution required human-legible evidence files, which is why
 the results JSONs being committed mattered.
+
+---
+
+## DEC-025 — The #7 intervention result is site- and scale-dependent; DEC-020's negative is a property of its measurement choice, not of the features
+
+**Date:** 2026-09-19 · **Status:** adopted (extends DEC-020, does not supersede it)
+
+**Decision:** two independent runs on issue #7 reached opposite conclusions
+about single-feature intervention at pythia-70m-deduped. Both are correct; they
+measured different things. The reporting rule that follows is that **every
+intervention result must state its intervention site and its metric scale**,
+because at this model scale the answer flips on both.
+
+**Two runs, two answers.**
+
+- Sibling run `20260918-2332-e7c4` (DEC-020): ablation/patching at the **final
+  token**, scored on **probability**. Result: **0 of 50 features** exceeded a
+  0.01 cause threshold. Conclusion drawn: single-feature intervention is below
+  the noise floor, and the cumulative ladder is the interpretable instrument.
+- This run `20260919-0229-to3m`: patching at the **country token** (the feature's
+  own position), scored on the **logit difference**. Result: **mean Cause 0.75**
+  (3 of 4 attribute-selective features), against a matched-norm random-direction
+  null with an interference control at **0/240**.
+
+**Both sites and both scales, in one harness.** The extension ran the same 24
+interchanges at both sites with a separate null per site:
+
+| site | mean Δ logitdiff | mean Δ probability | Cause pass | per-site cutoff | mean Isolate |
+|---|---|---|---|---|---|
+| country token | **1.309** | 0.00082 | 0.750 | 0.557 | 0.148 |
+| final token | 0.775 | 0.00046 | 0.500 | 0.847 | −0.050 |
+
+Two mechanisms are visible in that table, and they are both real:
+
+1. **The effect is a logit-scale effect, not a probability-scale one.** Mean Δ
+   probability is 8e-4 at the country token and 5e-4 at the final token — either
+   way an order of magnitude below DEC-020's 0.01 threshold. On the probability
+   scale both runs agree: a single feature does not visibly move the output
+   distribution. On the logit scale the country-token effect is ~1.3 and clears
+   its null. A threshold of 0.01 applied to a probability is therefore a
+   different, much stricter test than the same number applied to a logit
+   difference — the two runs were never measuring the same quantity.
+2. **The final token is the worst place to intervene, and its null bar is
+   higher.** Random directions at the output position score 0.847 (95th pct),
+   because at the last position everything written is the next-token
+   prediction. The same random directions at the country token score 0.557. So
+   the final token both dilutes a real feature's attributable effect and raises
+   the bar it must clear. Patching a feature at its own position and reading the
+   difference is the more sensitive configuration.
+
+**What this changes about DEC-020.** Its measurement stands exactly as recorded;
+its *generalization* does not. "Single-feature intervention is inconclusive at
+pythia-70m" is true at the final token on the probability scale, and is not
+established beyond that. Attribute-selective features at their own token do move
+the logit difference against a clean null.
+
+**The negative that survives, and it is the more important one.** Mean **Isolate
+0.208** at the country token: only f11504 (0.667) clears the 0.400 cutoff;
+f21315 and f24019 score 0.00. Across four causally load-bearing entity features,
+three fail context isolation. This reproduces DEC-020's diagnosis by a different
+route — DEC-020 attributes it to reconstruction error (**mean relative error
+0.362, mean cosine 0.933**); this run shows it directly as isolation failure.
+Both point at the same ceiling: RAVEL's SAE 48.6/46.8 disentanglement against
+60.1/65.6 for supervised methods (arXiv:2402.17700).
+
+**Consequences.**
+
+- Reporting rule: intervention findings carry site + scale. A bare "Cause 0.0"
+  is not interpretable without them.
+- An entity feature flagged as active in two domains can be causally
+  load-bearing without keeping the domains apart, so #3 must report the causal
+  and semantic results together, never one alone.
+- DEC-020's cumulative ladder remains the right instrument for *aggregate*
+  questions; this run's per-feature result is about *attribution* at a known
+  site. They answer different questions and both are retained.
+- The `findings.jsonl` record for this run sets `causal_claim` to **false**
+  deliberately: the schema reserves that flag for a feature load-bearing in both
+  domains, and this is a harness self-test on one known-causal task.
+
+**Process note.** This reconciliation was found by the repo's own concurrent-work
+rule (rebase revealed a sibling landed the same task). The first instinct — that
+one run must be wrong — was itself the error. Neither was: DEC-020 kept its
+conclusion and gained a boundary, and this run's `causal_claim=false` is what
+keeps it from being read as more than a harness validation.
+
+---
+
+## DEC-026 — G-D9/G-D10: an instrument can pass its cutoff and track the wrong pair
+
+**Date:** 2026-09-19 · **Status:** adopted (revises DEC-022's inventory;
+corrects the handoff and gates README citations of DEC-018; adds G-F6)
+
+> **Numbering note.** Drafted as DEC-024, then DEC-025; renumbered again at
+> rebase because concurrent sessions claimed both numbers while this was in
+> flight (DEC-024 the #5 adjudication, DEC-025 the #7 site/scale reconciliation).
+> Its content is independent of both; its framing of #5 defers to DEC-024.
+
+**Decision:** add **G-D9** (the recovered pair is the injected pair — not merely
+a pair above cutoff), **G-D10** (a retired or superseded instrument is cited as
+such wherever its results were reported), and **G-F6** (an intervention result
+states its **site and scale**). Inventory 34 → 37 gates. Correct three stale
+`DEC-018` citations in the handoff, which point at content renumbered to
+**DEC-023** at rebase.
+
+**Rationale 1 — G-D9/G-D10: a failure class `G-C` does not cover.** DEC-022's
+`G-C` gates address code that *cannot fire*: bounded statistics,
+non-constructible controls, inverted tests, readings that cannot come out low.
+DEC-023's failure is different in kind. The max-NPMI instrument **fired**,
+passed its cutoff, and reported a recovery curve — but the top-ranked pair was
+**identical with and without injection** (0.6322 at every rate), so it was never
+selecting the injected pair. The negative control also produced false positives.
+
+Constructibility alone does not catch this, because the signal *was*
+constructible — DEC-019's four traps are fixed in both implementations and it
+still happened. DEC-024 located the cause: a max-statistic over an **unbounded**
+~7.5M-pair search is governed by its noisiest pair, so an unrelated
+high-frequency co-occurrence always wins. The catching question is narrower —
+**is the thing you recovered the thing you planted?** — which is G-D9, plus
+DEC-024's constraint that the pair set be pre-specified and bounded.
+
+**Rationale 2 — G-F6, from DEC-025.** The #7 reconciliation found two runs
+reaching opposite conclusions about single-feature intervention: **0 of 50
+features** above a 0.01 cause threshold at the final token on a probability
+scale (DEC-020), versus **mean Cause 0.75** at the country token on a logit scale
+(DEC-025). Both correct; they measured different things. The same number applied
+to a probability and to a logit difference is a different test, and the final
+token both dilutes the attributable effect and raises the null bar (random
+directions score 0.847 there versus 0.557 at the country token).
+
+G-F2 already required `cause` and `isolate`; it did not require *where* or *on
+what scale*. A bare "Cause 0.0" was therefore schema-valid while being
+uninterpretable. G-F6 closes that.
+
+**Consequence 1 — a retirement and a boundary must propagate.**
+Three documents needed correcting, and the corrections differ from what a first
+reading of DEC-023 alone suggests — which is why both are recorded:
+
+- `docs/AGENT_HANDOFF.md` § Immediate first issues item 3 said #5 was
+  "**DONE — twice, independently**". Rewritten: which instrument stands (analytic
+  null, DEC-018/019), which is retired (max-NPMI + permutation null, DEC-023),
+  and the bounded-pair-set constraint that follows from DEC-024.
+- `docs/AGENT_HANDOFF.md` method notes cited "DEC-018" three times for the
+  threshold bugs and the max-NPMI result — content now **DEC-023**, renumbered
+  at rebase when a concurrent session claimed DEC-018–022. Corrected.
+- `tooling/gates/README.md` carried DEC-021's "20 of the 24 gates" count.
+  Corrected to 29 of 37 with a pointer to the count history.
+
+**Consequence 2 — this is why G-D10 exists.** A retired instrument is a
+documentation hazard, not only a scientific one: the pass was recorded in good
+faith, is quoted in the handoff, and would have been cited by #3 as
+justification for a statistic that does not work. The sequence here — pass
+(DEC-017), non-replication (DEC-023), adjudication (DEC-024) — is precisely the
+case where a doc can hold three contradictory states at once.
+
+**Consequence 3 — the count moved four times in one day.** DEC-021 said 24,
+DEC-022 said 34, DEC-025 said 36, this says 37. Each revision paid a coherence
+cost across the spec, handoff, and gates README, and each collision cost a
+renumber. Most of that is real design work, but the frequency is a signal worth
+naming: **the inventory is accreting a gate per incident.** If that continues,
+it is tracking failures rather than being designed — DEC-023's own observation,
+*measuring before claiming*, applies to the spec too. Recorded as a caution, not
+a fix.
+
+**Scope note.** This entry is inventory and documentation-integrity work. It does
+not re-adjudicate #5 (DEC-024 did that from the committed result files) nor #7
+(DEC-025), and defers to both.

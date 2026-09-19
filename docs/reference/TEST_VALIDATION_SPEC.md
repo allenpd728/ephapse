@@ -174,11 +174,14 @@ runs in CI) or 1 (requires loading the probed model).
 | **G-D6** | Sensitivity floor stated numerically; every downstream null cites it | DEC-007 (interpretability) | 0 |
 | **G-D7** | **Constructibility** — the planted signal is shown present in both groups by construction, before recovery is interpreted | **DEC-019** | 1 |
 | **G-D8** | Injection/threshold/rate-grid parameters committed **before** the run; result artifact is not a reshaping | **DEC-018** | 0 |
+| **G-D9** | **The recovered pair is the injected pair** — not merely a pair above cutoff. A statistic whose top-ranked pair is identical with and without injection has not detected anything | **DEC-023, DEC-024, DEC-026** | 1 |
+| **G-D10** | Supersession — a retired or superseded instrument is cited as such wherever its results were reported | **DEC-024, DEC-026** | 1 |
 | **G-F1** | Paraphrase survival — lexical-shuffle and/or zero-shared-token control ran, result recorded as a bool | DEC-011; issue #6 | 1 |
 | **G-F2** | Causal load-bearing — intervention at a named hook/layer, with `cause` **and** `isolate` both present, **and `isolate` reported only where `cause` cleared the threshold** | DEC-013; **DEC-020**; PRIOR_ART §11 Q1 | 1 |
 | **G-F3** | Interference control run and reported | DEC-008 | 1 |
 | **G-F4** | Verdict rule enforced: `flagged` **iff** `paraphrase_survived` and `causal_claim` | `findings.jsonl` header | 0 |
 | **G-F5** | Aggregate-vs-per-feature attribution — a causal claim names the level it holds at (feature vs cumulative ladder) and carries the reconstruction error | **DEC-020** | 0 |
+| **G-F6** | Intervention results state **site and scale** — a cause score is uninterpretable without them, since the same threshold means different things on a probability vs a logit difference, and the final token dilutes while raising the null bar | **DEC-025** | 0 |
 
 **Code gates (`G-C`) — over `experiments/*.py`.** These are the gates for the
 fifth defect class (§1). They inspect experiment *code*, not its output, and
@@ -206,11 +209,35 @@ rather than after a plausible-looking null.
 | **G-R4** | Docs coherence — README / handoff / DEC log / experiments README agree on target model and settled facts | workflow § Step 1b | 0 |
 | **G-R5** | Run-log currency — every `experiments/*.py` has a row in the experiments README run log | **defect #2** | 0 |
 
-**Tier 0 is the first deliverable.** It is 29 of the 34 gates, needs no model,
+**Tier 0 is the first deliverable.** It is 29 of the 37 gates, needs no model,
 no torch, and no GPU, and it covers defects #1 and #2 outright, the whole
 evidence-integrity surface, and — most importantly — the entire `G-C` code-gate
 series for the fifth defect class. Tier 1 gates are the detector-validity ones,
 and they can wait for the runs that produce their inputs.
+
+**A sixth defect class: the statistic does not track the signal (DEC-023,
+adjudicated in DEC-024).** Re-running #5's positive control under per-feature
+thresholds found the top-ranked pair *identical with and without injection*
+(0.6322 at every rate), so the max-NPMI instrument was never selecting the
+injected pair — it was selecting a high-frequency structural co-occurrence, and
+the negative control produced false positives.
+
+This is distinct from the fifth class. There, the code could not fire at all.
+Here it fired, passed its cutoff, and was **tracking something other than the
+planted signal** — a failure a constructibility check alone does not catch,
+because the signal *was* constructible. DEC-024 located the cause: a
+max-statistic over an **unbounded** ~7.5M-pair search is governed by its
+noisiest pair, so an unrelated high-frequency co-occurrence always wins. G-D9 is
+the gate for it — the recovered pair must be the injected pair, not merely above
+cutoff — and DEC-024 adds the design constraint that the pair set be
+pre-specified and bounded.
+
+**What the adjudication settled, and why G-D10 exists.** #5's pass **stands** on
+the analytic-null control; the max-NPMI + permutation-null *instrument* is
+retired. Getting there took three entries — pass (DEC-017), non-replication
+(DEC-023), adjudication (DEC-024) — during which the handoff held two
+contradictory states. G-D10 makes the propagation of a retirement mechanical
+rather than dependent on a later session noticing.
 
 ---
 
@@ -401,14 +428,24 @@ string anchor silently missed.
 
 **Revision 2026-09-19 (run `20260918-2347-0201`).** This spec's first version
 gated artifacts only, and was filed as #8–#21 before issues #5 and #7 ran. Those
-runs (DEC-016–DEC-020) established a fifth defect class one level lower — in
-experiment *code* — that no gate in the original inventory would have caught.
-Four consecutive #5 designs and one #7 metric produced plausible-looking results
-that were artifacts of vacuous measurement. The revision adds the `G-C` series
-(§3), the constructibility and frozen-parameter gates (G-D7, G-D8), the
-arithmetic-capability requirement on multiplicity correction (G-D2, corrected by
-DEC-016), the isolate-vacuity rule (G-F2), the aggregate-attribution gate
-(G-F5), and the split causal rung (§5). #22 is the new highest-value task.
+runs (DEC-016–DEC-023) established two further defect classes one level lower
+than artifacts — in experiment *code* and in the *statistic's ability to track
+its target* — that no gate in the original inventory would have caught. Four
+consecutive #5 designs and one #7 metric produced plausible-looking results that
+were artifacts of vacuous measurement (fifth class); then #5's own pass failed
+to replicate, with the top-ranked pair identical with and without injection
+(sixth class).
+
+The revision adds the `G-C` series (§3), the constructibility, frozen-parameter,
+tracking and replication gates (G-D7–G-D10), the arithmetic-capability
+requirement on multiplicity correction (G-D2, corrected by DEC-016), the
+isolate-vacuity rule (G-F2), the aggregate-attribution gate (G-F5), and the
+split causal rung (§5). Inventory: 24 → 37 gates. #22 is the new
+highest-value task; #23 logs the related registry gap.
+
+*Count history:* DEC-021 recorded 24 gates, DEC-022 raised it to 34, DEC-025 to
+36, DEC-026 to 37 (G-D9/G-D10 from DEC-023/024; G-F6 from DEC-025). The larger
+number is current.
 
 **Three splits, each because the bundled task had more than one signal.**
 This is the substantive change from the first filing, and it is worth recording

@@ -217,7 +217,7 @@ interesting. The filter has to be specified before the run, or
   second clause is what excludes pairs whose features are similar to each
   other — the naive confound.
 - **Use per-feature thresholds, and give prompts enough context.** Two bugs
-  found by measurement (DEC-018), both of which silently disabled the
+  found by measurement (DEC-023), both of which silently disabled the
   detector:
   1. **Never threshold on a pooled percentile.** A pooled 99th percentile was
      dominated by a few extreme features and left **32,764 of 32,768 features
@@ -230,7 +230,7 @@ interesting. The filter has to be specified before the run, or
      (firing on >=20% of prompts). Wrap prompts in a shared carrier passage so
      only the varied part differs.
 - **Use the bridge statistic, not max-NPMI over all pairs.** Measured
-  (DEC-018): `max NPMI` over 7.5M pairs failed to separate an *injected*
+  (DEC-023): `max NPMI` over 7.5M pairs failed to separate an *injected*
   signal from noise — `best` was identical (0.6322) with and without
   injection, and the negative control produced false positives. The
   per-feature bridge rate (`P(f fires in both renderings)`) over a restricted
@@ -341,15 +341,16 @@ pointer, not a substitute.
 - **Tier 0** — no model load, no torch. Schema, text, and cross-reference
   checks over artifacts (`findings.jsonl`, experiment headers, requirements,
   docs coherence), **plus the `G-C` experiment-code gates**. Runs in CI. 29 of
-  the 34 gates.
+  the 37 gates.
 - **Tier 1** — requires loading the probed model. The detector-validity gates
-  (positive control, control-can-fail, null calibration, paraphrase survival,
-  causal load-bearing, interference control). 5 gates.
+  (positive control, control-can-fail, null calibration, constructibility,
+  frozen parameters, recovered-pair identity, instrument supersession,
+  paraphrase survival, causal load-bearing, interference control, site and
+  scale). 8 gates.
 
 > **Count history.** DEC-021 recorded "20 of 24" from the spec as committed at
-> `26840ed`. DEC-022 added the `G-C` series (five experiment-code gates) and
-> the constructibility / frozen-parameter / arithmetic-capability gates,
-> raising the inventory to 34 (29 tier-0). The larger number is current.
+> `26840ed`. DEC-022 added the `G-C` series and raised it to 34. DEC-025 to 36,
+> DEC-026 to 37. The largest number is current.
 
 **A tier-0 pass is not "gate passed."** Maith's formulation is exact and
 binding here: *"Treating a grep pass as a gate pass is itself an integrity
@@ -456,18 +457,37 @@ it) — don't repeat it here at a smaller scale.
    because the probe's interpretation depends on the detector's measured
    sensitivity — a null from an unvalidated detector is uninterpretable.
    Blocked on issue 2.
-   **DONE 2026-09-18 — twice, independently** (run `20260918-2332-e7c4`,
-   DEC-018/019; and the permutation-test run, DEC-016/017). This session's
-   analytic-null implementation recovers the injected correlation at 0.868
-   (rate 0.20) and 0.895 (rate 0.40), onset between rates 0.02 and 0.05
-   driven by the NPMI threshold; a naive raw-co-occurrence baseline recovers
-   **zero** at every rate and budget. Four earlier runs of it returned zero
-   for reasons unrelated to detector sensitivity — catch-all feature groups,
-   an inverted p-value that could never reject, and a control that activated
-   neither group. All four are recorded in DEC-019 because each produced a
-   plausible-looking negative. **Consequence for #3 and #6: each must report
-   both that its signal is constructible and that its statistic fires on a
-   known-positive case.**
+   **DONE 2026-09-18 — the pass stands, on one instrument; a second
+   instrument was tried and is retired.** Adjudicated in DEC-024 from the
+   committed result files, after two concurrent sessions reached opposite
+   verdicts.
+
+   - **The analytic-null control stands** (run `20260918-2332-e7c4`,
+     DEC-018/019). It recovered the injected correlation at 0.868 (rate 0.20)
+     and 0.895 (rate 0.40), with a naive raw-co-occurrence baseline recovering
+     **zero** at every rate, and no false positives on the negative control.
+   - **The max-NPMI + permutation-null variant is retired** (DEC-023). Re-run
+     under per-feature thresholds it did not replicate: `best` was identical
+     (0.6322) with and without injection at every rate, so the top-ranked pair
+     was never the injected pair, and the negative control produced false
+     positives. It is **not** a failed model result — it is an instrument that
+     cannot resolve the family it was pointed at. Root cause (DEC-024): a
+     max-statistic over an unbounded ~7.5M-pair search is governed by the
+     noisiest pair, and a permutation null at N_PERM=100 cannot resolve that
+     family. Use a **pre-specified, bounded** pair set.
+
+   **Consequence for #3 and #6, and the reason this is recorded as a design
+   constraint rather than a caveat:** a positive control must (a) demonstrate
+   the planted signal actually moves the selected features — constructibility,
+   DEC-019 — and (b) use a pre-specified bounded pair set rather than an
+   unbounded search, DEC-024. A recovery curve alone does not distinguish a
+   working detector from one tracking an unrelated high-frequency pair, which
+   is exactly what the retired variant did.
+
+   Four earlier runs returned zero for reasons unrelated to detector
+   sensitivity — catch-all feature groups, an inverted p-value that could never
+   reject, and a control that activated neither group. All four are recorded in
+   DEC-019 because each produced a plausible-looking negative.
 4. **Establish paraphrase invariance.** Zero shared lexical items between the
    two prompt sets, plus a lexical-shuffle control, per
    `docs/reference/PRIOR_ART.md` §6 and DEC-011. Promote this *ahead of* the
@@ -491,8 +511,20 @@ it) — don't repeat it here at a smaller scale.
    target attribute) and **Isolate** (it leaves other attributes intact) — per
    `PRIOR_ART.md` §11 Q1. This converts "F is active in both domains" into
    "F is causally load-bearing in both domains," which is the strongest claim
-   this repo can support on its own. Blocked on issue 4; can run alongside
-   issue 5 if the intervention harness is independent of the probe.
+   this repo can support on its own.
+   **DONE 2026-09-19, two independent runs** (DEC-020 and DEC-024). The two
+   disagree and both are right — the result is **site- and scale-dependent**.
+   At the **final token** on a **probability** scale, 0/50 features clear a 0.01
+   threshold (DEC-020: use the cumulative ladder for aggregate questions). At
+   the **country token** on a **logit-difference** scale, mean **Cause 0.75**
+   for 4 attribute-selective features, interference control **0/240**. Mean
+   Δ probability is 8e-4 at either site, so the effect is real on the logit
+   scale and invisible on the probability scale. **Isolate is the negative
+   that survives: mean 0.208, 3 of 4 features fail context isolation**,
+   reproducing RAVEL's ceiling (SAE 48.6/46.8 vs 60.1/65.6). Reporting rule
+   from DEC-025: every intervention result states its site and scale. An entity
+   feature can be causally load-bearing *without* keeping the domains apart, so
+   #3 must report the causal and semantic results together.
 7. **Log the result in `findings.jsonl` regardless of outcome** — a null
    result (no meaningful co-activation found) is informative about whether
    this method works at all at this model scale, and should be recorded
