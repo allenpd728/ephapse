@@ -1049,3 +1049,87 @@ surfaced it — the claims carried run-ids and the collision was visible — but
 took reading committed result files to resolve it. Recording that the mechanism
 worked, and that resolution required human-legible evidence files, which is why
 the results JSONs being committed mattered.
+
+---
+
+## DEC-025 — The #7 intervention result is site- and scale-dependent; DEC-020's negative is a property of its measurement choice, not of the features
+
+**Date:** 2026-09-19 · **Status:** adopted (extends DEC-020, does not supersede it)
+
+**Decision:** two independent runs on issue #7 reached opposite conclusions
+about single-feature intervention at pythia-70m-deduped. Both are correct; they
+measured different things. The reporting rule that follows is that **every
+intervention result must state its intervention site and its metric scale**,
+because at this model scale the answer flips on both.
+
+**Two runs, two answers.**
+
+- Sibling run `20260918-2332-e7c4` (DEC-020): ablation/patching at the **final
+  token**, scored on **probability**. Result: **0 of 50 features** exceeded a
+  0.01 cause threshold. Conclusion drawn: single-feature intervention is below
+  the noise floor, and the cumulative ladder is the interpretable instrument.
+- This run `20260919-0229-to3m`: patching at the **country token** (the feature's
+  own position), scored on the **logit difference**. Result: **mean Cause 0.75**
+  (3 of 4 attribute-selective features), against a matched-norm random-direction
+  null with an interference control at **0/240**.
+
+**Both sites and both scales, in one harness.** The extension ran the same 24
+interchanges at both sites with a separate null per site:
+
+| site | mean Δ logitdiff | mean Δ probability | Cause pass | per-site cutoff | mean Isolate |
+|---|---|---|---|---|---|
+| country token | **1.309** | 0.00082 | 0.750 | 0.557 | 0.148 |
+| final token | 0.775 | 0.00046 | 0.500 | 0.847 | −0.050 |
+
+Two mechanisms are visible in that table, and they are both real:
+
+1. **The effect is a logit-scale effect, not a probability-scale one.** Mean Δ
+   probability is 8e-4 at the country token and 5e-4 at the final token — either
+   way an order of magnitude below DEC-020's 0.01 threshold. On the probability
+   scale both runs agree: a single feature does not visibly move the output
+   distribution. On the logit scale the country-token effect is ~1.3 and clears
+   its null. A threshold of 0.01 applied to a probability is therefore a
+   different, much stricter test than the same number applied to a logit
+   difference — the two runs were never measuring the same quantity.
+2. **The final token is the worst place to intervene, and its null bar is
+   higher.** Random directions at the output position score 0.847 (95th pct),
+   because at the last position everything written is the next-token
+   prediction. The same random directions at the country token score 0.557. So
+   the final token both dilutes a real feature's attributable effect and raises
+   the bar it must clear. Patching a feature at its own position and reading the
+   difference is the more sensitive configuration.
+
+**What this changes about DEC-020.** Its measurement stands exactly as recorded;
+its *generalization* does not. "Single-feature intervention is inconclusive at
+pythia-70m" is true at the final token on the probability scale, and is not
+established beyond that. Attribute-selective features at their own token do move
+the logit difference against a clean null.
+
+**The negative that survives, and it is the more important one.** Mean **Isolate
+0.208** at the country token: only f11504 (0.667) clears the 0.400 cutoff;
+f21315 and f24019 score 0.00. Across four causally load-bearing entity features,
+three fail context isolation. This reproduces DEC-020's diagnosis by a different
+route — DEC-020 attributes it to reconstruction error (**mean relative error
+0.362, mean cosine 0.933**); this run shows it directly as isolation failure.
+Both point at the same ceiling: RAVEL's SAE 48.6/46.8 disentanglement against
+60.1/65.6 for supervised methods (arXiv:2402.17700).
+
+**Consequences.**
+
+- Reporting rule: intervention findings carry site + scale. A bare "Cause 0.0"
+  is not interpretable without them.
+- An entity feature flagged as active in two domains can be causally
+  load-bearing without keeping the domains apart, so #3 must report the causal
+  and semantic results together, never one alone.
+- DEC-020's cumulative ladder remains the right instrument for *aggregate*
+  questions; this run's per-feature result is about *attribution* at a known
+  site. They answer different questions and both are retained.
+- The `findings.jsonl` record for this run sets `causal_claim` to **false**
+  deliberately: the schema reserves that flag for a feature load-bearing in both
+  domains, and this is a harness self-test on one known-causal task.
+
+**Process note.** This reconciliation was found by the repo's own concurrent-work
+rule (rebase revealed a sibling landed the same task). The first instinct — that
+one run must be wrong — was itself the error. Neither was: DEC-020 kept its
+conclusion and gained a boundary, and this run's `causal_claim=false` is what
+keeps it from being read as more than a harness validation.

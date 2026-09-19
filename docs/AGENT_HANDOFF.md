@@ -491,8 +491,20 @@ it) — don't repeat it here at a smaller scale.
    target attribute) and **Isolate** (it leaves other attributes intact) — per
    `PRIOR_ART.md` §11 Q1. This converts "F is active in both domains" into
    "F is causally load-bearing in both domains," which is the strongest claim
-   this repo can support on its own. Blocked on issue 4; can run alongside
-   issue 5 if the intervention harness is independent of the probe.
+   this repo can support on its own.
+   **DONE 2026-09-19, two independent runs** (DEC-020 and DEC-024). The two
+   disagree and both are right — the result is **site- and scale-dependent**.
+   At the **final token** on a **probability** scale, 0/50 features clear a 0.01
+   threshold (DEC-020: use the cumulative ladder for aggregate questions). At
+   the **country token** on a **logit-difference** scale, mean **Cause 0.75**
+   for 4 attribute-selective features, interference control **0/240**. Mean
+   Δ probability is 8e-4 at either site, so the effect is real on the logit
+   scale and invisible on the probability scale. **Isolate is the negative
+   that survives: mean 0.208, 3 of 4 features fail context isolation**,
+   reproducing RAVEL's ceiling (SAE 48.6/46.8 vs 60.1/65.6). Reporting rule
+   from DEC-025: every intervention result states its site and scale. An entity
+   feature can be causally load-bearing *without* keeping the domains apart, so
+   #3 must report the causal and semantic results together.
 7. **Log the result in `findings.jsonl` regardless of outcome** — a null
    result (no meaningful co-activation found) is informative about whether
    this method works at all at this model scale, and should be recorded
