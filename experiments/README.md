@@ -41,6 +41,8 @@ results land in `docs/reference/SANDBOX_BASELINE.md` rather than
 | 2026-09-19 | `2026-09-19-diagnose-length-dependence.py` | #6 | Feature activity vs prompt length; passages give 2.2x the usable-feature pool of bare prompts |
 | 2026-09-19 | `2026-09-19-paraphrase-robustness.py` | #6 | Verbal-vs-symbolic bridging. Matched 6 survivors vs null 0 (weak but real); paraphrase 17 |
 | 2026-09-19 | `2026-09-19-detector-positive-control-rerun.py` | #5 | #5 re-run with per-feature thresholds. **Does NOT replicate** — max-NPMI cannot separate the injected pair from noise |
+| 2026-09-19 | `gen_cross_domain.py` | #3 | Generate 120 cooking / 120 astronomy passages with a **mechanically verified zero-token-id intersection** (separate vocab *and* glue tokens); median 18-19 tokens |
+| 2026-09-19 | `2026-09-19-cross-domain-probe.py` | #3 | Cross-domain co-activation probe. **Positive control recovers** (planted token, best z 11.30 vs cutoff 4.47); real run **0 survivors** (best z 3.10 vs 4.41) — a clean, interpretable null. Retires the raw co-activation-rate family-max cutoff (DEC-027) |
 
 Note: the first two are the pre-existing exceptions to the naming convention
 above (they omit the `null`/`correction` headers deliberately). Future files

@@ -7,11 +7,15 @@
 > What *has* landed, as of 2026-09-19: the detector is validated against an
 > injected positive control (DEC-017/018/024), the target model is settled at
 > `pythia-70m-deduped` (DEC-014), the validation layer is adopted (DEC-021),
-> and the first real probe found a **weak but non-trivial** verbal↔symbolic
-> bridging signal (6 survivors vs 0 under a shuffled null). Single-feature
-> intervention is below the noise floor at this scale (DEC-020), so rung-3
-> causal claims are not currently reachable — see `findings.jsonl` and
-> `experiments/README.md` for the run log.
+> and a first probe found a **weak but non-trivial** verbal↔symbolic
+> bridging signal (6 survivors vs 0 under a shuffled null). The general
+> cross-domain probe then ran and returned a **clean null**: the positive
+> control recovers, the two input sets share zero tokenizer ids, and no
+> feature co-activates across them above the family-wise cutoff (DEC-027).
+> Single-feature causal intervention is site- and scale-dependent — real on
+> the logit scale at a feature's own token, invisible on a probability scale
+> at the output (DEC-020/DEC-025), so rung-3 causal claims are not currently
+> reachable. See `findings.jsonl` and `experiments/README.md` for the run log.
 
 Ephapse probes open-weight model internals — activations, sparse-autoencoder
 features, circuits — to find **cross-domain co-activation**: cases where
@@ -32,10 +36,11 @@ activation space instead of a brain.
   automated validation layer (`tooling/gates/`, DEC-021) carries as much of
   the discipline as is mechanically checkable.
 - **Single active branch:** `dev`.
-- **Status:** proof-of-concept. The detector is validated; the first probe
-  returned a weak bridging signal (see the status note above). No
-  co-activation event has been human-reviewed, and no mathematical claim has
-  been handed to Maith.
+- **Status:** proof-of-concept, and the first real output is a **methodology
+  null-result assessment**. The detector is validated; a probe returned a
+  weak bridging signal; the general cross-domain probe returned a clean null
+  at 70M (see the status note above). No co-activation event has been
+  human-reviewed, and no mathematical claim has been handed to Maith.
 
 ## What this project is not
 

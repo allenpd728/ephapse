@@ -1,0 +1,205 @@
+{
+  "run_id": "20260919-0229-to3m",
+  "issue": 3,
+  "model": "pythia-70m-deduped",
+  "sae": "pythia-70m-deduped-res-sm",
+  "hook": "blocks.3.hook_resid_post",
+  "layer": 3,
+  "corpus": {
+    "n_per_domain": 120,
+    "token_disjoint": true,
+    "median_tokens": [
+      18,
+      19
+    ],
+    "disjointness_method": "tokenizer id intersection, add_special_tokens=False"
+  },
+  "statistic": "standardized per-feature matched-pairing co-activation rate",
+  "null_model": "pairing permutation, N_PERM=400",
+  "correction": "family-wise max-statistic on the standardized statistic (95th pct over permutations of max per-feature z)",
+  "selectivity_band": [
+    0.05,
+    0.6
+  ],
+  "positive_control": {
+    "n_injected_pairs": 12,
+    "plant_rate": 0.1,
+    "injected_feature_by_construction": 11068,
+    "rules": {
+      "gt0": {
+        "n_family": 835,
+        "best_z": 11.303818279544057,
+        "cutoff_z": 4.471763285880219,
+        "n_survivors": 24,
+        "survivor_features": [
+          2197,
+          3809,
+          4254,
+          6542,
+          8907,
+          9715,
+          9781,
+          11068,
+          12392,
+          12925,
+          14010,
+          15774,
+          17503,
+          17578,
+          18676,
+          18914,
+          20550,
+          22720,
+          22876,
+          23496,
+          24638,
+          27774,
+          30280,
+          32639
+        ],
+        "survivor_rates": [
+          0.06666666666666667,
+          0.06666666666666667,
+          0.1,
+          0.09166666666666666,
+          0.1,
+          0.1,
+          0.06666666666666667,
+          0.1,
+          0.058333333333333334,
+          0.1,
+          0.08333333333333333,
+          0.1,
+          0.09166666666666666,
+          0.10833333333333334,
+          0.058333333333333334,
+          0.1,
+          0.075,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.03333333333333333,
+          0.05,
+          0.025
+        ],
+        "survivor_rates_perm_mean": [
+          0.008229166666666647,
+          0.015729166666666707,
+          0.025708333333333416,
+          0.01575000000000003,
+          0.028229166666666722,
+          0.023708333333333394,
+          0.01806250000000005,
+          0.009208333333333311,
+          0.010145833333333309,
+          0.03375000000000005,
+          0.010187499999999976,
+          0.015041666666666701,
+          0.008270833333333314,
+          0.02460416666666674,
+          0.0062499999999999865,
+          0.021666666666666733,
+          0.01393750000000003,
+          0.009208333333333311,
+          0.018916666666666717,
+          0.03256250000000005,
+          0.01795833333333338,
+          0.004062499999999993,
+          0.004312499999999993,
+          0.003187499999999997
+        ],
+        "top_feature": 11068,
+        "top_rate": 0.1,
+        "top_perm_mean": 0.009208333333333311,
+        "raw_best_rate": 0.3416666666666667,
+        "raw_cutoff": 0.375,
+        "recovered": true,
+        "top_feature_activation_elevation": 2.1357460021972656
+      },
+      "pct95": {
+        "n_family": 72,
+        "best_z": 3.371342405902504,
+        "cutoff_z": 4.9589801704821195,
+        "n_survivors": 0,
+        "survivor_features": [],
+        "survivor_rates": [],
+        "survivor_rates_perm_mean": [],
+        "top_feature": 15833,
+        "top_rate": 0.016666666666666666,
+        "top_perm_mean": 0.002374999999999998,
+        "raw_best_rate": 0.016666666666666666,
+        "raw_cutoff": 0.025,
+        "recovered": false,
+        "top_feature_activation_elevation": -3.787875175476074e-05
+      }
+    }
+  },
+  "real": {
+    "gt0": {
+      "n_family": 793,
+      "best_z": 3.1007124269226196,
+      "cutoff_z": 4.411994065485789,
+      "n_survivors": 0,
+      "survivor_features": [],
+      "survivor_rates": [],
+      "survivor_rates_perm_mean": [],
+      "top_feature": 1478,
+      "top_rate": 0.041666666666666664,
+      "top_perm_mean": 0.013458333333333357,
+      "raw_best_rate": 0.36666666666666664,
+      "raw_cutoff": 0.39166666666666666,
+      "n_clusters_at_cos_0.5": 740,
+      "largest_cluster": 11
+    },
+    "pct95": {
+      "n_family": 66,
+      "best_z": 3.371342405902504,
+      "cutoff_z": 4.972808126274039,
+      "n_survivors": 0,
+      "survivor_features": [],
+      "survivor_rates": [],
+      "survivor_rates_perm_mean": [],
+      "top_feature": 15833,
+      "top_rate": 0.016666666666666666,
+      "top_perm_mean": 0.002374999999999998,
+      "raw_best_rate": 0.016666666666666666,
+      "raw_cutoff": 0.025,
+      "n_clusters_at_cos_0.5": 52,
+      "largest_cluster": 14
+    }
+  },
+  "confounds": {
+    "shared_literal_tokens": {
+      "shared_token_ids": 0,
+      "method": "gen_cross_domain.py token-disjointness check (add_special_tokens=False)",
+      "fired": false
+    },
+    "feature_splitting": {
+      "n_family": 793,
+      "n_clusters_at_cos_0.5": 740,
+      "note": "one coherent structure appearing as several features would inflate a raw count; the largest cluster is reported above"
+    },
+    "catch_all_features": {
+      "n": 793,
+      "cooking_firing_rate_range": [
+        0.05,
+        0.6
+      ],
+      "astronomy_firing_rate_range": [
+        0.05,
+        0.6
+      ],
+      "note": "band already excludes firing rate > 0.6"
+    },
+    "shared_sequence_position": {
+      "n_checked": 0,
+      "note": "no survivors"
+    },
+    "punctuation_glue_features": {
+      "n_checked": 0,
+      "note": "no survivors"
+    }
+  },
+  "verdict": "null"
+}

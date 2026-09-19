@@ -497,6 +497,13 @@ it) — don't repeat it here at a smaller scale.
    A negative result here is informative and likely — it would mean the
    detector is reading tokens, not relations, and it should be recorded with
    the same care as a positive one. Blocked on issue 3.
+   **DONE 2026-09-19 (issue #6, run `20260919-0213-tsm5`, DEC-023).** Weak
+   but real bridging on verbal-vs-symbolic renderings of the same relation:
+   **6 matched survivors vs 0 under permutation**. The paraphrase arm
+   survives at 17. Two detector bugs were found and fixed in the process
+   (a pooled threshold that disabled the detector; prompts too short at 5
+   tokens — usable features rise 541 -> 1188 from bare prompts to passages).
+   Both bugs produced plausible-looking negatives before they were caught.
 5. **Design one small, well-defined cross-domain probe** — two sets of
    prompts from genuinely unrelated topics, scored for co-activation above
    baseline, with the paraphrase controls from issue 4 in place. The null
@@ -504,6 +511,17 @@ it) — don't repeat it here at a smaller scale.
    filter, and confound checklist from "Method notes" must be fixed *before*
    the run. This is a methodology proof-of-concept, not a math-discovery
    attempt. Blocked on issue 4.
+   **DONE 2026-09-19 — NEGATIVE** (run `20260919-0229-to3m`, DEC-027). 120
+   cooking and 120 astronomy passages with a **mechanically verified zero
+   token-id intersection**. Positive control recovers (planted token, best
+   z **11.30** vs cutoff **4.47**); real run **0 survivors** (|family| 793,
+   best z **3.10** vs cutoff **4.41**). A clean, interpretable null — the
+   legitimate done state the issue named. A **raw co-activation-rate
+   family-max cutoff is retired**: it could not be cleared by a 10% injected
+   signal (0.3417 vs 0.3750) because high-firing features co-fire at ~0.37 by
+   chance (DEC-016's structural failure in a new place); standardizing per
+   feature fixed it. Whether the null is SAE representational limits or
+   genuine absence is not resolved (feature-absorption caveat, PRIOR_ART §4).
 6. **Add a causal positive control using interchange intervention.** Patching
    is cheap here (~217 ms per forward pass, so hundreds of interventions are
    minutes of compute) and needs no mathematical ground truth. Score candidate
@@ -512,7 +530,7 @@ it) — don't repeat it here at a smaller scale.
    `PRIOR_ART.md` §11 Q1. This converts "F is active in both domains" into
    "F is causally load-bearing in both domains," which is the strongest claim
    this repo can support on its own.
-   **DONE 2026-09-19, two independent runs** (DEC-020 and DEC-024). The two
+   **DONE 2026-09-19, two independent runs** (DEC-020 and DEC-025). The two
    disagree and both are right — the result is **site- and scale-dependent**.
    At the **final token** on a **probability** scale, 0/50 features clear a 0.01
    threshold (DEC-020: use the cumulative ladder for aggregate questions). At
@@ -531,6 +549,11 @@ it) — don't repeat it here at a smaller scale.
    with the same care as a positive one — with the feature-absorption
    caveat stated (`PRIOR_ART.md` §4). Records should carry the **causal**
    claim, not a mathematical one (`PRIOR_ART.md` §11).
+   **DONE 2026-09-19.** Records now exist for #5 (positive control and its
+   non-replicating rerun), #6 (weak bridging), #7 (causal positive control),
+   and #3 (the clean null). Each carries its null model, correction, family
+   size, confound checklist, and the feature-absorption caveat where a null
+   is involved.
 
 **Optional, if the detector needs a ground-truth panel:** train and evaluate
 against SynthSAEBench-16k (`PRIOR_ART.md` §11 Q2), which supplies 16,384
@@ -540,5 +563,11 @@ feasibility first (the paper assumes a single GPU), and carry the ceiling — th
 best SAE tested reaches probing F1 0.88 vs 0.974 for a logistic-regression
 probe, so no SAE recovers ground truth cleanly.
 
-Do not attempt a "search for novel math" experiment until issue 5 has run
-at least once and the method's basic signal-to-noise has been assessed.
+**The first "search for novel math" experiment is now unblocked in principle
+but not advised.** Issue 5's signal-to-noise has been assessed: at
+`pythia-70m-deduped`, with a validated detector and token-disjoint domains, the
+cross-domain probe returns a null (DEC-027), bridging is weak (DEC-023), and
+single-feature causal isolation mostly fails (DEC-020/DEC-025). A search for
+novel math on top of this signal-to-noise would be reading noise. The ladder
+from DEC-020 is the aggregate instrument that performed; a larger model with a
+narrower intervention (DEC-020's stated conditions) is the prerequisite.
