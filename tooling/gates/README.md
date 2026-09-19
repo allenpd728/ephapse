@@ -83,7 +83,19 @@ Exit codes: `0` when every gate is `PASS`; `1` when any gate is `FAIL` or
 |---|---|
 | `PASS` | Silent on its clean fixture **and** fires on its failing fixture. |
 | `FAIL` | Fired on the clean fixture — the gate is wrong or the fixture is dirty. |
-| `BROKEN` | Its ability to fail could not be demonstrated. **Not a pass.** |
+| `BROKEN` | Its ability to fail could not be demonstrated: no failing fixture registered, fixture missing, the gate stayed silent on it, or it **raised**. **Not a pass.** |
+| `SKIP` | Fires on its failing fixture (so it *is* a check), but part of its input was unavailable on the clean side. Reported with the reason. **Never a pass** — the exit code stays non-zero unless `--allow-skip` is given. |
+
+Two rules that follow from the incident history:
+
+- **A gate that raises is `BROKEN`, not a crash.** An exception means the gate
+  cannot be shown to work, which is what `BROKEN` says. The runner catches it and
+  carries the exception text into the report. (Learned building G-E7, whose
+  `.relative_to(REPO)` raised on a relocated path and took the suite down.)
+- **`SKIP` must not mask a reportable violation.** G-E7 checks `run_id` format
+  (offline, always reportable) and issue state (needs a cache). A malformed
+  `run_id` returns `FAIL` even when the cache is missing; only the *unavailable*
+  half produces `SKIP`.
 
 ## Layout
 
@@ -114,15 +126,39 @@ tooling/gates/
 
 ## Gate inventory
 
-Only the worked example is wired so far. Issues #10–#14, #16, #19, and #20 add
+Five gates are wired so far (G-R1, G-E1, G-E2, G-E6, G-E7). Issues #11–#14, #16, #19, #20, and #22 add
 the rest; each names its gate ids in its Definition of Done.
 
 | Gate | Checks | Traces to | Status |
 |---|---|---|---|
 | **G-R1** | Experiment header completeness — six fields, or three for a file declaring itself an infrastructure file | `experiments/README.md`; spec §3 | **wired** |
+| **G-E1** | Findings schema — parses, required keys present, no undeclared keys | `findings.jsonl` header | **wired** |
+| **G-E2** | `null_model`, `correction`, `n` non-empty — the evidence bar | issue #4 DoD | **wired** |
+| **G-E6** | Append-only — record count >= committed high-water mark | `findings.jsonl` header; spec §10 Q4 | **wired** |
+| **G-E7** | `issue` cites a closed-done issue; `run_id` matches format | workflow § Run-ids | **wired** (SKIPs without the issue cache) |
 
-Spec §3 lists the remaining 23. Each must trace to a documented concern — the
-suite asserts `traces_to` is non-empty for every registered gate.
+Spec §3 lists the remaining 19; issues #11–#14, #16, #19, #20, #22 add them.
+Each must trace to a documented concern — the suite asserts `traces_to` is
+non-empty for every registered gate.
+
+### Two spec §10 questions resolved while building G-E1/E6
+
+**Q3 — is the gate or the header prose authoritative for the schema?** The gate,
+but with one deliberate deviation recorded here: **G-E1 does not reject unknown
+keys outright.** The three committed records carry `kind`, `injection`, `result`,
+and `note`, which the header prose never listed. Rejecting them would
+retroactively invalidate the project's only recorded evidence. Instead a fixed
+`REQUIRED` set must be present *and* every extra key must appear in
+`KNOWN_EXTENSIONS`, so an addition is explicit but real records survive. The
+required-key list is identical to the header's, so there is no divergence to
+reconcile; the extensions list is the single place the gate is more permissive
+than the prose.
+
+**Q4 — does G-E6 need git history?** No. The clone is shallow, so the gate reads
+a committed integer, `findings.highwater`, and requires the current record count
+to be `>=` it. Raising the mark is a separate reviewable commit. Its limitation
+is stated in the gate: deleting a line fires, but *editing* a line in place does
+not — count-based checking cannot see that without history.
 
 ## What these gates cannot do
 

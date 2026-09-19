@@ -58,6 +58,13 @@ class Gate:
     `clean_fixture` and `failing_fixture` are paths relative to
     `tooling/gates/tests/fixtures/`. The failing fixture is MANDATORY: if it is
     None the gate is BROKEN by construction.
+
+    A gate may instead implement `check_status(path) -> tuple[str, list[str]]`
+    returning an explicit status, which is how a gate reports **SKIP** — used
+    when its input is legitimately unavailable (e.g. G-E7 needs GitHub issue
+    state and must degrade cleanly offline, per spec §10 Q4). SKIP is never a
+    pass: it is reported and the run's exit code is non-zero unless
+    `--allow-skip` is given.
     """
     id: str
     name: str
@@ -67,6 +74,7 @@ class Gate:
     failing_fixture: Optional[str] = None
     traces_to: str = ""
     description: str = ""
+    check_status: Optional[Callable[[Path], tuple[str, list[str]]]] = None
 
 
 REGISTRY: list[Gate] = []
@@ -94,22 +102,66 @@ def _resolve(rel: str) -> Path:
     return FIXTURES / rel
 
 
+def _apply(gate: Gate, path: Path) -> tuple[str, list[str]]:
+    """Run the gate's check, honouring the optional explicit-status form.
+
+    A gate that raises is caught and reported as BROKEN rather than crashing the
+    runner: an exception means the gate cannot be shown to work, which is exactly
+    what BROKEN says. The exception type and message are carried so the report is
+    diagnostic. (Learned by building G-E7, whose `.relative_to(REPO)` raised on a
+    relocated cache path and took the whole suite down instead of reporting.)
+    """
+    try:
+        if gate.check_status is not None:
+            return gate.check_status(path)
+        findings = gate.check(path)
+        return ("FAIL" if findings else "PASS"), findings
+    except Exception as e:  # noqa: BLE001 - deliberate: surface, do not crash
+        raise _GateRaised(f"{type(e).__name__}: {e}") from e
+
+
+class _GateRaised(RuntimeError):
+    """Raised when a gate's check throws; converted to BROKEN by run_gate."""
+
+
 def run_gate(gate: Gate) -> GateResult:
-    """Apply the two-part contract. BROKEN when the gate cannot be shown to fire."""
+    """Apply the two-part contract. BROKEN when the gate cannot be shown to fire.
+
+    Statuses, and why the order matters:
+
+    * `FAIL` — the gate fired on the **clean** fixture. The gate is wrong or the
+      fixture is dirty; either way it is not trustworthy.
+    * `BROKEN` — the gate's ability to fire could not be demonstrated: no failing
+      fixture registered, fixture missing, or the gate stayed silent/skipped on
+      it. A gate that cannot fail is not a check (spec §4).
+    * `SKIP` — the gate fires on its failing fixture (so it *is* a check) but
+      reported SKIP on the clean one because part of its input was unavailable
+      (G-E7 needs issue state). The clean side is therefore only partially
+      verified. **SKIP is never a pass**: the exit code stays non-zero unless
+      `--allow-skip` is given.
+    * `PASS` — silent on clean, fires on its failing fixture.
+    """
     clean = _resolve(gate.clean_fixture)
     if not clean.exists():
         return GateResult(gate, "BROKEN",
                           f"clean fixture missing: {gate.clean_fixture}")
 
-    findings = gate.check(clean)
-    if findings:
+    try:
+        clean_status, clean_findings = _apply(gate, clean)
+    except _GateRaised as e:
+        return GateResult(gate, "BROKEN",
+                          f"raised on the clean fixture — a gate that crashes is "
+                          f"not a check: {e}")
+    if clean_status == "FAIL":
         return GateResult(gate, "FAIL",
                           f"fired on the CLEAN fixture {gate.clean_fixture} "
-                          f"({len(findings)} finding(s)) — a gate must be silent "
-                          f"on the clean case",
-                          findings)
+                          f"({len(clean_findings)} finding(s)) — a gate must be "
+                          f"silent on the clean case",
+                          clean_findings)
 
-    # The mandatory half: prove the gate can fail.
+    # The mandatory half: prove the gate can fail. This runs regardless of
+    # whether the clean side passed or skipped, because "can it fire at all?" is
+    # the question the fixture rule exists to answer.
     if gate.failing_fixture is None:
         return GateResult(gate, "BROKEN",
                           "no failing fixture registered — a gate that cannot "
@@ -120,13 +172,25 @@ def run_gate(gate: Gate) -> GateResult:
                           f"failing fixture missing: {gate.failing_fixture} — "
                           f"the gate's ability to fire cannot be demonstrated")
 
-    findings = gate.check(failing)
-    if not findings:
+    try:
+        f_status, f_findings = _apply(gate, failing)
+    except _GateRaised as e:
         return GateResult(gate, "BROKEN",
-                          f"silent on its FAILING fixture {gate.failing_fixture} "
-                          f"— the gate does not detect the violation it ships a "
-                          f"fixture for")
-    return GateResult(gate, "PASS", "", findings)
+                          f"raised on its FAILING fixture — cannot be shown to "
+                          f"fire: {e}")
+    if f_status != "FAIL" or not f_findings:
+        return GateResult(gate, "BROKEN",
+                          f"{'skipped' if f_status == 'SKIP' else 'silent'} on "
+                          f"its FAILING fixture {gate.failing_fixture} — the gate "
+                          f"does not detect the violation it ships a fixture for")
+
+    if clean_status == "SKIP":
+        return GateResult(gate, "SKIP",
+                          f"fires on its failing fixture (so it is a check), but "
+                          f"the clean side was only partially verified: "
+                          f"{clean_findings[0] if clean_findings else 'unavailable'}",
+                          clean_findings)
+    return GateResult(gate, "PASS", "", f_findings)
 
 
 def run_all(only: Optional[str] = None) -> list[GateResult]:
@@ -154,13 +218,19 @@ def report(results: list[GateResult]) -> str:
             lines.append(f"{'':>23}- ... and {len(r.findings)-3} more")
     lines.append("-" * 78)
     n_pass = sum(1 for r in results if r.status == "PASS")
-    n_bad = len(results) - n_pass
-    lines.append(f"{n_pass}/{len(results)} gates PASS"
-                 + (f"; {n_bad} not passing" if n_bad else ""))
+    n_skip = sum(1 for r in results if r.status == "SKIP")
+    n_bad = len(results) - n_pass - n_skip
+    summary = f"{n_pass}/{len(results)} gates PASS"
+    if n_skip:
+        summary += f"; {n_skip} SKIPPED (not a pass)"
+    if n_bad:
+        summary += f"; {n_bad} not passing"
+    lines.append(summary)
     if n_bad:
         broken = [r.id for r in results if r.status == "BROKEN"]
         if broken:
             lines.append(f"BROKEN (cannot be shown to fire): {', '.join(broken)}")
+    if n_bad or n_skip:
         lines.append("NOT 'gate passed' — see docs/reference/"
                      "TEST_VALIDATION_SPEC.md §4 (two tiers, never merged).")
     return "\n".join(lines)
@@ -180,6 +250,10 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="tier-0 gate runner (issue #9)")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--gate", default=None, help="run a single gate by id")
+    ap.add_argument("--allow-skip", action="store_true",
+                    help="treat SKIP as acceptable (exit 0). SKIP is never a "
+                         "pass; this only relaxes the exit code for environments "
+                         "where a gate's input is legitimately unavailable.")
     args = ap.parse_args(argv)
 
     _load_gate_modules()
@@ -193,12 +267,15 @@ def main(argv: list[str] | None = None) -> int:
                        "status": r.status, "detail": r.detail,
                        "findings": r.findings} for r in results],
             "n_pass": sum(1 for r in results if r.status == "PASS"),
+            "n_skip": sum(1 for r in results if r.status == "SKIP"),
             "n_total": len(results),
         }, indent=2))
     else:
         print(report(results))
 
-    return 0 if all(r.status == "PASS" for r in results) else 1
+    ok = all(r.status == "PASS" or (args.allow_skip and r.status == "SKIP")
+             for r in results)
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

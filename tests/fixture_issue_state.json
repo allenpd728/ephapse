@@ -1,0 +1,7 @@
+{
+  "_comment": "Committed cache of GitHub issue state for G-E7. Tier 0 must not touch the network, so the gate reads this file instead of calling the API. Regenerate with tooling/gates/tests/refresh_issue_state.sh when a cited issue closes. A record whose issue is absent from this file causes G-E7 to SKIP (never pass) for that record.",
+  "_generated": "2026-09-19",
+  "5": {"state": "CLOSED", "done": true},
+  "6": {"state": "CLOSED", "done": true},
+  "999": {"state": "OPEN", "done": false}
+}

@@ -8,3 +8,8 @@ wandb/
 # fetched corpora (regenerate with experiments/fetch_corpus.py)
 Corpus/paired.json
 Corpus/verbal_symbolic.json
+
+# Gate-test scratch fixtures: created and removed by the suite at run time.
+tooling/gates/tests/fixtures/harness_probe/
+__pycache__/
+.pytest_cache/
