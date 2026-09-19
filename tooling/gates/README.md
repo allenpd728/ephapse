@@ -5,6 +5,14 @@ PleaNP). The authority is
 [`docs/reference/TEST_VALIDATION_SPEC.md`](../../docs/reference/TEST_VALIDATION_SPEC.md)
 §3–§4; this file is the operator's reference.
 
+> **Revision note (DEC-026).** The failures that motivated this harness shared
+> one shape: *a plausible-looking artifact produced by a process whose
+> correctness was never checked*. The last was different in kind — the max-NPMI
+> instrument **fired, passed its cutoff, and tracked the wrong pair**, with its
+> top-ranked pair identical with and without injection (DEC-023, adjudicated in
+> DEC-024). That is not a gate that cannot fire; it is a statistic answering a
+> different question, and it needs G-D9. The spec's §3 gained G-D9/G-D10 for it.
+
 ## Why this exists
 
 Four failures in one session shared one shape: **a plausible-looking artifact
@@ -24,7 +32,9 @@ much of that prose as is mechanically checkable into code.
 ## The two tiers, never merged
 
 - **Tier 0** — no model load, no torch, no network. Schema, text, and
-  cross-reference checks over artifacts. Runs in CI. 20 of the 24 gates.
+  cross-reference checks over artifacts. Runs in CI. 29 of the 37 gates (see
+  the count history in `docs/AGENT_HANDOFF.md` § Validation layer — this number
+  has moved twice since the harness landed).
 - **Tier 1** — requires loading the probed model. The detector-validity gates.
 
 **A tier-0 pass is not "gate passed."** Maith's formulation, adopted verbatim:
