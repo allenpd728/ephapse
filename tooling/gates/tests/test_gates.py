@@ -748,3 +748,82 @@ def test_validate_target_flags_two_status_labels():
         30, ["status:available", "status:claimed", "kind:gate"])
     assert problems, "two status labels must be flagged before mutation"
     assert any("2 status labels" in p for p in problems), problems
+
+
+# ------------------------------------------------- DEC-035: kind vocabulary
+def test_kind_vocabulary_is_single_sourced():
+    """G-M1 and the setter must read the same list, or they can disagree.
+
+    Before DEC-035 the vocabulary lived in two Python files plus the spec prose.
+    A session editing one would have produced a setter that refuses a label the
+    gate accepts — the same class as the coverage-map and gate-count drifts.
+    """
+    import importlib
+    sys.path.insert(0, str(REPO / "tooling" / "program"))
+    import validate_program as V
+    import issue_state as S
+    importlib.reload(S)
+    assert V.load_kind_vocabulary() == S.load_kind_vocabulary()
+    assert V.KIND_VOCABULARY_FILE.name == "kind_vocabulary.txt"
+
+
+def test_kind_vocabulary_includes_spec():
+    """DEC-035 added kind:spec; both readers must see it."""
+    import validate_program as V
+    assert "kind:spec" in V.load_kind_vocabulary()
+
+
+def test_g_m1_skips_rather_than_passing_without_a_vocabulary(monkeypatch):
+    """A gate validating against no vocabulary would accept every label.
+
+    It must SKIP with a reason — never PASS, never crash.
+    """
+    import json
+    import tempfile
+    from pathlib import Path
+    import validate_program as V
+    d = json.loads((R.FIXTURES / "program_clean.json").read_text())
+    tmp = Path(tempfile.mkdtemp()) / "c.json"
+    tmp.write_text(json.dumps(d))
+    monkeypatch.setattr(V, "KIND_VOCABULARY_FILE", Path("/nonexistent.txt"))
+    status, findings = V.check_label_cardinality(tmp)
+    assert status == "SKIP", f"expected SKIP, got {status}"
+    assert findings and "vocabulary unavailable" in findings[0], findings
+
+
+def test_setter_refuses_kind_without_a_vocabulary(monkeypatch):
+    """The mutator raises instead of writing an unvalidatable label."""
+    import importlib
+    sys.path.insert(0, str(REPO / "tooling" / "program"))
+    import issue_state as S
+    importlib.reload(S)
+    monkeypatch.setattr(S, "KIND_VOCABULARY_FILE", type(S.KIND_VOCABULARY_FILE)("/nope.txt"))
+    try:
+        S.load_kind_vocabulary()
+    except S.InvariantViolation:
+        return
+    raise AssertionError("setter loaded an empty vocabulary without raising")
+
+
+def test_g_m1_fires_on_an_out_of_vocabulary_kind():
+    """The behaviour that caught the misfiling: kind:methodology is not a kind.
+
+    Note the fixture choice: G-M1 only checks OPEN issues, so the mutation must
+    land on one (#29-#31 are open; #28 is closed and will be skipped). The first
+    version of this test patched whichever entry came first — #28, closed — and
+    failed for the wrong reason.
+    """
+    import json
+    import tempfile
+    from pathlib import Path
+    import validate_program as V
+    d = json.loads((R.FIXTURES / "program_clean.json").read_text())
+    target = next(k for k, v in d.items()
+                  if not k.startswith("_") and v.get("state") == "OPEN")
+    d[target]["labels"] = [l for l in d[target]["labels"]
+                           if not l.startswith("kind:")] + ["kind:notavocabvalue"]
+    tmp = Path(tempfile.mkdtemp()) / "c.json"
+    tmp.write_text(json.dumps(d))
+    status, findings = V.check_label_cardinality(tmp)
+    assert status == "FAIL", f"expected FAIL, got {status}"
+    assert any("not a known kind" in f for f in findings), findings

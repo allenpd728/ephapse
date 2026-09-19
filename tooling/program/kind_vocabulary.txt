@@ -1,0 +1,23 @@
+# Ephapse issue-kind vocabulary — the single machine-readable source (DEC-035).
+#
+# Read by:
+#   tooling/gates/validate_program.py   (G-M1, the cardinality + vocabulary gate)
+#   tooling/program/issue_state.py      (the atomic setter's refusal check)
+#
+# The human-readable definition of each value is in
+# docs/reference/PROGRAM_MANAGEMENT_SPEC.md section 3.1. This file is the
+# machine-readable list the tools read; the two must agree, and before DEC-035
+# they were three separate copies (the spec prose plus one list per Python file),
+# which is the drift the coverage-map decision warns against.
+#
+# Format: one `kind:value` per line. Blank lines and `#` comments ignored.
+# Adding a value is a vocabulary change and needs a DEC (DEC-035 is the precedent).
+
+kind:experiment
+kind:gate
+kind:repair
+kind:defect
+kind:gap
+kind:decision
+kind:protocol
+kind:spec

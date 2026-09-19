@@ -55,16 +55,50 @@ KIND_LABEL_RE = re.compile(r"^kind:")
 
 # The registered vocabularies. A value outside these is its own defect class:
 # a typo'd label is invisible to a cardinality check and silently divides the
-# queue. Kept here rather than parsed from the spec, for the same reason
-# target_model.txt exists — prose is brittle to derive from.
+# queue.
+#
+# Statuses stay here. Kinds are read from the single machine-readable source
+# (DEC-035) because they are also read by tooling/program/issue_state.py, and a
+# vocabulary living in two code paths drifts.
 VALID_STATUS = (
     "status:available", "status:claimed", "status:done",
     "status:blocked-needs-input",
 )
-VALID_KIND = (
-    "kind:experiment", "kind:gate", "kind:repair", "kind:defect",
-    "kind:gap", "kind:decision", "kind:protocol",
+KIND_VOCABULARY_FILE = (
+    Path(__file__).resolve().parent.parent / "program" / "kind_vocabulary.txt"
 )
+
+
+def load_kind_vocabulary(path: Path | None = None) -> tuple[str, ...]:
+    """Read the kind values from the single machine-readable source (DEC-035).
+
+    Raises rather than returning an empty tuple: a gate that silently validates
+    against no vocabulary would pass every label, which is the vacuity failure
+    DEC-019 and DEC-020 were both about.
+
+    This is called lazily inside the gate, not at import — a module-level raise
+    would crash `run_all.py` on import, and a gate must *fail*, not take the
+    runner down.
+
+    `path` defaults to `None` and the module global is read at call time. A
+    default of `KIND_VOCABULARY_FILE` would bind at import and make the
+    missing-file path un-monkeypatchable — a probe of that path returned a
+    misleading PASS because the default still pointed at the real file. The
+    G-E7 precedent reads its module global at call time for the same reason.
+    """
+    if path is None:
+        path = KIND_VOCABULARY_FILE
+    if not path.exists():
+        raise FileNotFoundError(
+            f"kind vocabulary missing: {path} — G-M1 cannot validate labels "
+            f"without it (see DEC-035)")
+    values = tuple(
+        line.strip() for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    )
+    if not values:
+        raise ValueError(f"kind vocabulary is empty: {path}")
+    return values
 
 
 def _load_cache(path: Path) -> tuple[dict | None, list[str]]:
@@ -103,6 +137,15 @@ def check_label_cardinality(path: Path) -> tuple[str, list[str]]:
     if not open_issues:
         return "SKIP", ["no OPEN issues in the cache — nothing to check"]
 
+    # Load the vocabulary lazily (DEC-035). A missing or empty source means the
+    # check cannot run, which is SKIP-with-reason — never PASS, and never a
+    # crash. A gate that validated against no vocabulary would accept every
+    # label, which is the vacuity failure DEC-019/DEC-020 were both about.
+    try:
+        valid_kind = load_kind_vocabulary()
+    except (FileNotFoundError, ValueError) as e:
+        return "SKIP", [f"kind vocabulary unavailable — {e}"]
+
     findings: list[str] = []
     for num, entry in sorted(open_issues.items(), key=lambda kv: int(kv[0])
                              if kv[0].isdigit() else 0):
@@ -134,10 +177,10 @@ def check_label_cardinality(path: Path) -> tuple[str, list[str]]:
                                 f"label — expected one of "
                                 f"{', '.join(VALID_STATUS)}")
         for label in kinds:
-            if label not in VALID_KIND:
+            if label not in valid_kind:
                 findings.append(f"G-M1 #{num}: {label!r} is not a known kind "
                                 f"label — expected one of "
-                                f"{', '.join(VALID_KIND)}")
+                                f"{', '.join(valid_kind)}")
     if not findings:
         return "PASS", []
     return "FAIL", findings

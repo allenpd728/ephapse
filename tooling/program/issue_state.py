@@ -57,20 +57,51 @@ REPO = "allenpd728/ephapse"
 ROOT = Path(__file__).resolve().parent.parent.parent
 CACHE = ROOT / "tests" / "fixture_issue_state.json"
 
+class InvariantViolation(RuntimeError):
+    """Raised before any mutation when the requested state is illegal."""
+
+
 VALID_STATUS = (
     "status:available", "status:claimed", "status:done",
     "status:blocked-needs-input",
 )
-VALID_KIND = (
-    "kind:experiment", "kind:gate", "kind:repair", "kind:defect",
-    "kind:gap", "kind:decision", "kind:protocol",
-)
+# Kinds come from the single machine-readable source (DEC-035) so the setter and
+# G-M1 cannot disagree. Before that decision this was a second copy, and a
+# session editing one would have produced a setter that refuses a label the gate
+# accepts.
+KIND_VOCABULARY_FILE = Path(__file__).resolve().parent / "kind_vocabulary.txt"
+
+
+def load_kind_vocabulary(path: Path | None = None) -> tuple[str, ...]:
+    """Read the kind values from the single source (DEC-035).
+
+    Raises on a missing or empty file. For a *mutator* that is the right
+    behaviour: refusing to write a label it cannot validate is safer than
+    writing one against an empty vocabulary. (G-M1, which only inspects, treats
+    the same condition as SKIP instead — see validate_program.py.)
+
+    `path` defaults to `None` and the module global is read at call time, so the
+    missing-file path is monkeypatchable. A default of `KIND_VOCABULARY_FILE`
+    binds at import and silently defeats a test of that path — the same defect
+    found in `validate_program.py` while adding this.
+    """
+    if path is None:
+        path = KIND_VOCABULARY_FILE
+    if not path.exists():
+        raise InvariantViolation(
+            f"kind vocabulary missing: {path} — refusing to set a kind label "
+            f"without a vocabulary to validate against (DEC-035)")
+    values = tuple(
+        line.strip() for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    )
+    if not values:
+        raise InvariantViolation(f"kind vocabulary is empty: {path}")
+    return values
+
+
 STATUS_RE = re.compile(r"^status:")
 KIND_RE = re.compile(r"^kind:")
-
-
-class InvariantViolation(RuntimeError):
-    """Raised before any mutation when the requested state is illegal."""
 
 
 def gh(*args: str, check: bool = True) -> str:
@@ -106,7 +137,7 @@ def validate_target(num: int, labels: list[str]) -> list[str]:
         if l not in VALID_STATUS:
             problems.append(f"#{num} status {l!r} is outside the vocabulary")
     for l in kinds:
-        if l not in VALID_KIND:
+        if l not in load_kind_vocabulary():
             problems.append(f"#{num} kind {l!r} is outside the vocabulary")
     return problems
 
@@ -163,9 +194,10 @@ def set_status(num: int, status: str) -> None:
 
 def set_kind(num: int, kind: str) -> None:
     """Set exactly one kind label, atomically. Mirrors set_status."""
-    if kind not in VALID_KIND:
+    valid_kind = load_kind_vocabulary()
+    if kind not in valid_kind:
         raise InvariantViolation(f"{kind!r} is not a known kind label; "
-                                 f"expected one of {', '.join(VALID_KIND)}")
+                                 f"expected one of {', '.join(valid_kind)}")
     existing = current_labels(num)
     target_set = [l for l in existing if not KIND_RE.match(l)] + [kind]
     assert_legal(num, target_set)

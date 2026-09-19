@@ -1940,3 +1940,75 @@ rather than re-argued:
   (issue #20) exists to catch, and #20 is unwired, so nothing detects it. Folded
   into #38 rather than filed separately.
 - **Transcription artifacts** in the source are not carried into repo text.
+
+---
+
+## DEC-035 — `kind:spec` joins the vocabulary; the kind list is single-sourced
+
+**Date:** 2026-09-19 · **Status:** adopted
+
+**Decision:** the `kind:` vocabulary gains a seventh value, **`kind:spec`** —
+"produces a specification or contract that a later task must satisfy". The
+vocabulary is **single-sourced** in `tooling/program/kind_vocabulary.txt`, which
+`validate_program.py` (G-M1) and `issue_state.py` both read. Issue #40 is
+relabeled from `kind:gap` to `kind:spec`.
+
+**Why this needed a DEC rather than a relabel.** `PROGRAM_MANAGEMENT_SPEC.md` §3.1
+states the rule exactly: *"A kind that does not fit is itself a signal the
+vocabulary is wrong — file a `kind:gap` for it rather than inventing a label."*
+That rule governs a **filer**, and it was followed: #40 was filed as `kind:gap`
+with the mismatch recorded in its body rather than silently given a new label.
+But *changing the vocabulary* is a different act from filing against it — it
+changes what every future task is classified as, which is the class of change
+DEC-030 recorded a DEC for when it adopted the axis in the first place.
+
+**The evidence that the gap is real, not a misfiling.** Against the current tree,
+three issues share a shape the vocabulary cannot express:
+
+| Issue | Deliverable | Why the existing kinds do not fit |
+|---|---|---|
+| **#40** re-derive the detector statistic | a pre-registration contract | not `experiment` (no measurement is produced), not `gate` (no automated check is built) |
+| **#17** tier-1 harness contract (scoping) | a contract, scoping only | not `gap` — the design question *is* settled enough to specify |
+| **#23** detector contract registry | an unsettled design | genuinely `gap` — §3.1's own example |
+
+The distinction #23 versus #17/#40 draws is the one that matters: **a `gap` is
+work whose design is unsettled; a `spec` is work whose design is constrained and
+must be written down precisely.** #40's shape is defined by DEC-016, DEC-018,
+DEC-019, and DEC-027 — the parameters exist and must be instantiated, not
+discovered. Filing that as a gap misroutes it: a gap invites design exploration,
+a spec forbids it.
+
+**Why not reuse `protocol`.** §3.1 defines it as *"changes how work is done, not
+what is produced."* A pre-registration produces an artifact that later work is
+gated against — TEST_VALIDATION_SPEC §8-adjacent, consumed rather than
+process-changing. The routing differs, so the kinds should.
+
+**A latent drift the decision also fixes.** The vocabulary was duplicated in three
+places, byte-identical today:
+
+| Location | Role |
+|---|---|
+| `PROGRAM_MANAGEMENT_SPEC.md` §3.1 | prose definition |
+| `tooling/gates/validate_program.py` `VALID_KIND` | G-M1's check |
+| `tooling/program/issue_state.py` `VALID_KIND` | the atomic setter's refusal check |
+
+Two of those are code, and a vocabulary that lives in two code paths is the
+same defect as the coverage map and the gate count: **a second copy drifts.**
+Adding a value required editing both, and a session that edited one would produce
+a setter that refuses a label the gate accepts. Single-sourcing is therefore part
+of this decision, not a follow-up. The prose remains in the spec, which is the
+human-readable authority; the machine-readable list is the one the tools read.
+
+**What this does not change.** The vocabulary is still closed — G-M1 still rejects
+an unknown kind, which is the behaviour that caught this in the first place. This
+adds one value and removes the duplication; it does not loosen the check.
+
+**Consequences.**
+
+- `tooling/program/kind_vocabulary.txt` is the machine-readable source; both
+  Python modules read it and no longer carry their own copy.
+- `kind:spec` label exists; #40 relabeled.
+- G-M1 validates against the same list, so an out-of-vocabulary kind still fails.
+- **Not applied retroactively:** the eleven issues carrying no kind are #29's
+  backfill, and #17/#23 are left as they are (#23 is a correct gap; #17's
+  relabel belongs with #29's sweep, not here).

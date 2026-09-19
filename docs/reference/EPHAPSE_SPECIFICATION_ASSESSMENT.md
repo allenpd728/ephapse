@@ -1,9 +1,9 @@
 # Assessment: the "Cross-Domain Synthesis & Latent Novelty Discovery Engine" spec
 
-**Status:** assessment, drafted 2026-09-19 (run `20260918-2332-e7c4`). Input to
-DEC-033. The reviewed document was authored outside this repo and is **not** an
-adopted approach — this file records what was taken, what was rejected, and what
-was postponed.
+**Status:** assessment, drafted 2026-09-19 (run `20260918-2332-e7c4`); **input
+adopted by DEC-033**. The reviewed document was authored outside this repo and is
+**not** an adopted approach — this file records what was taken, what was rejected,
+and what was postponed. DEC-033 is the decision; this file is its evidence.
 
 **Reviewed:** an external v1.0.0 system spec titled *Project Ephapse —
 Cross-Domain Synthesis & Latent Novelty Discovery Engine*: a four-stage pipeline

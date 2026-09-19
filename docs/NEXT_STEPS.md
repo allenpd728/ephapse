@@ -165,10 +165,15 @@ here rather than fixed, because #38 owns it.
 - `python3 tooling/gates/run_all.py` — the authoritative gate run. A gate with no
   failing fixture reports `BROKEN` and fails, by design.
 - **The `kind:` label vocabulary is a closed set** — `experiment`, `gate`,
-  `repair`, `defect`, `gap`, `decision`, `protocol`. An out-of-vocabulary kind
-  makes `gh issue create` fail. This happened while filing #40 (`kind:methodology`
-  was rejected); the fix was `kind:gap`, and the mismatch is noted in that issue
-  rather than papered over.
+  `repair`, `defect`, `gap`, `decision`, `protocol`, `spec`. An out-of-vocabulary
+  kind makes `gh issue create` fail; this happened while filing #40
+  (`kind:methodology` was rejected — a domain label used as a kind). It is now
+  **single-sourced** in `tooling/program/kind_vocabulary.txt`, read by both G-M1
+  and the atomic setter (DEC-035), so the two cannot disagree.
+- **`kind:spec` is new** (DEC-035). Use it for work whose deliverable is a
+  specification or contract a later task must satisfy — #40 and #17 are the
+  examples. `gap` is for work whose *design* is unsettled; `spec` is for work
+  whose design is already constrained and must be written down precisely.
 
 ## 6. What NOT to do — foreclosed, do not re-propose
 
@@ -240,7 +245,9 @@ document is one vintage:
 | README gained a **"What this project produces"** section | sibling session, `7474329` |
 | **#38** filed for the gate-count discrepancy (37 vs 38 vs 11 wired) | sibling session |
 | A **critique response** document exists at `docs/reference/CRITIQUE_RESPONSE_2026-09-19.md` | sibling session |
-| DEC count is now **34** (was 33) | measured |
+| **DEC-035**: `kind:spec` added to the vocabulary; the kind list **single-sourced** in `tooling/program/kind_vocabulary.txt` (both G-M1 and the setter read it); #40 relabeled `gap` → `spec` | this session |
+| **Three status-line drifts** fixed (`ROADMAP.md` said "proposal" after DEC-033 adopted it; two assessment docs still said "input to" their DECs); the class is now scoped into **#20** (G-R4) | this session |
+| DEC count is now **35** (was 33) | measured |
 
 **One consequence for the ladder.** DEC-034's comparator baselines are a change to
 the *apparatus*, not a rung. They cut across rungs 1–3: a probe that detects a

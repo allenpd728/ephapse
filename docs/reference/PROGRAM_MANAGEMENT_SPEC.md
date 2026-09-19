@@ -95,9 +95,25 @@ compose.
 | `kind:gate` | Builds or extends the validation layer | #19 (G-E3/E4/E5/E8) |
 | `kind:repair` | Fixes existing artifacts so gates pass — mechanical | #15 (repair the four artifacts) |
 | `kind:defect` | A gate or protocol is wrong in shipped work | #24 (two holes in #11's gates) |
-| `kind:gap` | A missing capability, design unsettled | #23 (detector contract registry) |
+| `kind:gap` | A missing capability, design **unsettled** | #23 (detector contract registry) |
 | `kind:decision` | Blocked on a human judgment, no agent work available | #18 (prior-art alignment record) |
 | `kind:protocol` | Changes how work is done, not what is produced | this spec's adoption |
+| `kind:spec` | Produces a specification or contract a later task must satisfy — design **constrained**, must be written down precisely | #40 (pre-register the rung-3 statistic) |
+
+**`gap` versus `spec` is the distinction to get right** (DEC-035). A `gap` is work
+whose design is unsettled, so the task invites exploration. A `spec` is work whose
+design is already constrained by prior decisions and must be instantiated
+precisely — it forbids exploration. #23 and #40 are the two types: #23's registry
+design is open; #40's parameters are fixed by DEC-016/018/019/027 and only need
+writing down. Filing a spec as a gap misroutes it toward design work that has
+already been done.
+
+**The machine-readable vocabulary lives in one place** —
+`tooling/program/kind_vocabulary.txt` (DEC-035). Both G-M1 and the atomic setter
+read it; neither carries its own copy. Adding a value is a vocabulary change and
+needs a DEC, which is the precedent DEC-035 set: the rule above governs a *filer*
+(file it as a `gap` and say so), while changing the vocabulary is a separate act
+because it reclassifies every future task.
 
 **Why `repair` and `defect` are separate.** #15 repairs *files* against *gates
 that work*. #24 repairs *gates* that do not. Conflating them hides which side of
