@@ -115,12 +115,32 @@ close + unblock dependents) before claiming the next.
    - Only when tasks, PR comments, and blockers are exhausted is the queue
      empty and the session done.
 
-4. **Attempt the claim, then verify ownership.** Swap the item's current
-   label to `status:claimed` **in one atomic edit** — self-assign, and post
-   a claim comment (`claimed by <agent-name> run=<run-id> at <UTC
-   timestamp>`). Then re-fetch the issue **and read the latest claim
-   comment**: if its run-id is not yours, a sibling won — back off and pick
-   a different item.
+4. **Attempt the claim, then verify ownership — against *every* claim, not the
+   latest one.** Swap the item's current label to `status:claimed` **in one
+   atomic edit** — self-assign, and post a claim comment (`claimed by
+   <agent-name> run=<run-id> at <UTC timestamp>`). Then re-fetch the issue and
+   **list all claim comments**, not just the most recent.
+
+   The check is: *does any **unexpired** claim comment exist whose run-id is
+   not mine?* If yes, a sibling holds the item — back off and pick a different
+   one. **Do not** merely read the latest claim comment and confirm it is
+   yours: a session that claims second always finds its own comment latest, so
+   that check passes while an earlier live claim sits unread. That was the
+   original wording, and it failed twice in one day (#5, #11).
+
+   **Tiebreak when two claims collide.** The winner is the claim with the
+   **earliest server-assigned comment id** — not the earliest timestamp string,
+   which is agent-supplied and can be skewed or wrong. Comment ids are
+   monotonic and assigned by GitHub, so both sessions derive the same answer
+   without a human. If you hold the later id, release the claim (remove
+   `status:claimed`, comment that you lost by tiebreak) and pick another item.
+   `tooling/claims/audit_claims.py` reports collisions and names the winner.
+
+   The owner is whoever holds the earliest *unexpired* claim; either side may
+   compute it. **The loser must stop work, not race to finish** — two sessions
+   completing the same item produces contradictory results, not redundancy:
+   #5's duplicate claims yielded opposite verdicts on the same question and
+   cost DEC-023, DEC-024, and a third entry to reconcile.
 
 5. **Do the work; prove the done.** Commit directly to `dev` (no PR —
    review happens retrospectively on `dev`). Swap `status:claimed` →

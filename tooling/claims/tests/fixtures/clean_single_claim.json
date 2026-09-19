@@ -1,0 +1,20 @@
+{
+  "_comment": "Clean case: one live claim, no collision. The audit must be silent. If this fires, the tool is reporting ordinary single ownership as a problem.",
+  "issues": [
+    {
+      "number": 12,
+      "title": "Add dependency-pinning gate (G-R3) + fixtures",
+      "state": "open"
+    }
+  ],
+  "comments": {
+    "12": [
+      {
+        "id": 5740000001,
+        "created_at": "2026-09-19T09:30:00Z",
+        "body": "claimed by openhands run=20260919-0930-bbbb at 2026-09-19T09:30:00Z"
+      }
+    ]
+  },
+  "_evaluate_at": "2026-09-19T09:40:00Z"
+}

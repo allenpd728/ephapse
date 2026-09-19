@@ -1,0 +1,30 @@
+{
+  "_comment": "Fixture modelled on the REAL #11 claim history: my claim at 5739467938 (04:52:34) preceded the sibling's at 5739479618 (04:55:03) by 2.5 minutes. The sibling's check read the LATEST comment, found its own, and proceeded \u2014 the defect issue #26 fixes. Earliest id wins.",
+  "issues": [
+    {
+      "number": 11,
+      "title": "Add experiment-artifact gate (validate_experiments.py) + fixtures",
+      "state": "closed"
+    }
+  ],
+  "comments": {
+    "11": [
+      {
+        "id": 5739467938,
+        "created_at": "2026-09-19T04:52:34Z",
+        "body": "claimed by openhands run=20260919-0451-6421 at 2026-09-19T04:52:34Z"
+      },
+      {
+        "id": 5739479618,
+        "created_at": "2026-09-19T04:55:03Z",
+        "body": "claimed by openhands run=20260918-2332-e7c4 at 2026-09-19T04:55:03Z"
+      },
+      {
+        "id": 5739500000,
+        "created_at": "2026-09-19T05:13:54Z",
+        "body": "**DONE** \u2014 run=`20260918-2332-e7c4`, commit `cc09eb6`."
+      }
+    ]
+  },
+  "_evaluate_at": "2026-09-19T05:05:00Z"
+}

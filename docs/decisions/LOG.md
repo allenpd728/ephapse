@@ -1361,3 +1361,72 @@ only because claims carried run-ids and the rebase surfaced it; resolution again
 required reading committed result files to determine that one implementation
 subsumed the other. The protocol worked as written.
 
+---
+
+## DEC-029 — The claim protocol's ownership check was defective; duplicate claims resolve by earliest comment id
+
+**Date:** 2026-09-19 · **Status:** adopted (corrects `MULTI_AGENT_WORKFLOW.md` § 4;
+#26 closed, #27 filed)
+
+**Decision:** the ownership check in § 4 was written as *"re-fetch the issue and
+read the latest claim comment: if its run-id is not yours, a sibling won."*
+That check **cannot detect the case it was written for**, and it is replaced by
+an explicit rule: *does any unexpired claim comment exist whose run-id is not
+mine?* When two claims collide, the winner is the claim with the **earliest
+server-assigned comment id**.
+
+**Rationale — measured, twice in one day.** A session that claims second always
+finds *its own* comment latest, so the old check passes while an earlier live
+claim sits unread. The incidents, from the tracker's own event and comment
+records:
+
+| Issue | First claim | Second claim | Outcome |
+|---|---|---|---|
+| #5 | `23:29:50` run `20260918-2329-zbmn` | `23:33:27` run `20260918-2332-e7c4` | Both completed. Their results **disagreed on the same question**, and reconciling that took DEC-023, DEC-024, and a third entry. |
+| #11 | `04:52:34` run `20260919-0451-6421` | `04:55:03` run `20260918-2332-e7c4` | Both built the gate in full; resolved at rebase, one implementation discarded. |
+
+On #11 the cost was duplicated effort. On #5 it was **contradictory recorded
+results** — the far more expensive failure, and the one that made the bug worth
+a decision entry rather than a note.
+
+**Why earliest comment id, and not earliest timestamp.** Comment ids are
+monotonic and assigned by GitHub; timestamps in claim comments are
+agent-supplied and can be skewed or simply wrong. On both incidents the id order
+and the timestamp order happen to agree, so the tiebreak is verified against
+real data:
+
+```
+#5  id 5737426522 (20260918-2329-zbmn) < id 5737450441 (20260918-2332-e7c4)
+#11 id 5739467938 (20260919-0451-6421) < id 5739479618 (20260918-2332-e7c4)
+```
+
+The tool `tooling/claims/audit_claims.py` reports collisions and names the
+winner; its tests reproduce both incidents. It is deliberately **not** a CI
+gate: it needs issue state, so it is tier 1 by `TEST_VALIDATION_SPEC.md` § 3 and
+must not be wired into `tooling/gates/run_all.py` (the same reasoning as G-E7's
+`SKIP`).
+
+**Rejected: distinct PATs.** Measured — `GITHUB_TOKEN` and `ALL_REPOs_GH_TOKEN`
+both resolve to login `allenpd728`, id `26507447`. Separate tokens on one account
+change nothing on GitHub's side: every comment, label change, and commit is
+authored by the same user regardless of which token made the call. Distinct
+*tokens* are therefore not a fix. Distinct *accounts* would make `assignee` and
+comment authorship meaningful, but GitHub still offers no conditional write on
+labels or assignees, so they would improve attribution without preventing the
+race. **Rejected: shortening the stale window** — the #11 collision was ~2.5
+minutes apart; any window short enough to catch that would expire legitimate
+work. The defect is ordering, not timeout.
+
+**What this does not fix, and the issue for it.** Detection happens at claim
+time, but *both* sessions have claimed by then — the rule tells them who should
+stop, it does not stop them. The structural fix is a real compare-and-swap, and
+the only one available here is `git push` itself, which rejects a non-fast-forward
+ref update. **#27** implements it: a claim becomes a committed file
+`claims/<issue>.claim`, so the losing session is rejected at the push and stops
+before doing any work. #27 is blocked by this entry so it changes a coherent
+rule rather than one being rewritten concurrently.
+
+**Procedural note.** The protocol's run-id mechanism *did* make both collisions
+visible — the collision on #11 was found because the two claims carried distinct
+run-ids. What it lacked was a rule that could act on what it revealed. That is
+the gap this closes: the mechanism was sound, the check was wrong.

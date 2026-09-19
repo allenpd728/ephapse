@@ -1,0 +1,42 @@
+{
+  "_comment": "Fixture modelled on the REAL #5 claim history. Two live claims, 3.5 minutes apart, on the same issue. Earliest comment id (5737426522) is the winner. Real timestamps and ids from the tracker; bodies truncated.",
+  "issues": [
+    {
+      "number": 5,
+      "title": "Validate the co-activation detector with an injected positive control",
+      "state": "closed"
+    },
+    {
+      "number": 12,
+      "title": "Add dependency-pinning gate (G-R3) + fixtures",
+      "state": "open"
+    }
+  ],
+  "comments": {
+    "5": [
+      {
+        "id": 5737426522,
+        "created_at": "2026-09-18T23:29:50Z",
+        "body": "claimed by openhands run=20260918-2329-zbmn at 2026-09-18T23:29:47Z"
+      },
+      {
+        "id": 5737450441,
+        "created_at": "2026-09-18T23:33:27Z",
+        "body": "claimed by openhands run=20260918-2332-e7c4 at 2026-09-18T23:33:27Z  Plan: build the injected-positive-control harness"
+      },
+      {
+        "id": 5738000000,
+        "created_at": "2026-09-19T01:31:34Z",
+        "body": "done by openhands run=20260918-2329-zbmn  **Commit:** `40cb977` on `dev`"
+      }
+    ],
+    "12": [
+      {
+        "id": 5739000001,
+        "created_at": "2026-09-19T06:00:00Z",
+        "body": "claimed by openhands run=20260919-0600-aaaa at 2026-09-19T06:00:00Z"
+      }
+    ]
+  },
+  "_evaluate_at": "2026-09-18T23:45:00Z"
+}

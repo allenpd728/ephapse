@@ -1,0 +1,20 @@
+{
+  "_comment": "Stale case: the only claim is older than the 1-hour window, so protocol section 1 makes it void and the issue reclaimable. The audit must NOT report it as a live collision, but should surface it as reclaimable. A tool that treats a stale claim as a live one would block legitimate work.",
+  "issues": [
+    {
+      "number": 14,
+      "title": "Add tokenizer-level prompt disjointness check + fixtures",
+      "state": "open"
+    }
+  ],
+  "comments": {
+    "14": [
+      {
+        "id": 5738000001,
+        "created_at": "2026-09-18T12:00:00Z",
+        "body": "claimed by openhands run=20260918-1200-cccc at 2026-09-18T12:00:00Z"
+      }
+    ]
+  },
+  "_evaluate_at": "2026-09-19T11:00:00Z"
+}
