@@ -1531,3 +1531,77 @@ auditable; it does not shrink the judgment.
   That is a ninth label-hygiene violation, in the session that proposed the gate
   to prevent them. The rule is easy to state and easy to violate by hand, which
   is why §7 makes it a gate rather than a convention.
+
+---
+
+## DEC-031 — The claim lock is a git-ref compare-and-swap; the label is visibility only
+
+**Date:** 2026-09-19 · **Status:** adopted (#27 closed; corrects
+`MULTI_AGENT_WORKFLOW.md` § 4)
+
+**Decision:** the authoritative claim lock is a committed file,
+`claims/<issue>.claim` containing `<run-id> <UTC timestamp>`, taken and released
+through `tooling/claims/claim.py`. `git push` is the compare-and-swap: a
+non-fast-forward ref update is rejected, so whichever push lands first owns the
+issue. The `status:claimed` label and the claim comment are retained for
+**visibility only**. Where the file and the label disagree, **the file wins**.
+
+**Rationale — GitHub offers no conditional write, so a label cannot lock.**
+DEC-029 fixed the *detection* of duplicate claims and made them deterministically
+resolvable, but by then both sessions have already done the work. Prevention
+needs a real compare-and-swap, and the issue API does not have one:
+
+| Mechanism | Why it cannot lock |
+|---|---|
+| Labels | Last-write-wins. Two sessions can both `POST status:claimed`; neither is rejected. |
+| Assignees | Multiple assignees are permitted, and there is no conditional form. Also useless here: both sessions are the same account (`allenpd728`, id `26507447`). |
+| Comments | Append-only and unordered for this purpose; DEC-029's earliest-id rule orders them only after the fact. |
+
+`git push` does have the property, is already relied on throughout this repo,
+and costs nothing new. One file per issue number, so two *different* claims never
+touch the same path and cannot conflict beyond the single file.
+
+**Measured, not assumed.** `tooling/claims/tests/test_claim_cas.sh` builds a
+scratch bare remote and two clones and races them at the same claim. It asserts
+exactly one winner; the loser's exit code is `2` (distinct from error), the loser
+leaves no claim on the remote, and **the loser's working tree is clean** — it
+genuinely did no work. Stable across repeated runs (5/5 identical). The suite
+also covers the negative directions, since a check that cannot fail is not a
+check: idempotent re-claim, a live foreign claim refused without touching the
+remote, a *stale* claim correctly reclaimed (the § 1 window still works), and
+`release` refusing a claim held by another run-id.
+
+**Exit-code contract.** `0` = you hold it; `2` = you **lost the race** (back off
+and pick other work); `1` = a real error. Losing is distinguishable from breakage
+without parsing output. `2` is not a failure — losing a race is the system
+working.
+
+**Why the file is authoritative rather than a second opinion.** The defect this
+removes is *two sources of truth for who owns an item*. Keeping the label as a
+peer would reintroduce it, so the protocol now states the precedence explicitly.
+
+**Rejected, recorded so it is not re-proposed: distinct PATs.** Measured —
+`GITHUB_TOKEN` and `ALL_REPOs_GH_TOKEN` both resolve to login `allenpd728`, id
+`26507447`. Separate tokens on one account change no API semantics: every
+comment, label change, and commit is authored by the same user regardless of
+which token made the call. Distinct *accounts* would make `assignee` and
+authorship meaningful but still provide no conditional write, so they would not
+prevent the race either — they improve attribution, not exclusion. **Rejected:
+shortening the stale window** — the #11 collision was ~2.5 minutes apart, and any
+window tight enough to catch that would expire legitimate work. The defect was
+ordering, not timeout.
+
+**Cost and limits.** The lock needs git and network, so it is tier 1 and must
+not be wired into the tier-0 CI runner. `audit_claims.py` is retained rather than
+retired: it covers claims made before the lock existed, offline or scratch
+contexts, and the case where a label exists with no claim file — and it remains
+the tiebreak when the CAS is unavailable.
+
+**Process note.** This entry was written after two rebase collisions cost two
+renumbers of DEC-029. Two sessions editing the same ascending log is itself a
+serialization problem of the same family; the claim-file mechanism does not help
+there, because the log is a single shared file by design. Worth watching, but not
+fixed here.
+
+*Supersedes the label-as-lock framing in DEC-029 § 4; DEC-029's detection rule
+and earliest-id tiebreak remain in force.*
