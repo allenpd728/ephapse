@@ -1,0 +1,56 @@
+name: hub_sweep
+
+# Appends one status snapshot to status_log.jsonl for the HuB dashboard
+# (https://allenpd728.github.io/HuB/). See docs/HUB_STATUS_LOG.md.
+#
+# This repo is the writer; HuB only reads. Nothing here writes to any other
+# repo — the log is this repo's own file, on this repo's own branch, so there
+# is no cross-repo write surface to conflict on.
+
+on:
+  schedule:
+    # Every 30 minutes. GitHub may delay scheduled runs under load; the sweep
+    # is idempotent, so a late or doubled run is harmless.
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+
+# Needed to write the snapshot back to the branch (contents: write for the
+# push; issues: read for the flow counts).
+permissions:
+  contents: write
+  issues: read
+
+concurrency:
+  # Never let two sweeps race on the same branch: the log is append-only and a
+  # lost update would silently drop a snapshot.
+  group: hub_sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - name: Append status snapshot
+        env:
+          # The default token is enough: issues are read from this repo only.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 tooling/hub_sweep.py --repo ${{ github.repository }} --token-env GITHUB_TOKEN
+
+      - name: Commit and push if the log changed
+        run: |
+          set -e
+          if git diff --quiet -- status_log.jsonl; then
+            echo "no change; nothing to commit"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add status_log.jsonl
+          git commit -m "chore(hub): status snapshot [skip ci]"
+          git push origin dev
