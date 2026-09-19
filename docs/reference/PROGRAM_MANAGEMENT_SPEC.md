@@ -292,25 +292,33 @@ traversal auditable; it does not shrink the judgment.
 
 ## 9. Task map
 
-Decomposed into issues, each sized to one agent run, with native dependency
-links. Only the first is unblocked at filing.
+Filed as issues #28–#34, each sized to one agent run, with native `blocked by`
+links. Only A (#28) is unblocked at filing.
 
-| # | Task | Kind | Depends on |
+| Task | Issue | Kind | Depends on |
 |---|---|---|---|
-| A | Add the §3 label axes to the repo and this spec's adoption (DEC entry) | `kind:protocol` | — |
-| B | Backfill labels on the 14 open issues + the 11 closed ones | `kind:repair` | A |
-| C | Build `G-M1` label-hygiene gate + fixtures | `kind:gate` | A |
-| D | Build `program/ledger.jsonl` + `program/README.md` | `kind:protocol` | A |
-| E | Build `program/view.py` with the five §5 views + a fixture ledger | `kind:gate` | D |
-| F | Backfill ledger records for the 8 completed experiment issues (#1–#7) | `kind:repair` | D |
-| G | Adopt §6 as a `MULTI_AGENT_WORKFLOW.md` section | `kind:protocol` | A |
+| A — Adopt this spec; land the section 3.1 label axes | **#28** | `kind:protocol` | — |
+| B — Backfill `kind:`/`status:` on all open issues | **#29** | `kind:repair` | #28 |
+| C — Build `G-M1` label-hygiene gate + fixtures | **#30** | `kind:gate` | #28 |
+| D — Build `program/ledger.jsonl` + `program/README.md` | **#31** | `kind:protocol` | #28 |
+| E — Build `program/view.py`, the five section 5 views + fixture ledger | **#32** | `kind:gate` | #31 |
+| F — Backfill ledger records for the completed experiment issues | **#33** | `kind:repair` | #31 |
+| G — Adopt the section 6 protocol into `MULTI_AGENT_WORKFLOW.md` | **#34** | `kind:protocol` | #28 |
 
 **Sequencing rationale.** A before everything: the labels and the adoption are
-the decision. B before C is *not* required — the gate can be built against
-fixtures while the real tree is still red, exactly as #11 and #15 did — but C
-before B would mean building a gate whose first real run must fail, which is
-fine and already precedented. D before E and F: no view without a ledger. G is
-independent of B–F and can run in parallel.
+the decision. B and C are independent of each other — C can be built against
+fixtures while the real tree is still red, exactly as #11 and #15 did — but a
+gate whose first real run must fail is already precedented, so either order
+works. D before E and F: no view without a ledger. G is independent of B–F and
+can run in parallel with them.
+
+**A note on the filing itself.** The six dependent issues were filed with
+`status:blocked-needs-input` and a native `#28 blocks` edge. While doing so, an
+intermediate step set *both* `status:available` and `status:blocked-needs-input`
+on the same issue — the exact illegal state `MULTI_AGENT_WORKFLOW.md` §1a says
+the sweep must repair, produced here by this very change and fixed within the
+same session. That is the argument for `G-M1` (#30) arriving from its own filing:
+the rule is easy to state and easy to violate by hand.
 
 ---
 
