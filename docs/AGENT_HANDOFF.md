@@ -363,6 +363,18 @@ it) — don't repeat it here at a smaller scale.
    because the probe's interpretation depends on the detector's measured
    sensitivity — a null from an unvalidated detector is uninterpretable.
    Blocked on issue 2.
+   **DONE 2026-09-18 — twice, independently** (run `20260918-2332-e7c4`,
+   DEC-018/019; and the permutation-test run, DEC-016/017). This session's
+   analytic-null implementation recovers the injected correlation at 0.868
+   (rate 0.20) and 0.895 (rate 0.40), onset between rates 0.02 and 0.05
+   driven by the NPMI threshold; a naive raw-co-occurrence baseline recovers
+   **zero** at every rate and budget. Four earlier runs of it returned zero
+   for reasons unrelated to detector sensitivity — catch-all feature groups,
+   an inverted p-value that could never reject, and a control that activated
+   neither group. All four are recorded in DEC-019 because each produced a
+   plausible-looking negative. **Consequence for #3 and #6: each must report
+   both that its signal is constructible and that its statistic fires on a
+   known-positive case.**
 4. **Establish paraphrase invariance.** Zero shared lexical items between the
    two prompt sets, plus a lexical-shuffle control, per
    `docs/reference/PRIOR_ART.md` §6 and DEC-011. Promote this *ahead of* the

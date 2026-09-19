@@ -534,3 +534,120 @@ co-activation, so the null would have been a benchmark bug), and an unbounded
 pair search (~1e8 pairs x 100 permutations). Each was caught by inspecting the
 design before or during execution. The first would have produced a false
 negative that looked like a real result.
+
+---
+
+## DEC-018 — Independent replication of the #5 positive control (analytic null)
+
+**Date:** 2026-09-18 · **Status:** adopted
+
+**Context — this is an independent second implementation of #5.** It ran
+concurrently with the permutation-test version recorded in DEC-016/017, from
+a different agent session, using a different null: an **analytic**
+Poisson-independence null (per-pair upper tail, BH-FDR over the whole
+family) rather than a permutation null. Both passed. The difference in null
+matters, and it bears directly on DEC-016's conclusion:
+
+- DEC-016 found the BH-FDR layer *structurally impossible* because a
+  permutation null with N_PERM=100 has a resolution floor of p=0.01 while
+  BH at m=6e4 needs p <= q/m = 1.6e-6 — a 6250x gap.
+- This run's analytic null has **no such floor**: p-values are computed,
+  not counted. BH therefore does fire, and it is what drives detection
+  onset (FDR passes all 400 planted pairs from rate 0.01; NPMI is the
+  binding constraint until rate 0.05).
+
+So DEC-016's conclusion is correct *about permutation nulls at N_PERM=100*
+and should be read with that scope, not as a general claim that BH cannot
+work on this family. Recording both is the point: the two implementations
+dissociate "the correction is arithmetically unable to fire" from "the
+detector cannot see the signal."
+
+**Decision:** the injected-positive-control parameters are frozen before the
+run and recorded here, so the recovery curve is a result rather than a
+reshaping: N=2000 background samples (pile-10k idx 0..1999), CTX=64,
+GROUP_SIZE=20 per group, injection rates 0, 0.001, 0.005, 0.01, 0.02, 0.05,
+0.10, 0.20, 0.40, BH-FDR at q=0.05 over the full pair family, NPMI > 0.8,
+decoder-cosine semantic filter < 0.2, cluster cos >= 0.6. Detection is the
+conjunction of the three. The naive comparison is top-M raw co-occurrence at
+the detector's own flag budget.
+
+**Rationale:** DEC-007 says a null from an unvalidated detector is
+uninterpretable; DEC-005 says the null model and correction are fixed before
+the run. This extends both to the *control*: if the injected signal, the
+thresholds, or the rate grid are chosen after seeing recovery, the curve
+measures nothing. Committing them first is what makes the number meaningful.
+
+---
+
+## DEC-019 — A positive control must be shown constructible before it is run
+
+**Date:** 2026-09-18 · **Status:** adopted
+
+**Decision:** every positive control must carry an explicit
+**constructibility check** — evidence that the planted signal actually
+activates both feature groups — and the run is invalid without it. Recorded
+after four consecutive runs of #5 returned zero recovery for reasons that
+had nothing to do with detector sensitivity.
+
+**What happened (all four failures, kept because each is a distinct trap):**
+
+1. **Catch-all groups** (run 1). Groups chosen as top-activation features on
+   the signal text. At pythia-70m that selects features firing on
+   ~2000/2000 background samples. Injecting into more rows cannot raise a
+   marginal already at 1.0, so NPMI stays structurally < 0.8 at any rate.
+   Measured later: group-A marginals were 0.811 after a 0.20 injection.
+2. **Band ceiling too high** (run 2). Restricting to support <= 300 did not
+   fix it: with replacement injection pA >= pXY, so NPMI is bounded, and at a
+   15% ceiling it tops out at 0.416.
+3. **Groups that do not fire** (run 3). Restricting to a low-support band but
+   *still* ranking by activation selected features the signal text never
+   fires; the planted row activated 0/20 of each group. The check that would
+   have caught this immediately did not exist.
+4. **Inverted statistical test** (runs 1-4). The per-pair p-value used
+   `gammaincc(k, lambda)`, which is the regularized *lower* incomplete gamma
+   with the arguments reversed; it returns 1.0 for every pair. No pair could
+   be significant, and the *only* reason detection ever appeared to fire was
+   that the NPMI mask alone was being counted. The correct upper tail is
+   `poisson.sf(k - 1, lambda)`.
+
+**The general lesson, and why it is a decision rather than a bug note.** Every
+one of the four produced a *plausible-looking negative result* — no
+co-activation found, which is the outcome the project expects anyway. A
+broken detector, a broken control, and a genuine absence of structure are
+indistinguishable in the output unless the control is separately shown to be
+constructible and the test separately shown to be able to fire. This is
+`MULTI_AGENT_WORKFLOW.md`'s "a check that cannot fail is not a check"
+applied to the *control*, not just the metric — and it is the same failure
+Ephapse was created to avoid at the level above.
+
+**Consequence for later issues:** #3 and #6 must each report (a) that the
+planted/constructed signal is present in the data by construction, and (b)
+that their test statistic fires on a case where the answer is known. A
+recovery curve alone is not sufficient evidence that a detector works.
+
+**Result after the fix (run 5, `2026-09-18-injected-positive-control-results.json`):**
+
+| rate | n injected | cross-pair NPMI (median) | detector recovery | naive recovery |
+|---|---|---|---|---|
+| 0.0 | 0 | 0.025 | 0.000 | 0.000 |
+| 0.005 | 10 | 0.282 | 0.000 | 0.000 |
+| 0.01 | 20 | 0.391 | 0.000 | 0.000 |
+| 0.02 | 40 | 0.507 | 0.000 | 0.000 |
+| 0.05 | 100 | 0.663 | 0.015 | 0.000 |
+| 0.10 | 200 | 0.762 | 0.150 | 0.000 |
+| 0.20 | 400 | 0.834 | **0.868** | 0.000 |
+| 0.40 | 800 | 0.887 | **0.895** | 0.000 |
+
+Detection onset sits between rates 0.02 and 0.05, as the arithmetic in the
+test header predicts (NPMI crosses 0.8 between those points). It is driven by
+the NPMI threshold, not by significance: FDR alone passes all 400 cross pairs
+from rate 0.01 onward. The naive raw-co-occurrence baseline recovers **zero**
+at every rate and at every budget — the direct evidence that the NPMI +
+semantic screen is doing work the obvious alternative does not.
+
+**Ceiling, stated:** recovery saturates at ~0.90, not 1.0, because 42 of 400
+cross pairs fail the semantic filter (decoder cosine >= 0.2 for 10.5% of the
+A x B block), and 6 further pairs fall below NPMI 0.8 even at rate 0.40. The
+0.90 is therefore a property of this group construction, not a detector
+limitation.
+
