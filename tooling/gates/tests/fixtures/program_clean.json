@@ -1,0 +1,13 @@
+{
+  "_comment": "CLEAN fixture for G-M1/G-M2. Every OPEN issue carries exactly one status: and one kind:, and every status:available issue has no open blocker. #28 is CLOSED so its labels are not cardinality-checked but it must still be present for #29's blocked_by to resolve. Regenerate the real cache with tooling/program/issue_state.py.",
+  "_generated": "fixture",
+  "28": {"state": "CLOSED", "done": true,
+         "labels": ["status:done", "kind:protocol"], "blocked_by": []},
+  "29": {"state": "OPEN", "done": false,
+         "labels": ["status:available", "kind:repair"], "blocked_by": [28]},
+  "30": {"state": "OPEN", "done": false,
+         "labels": ["status:claimed", "kind:gate"], "blocked_by": [28]},
+  "31": {"state": "OPEN", "done": false,
+         "labels": ["status:blocked-needs-input", "kind:protocol"],
+         "blocked_by": [30]}
+}

@@ -1,0 +1,47 @@
+{
+  "_comment": "G-M1 failing fixture: #29 carries TWO status labels \u2014 the illegal state MULTI_AGENT_WORKFLOW.md section 1a says the sweep must repair.",
+  "_generated": "fixture",
+  "28": {
+    "state": "CLOSED",
+    "done": true,
+    "labels": [
+      "status:done",
+      "kind:protocol"
+    ],
+    "blocked_by": []
+  },
+  "29": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "status:available",
+      "status:blocked-needs-input",
+      "kind:repair"
+    ],
+    "blocked_by": [
+      28
+    ]
+  },
+  "30": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "status:claimed",
+      "kind:gate"
+    ],
+    "blocked_by": [
+      28
+    ]
+  },
+  "31": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "status:blocked-needs-input",
+      "kind:protocol"
+    ],
+    "blocked_by": [
+      30
+    ]
+  }
+}

@@ -1,7 +1,393 @@
 {
-  "_comment": "Committed cache of GitHub issue state for G-E7. Tier 0 must not touch the network, so the gate reads this file instead of calling the API. Regenerate with tooling/gates/tests/refresh_issue_state.sh when a cited issue closes. A record whose issue is absent from this file causes G-E7 to SKIP (never pass) for that record.",
-  "_generated": "2026-09-19",
-  "5": {"state": "CLOSED", "done": true},
-  "6": {"state": "CLOSED", "done": true},
-  "999": {"state": "OPEN", "done": false}
+  "_comment": "Committed cache of GitHub issue state for G-E7 and G-M1/G-M2. Tier 0 must not touch the network, so the gates read this file. Regenerate with `python3 tooling/program/issue_state.py refresh` (reads labels AND blocked_by via GraphQL), then review the diff as part of the change.",
+  "_generated": "refresh",
+  "36": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "infrastructure",
+      "kind:defect",
+      "needs-review"
+    ],
+    "blocked_by": []
+  },
+  "35": {
+    "state": "CLOSED",
+    "done": true,
+    "labels": [
+      "infrastructure",
+      "kind:defect",
+      "needs-review",
+      "status:done"
+    ],
+    "blocked_by": []
+  },
+  "34": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "documentation",
+      "kind:protocol",
+      "status:available"
+    ],
+    "blocked_by": [
+      28
+    ]
+  },
+  "33": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "kind:repair",
+      "methodology",
+      "status:blocked-needs-input"
+    ],
+    "blocked_by": [
+      28,
+      31
+    ]
+  },
+  "32": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "infrastructure",
+      "kind:gate",
+      "status:blocked-needs-input"
+    ],
+    "blocked_by": [
+      28,
+      31
+    ]
+  },
+  "31": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "infrastructure",
+      "kind:protocol",
+      "status:available"
+    ],
+    "blocked_by": [
+      28
+    ]
+  },
+  "30": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "infrastructure",
+      "kind:gate",
+      "status:claimed"
+    ],
+    "blocked_by": [
+      28
+    ]
+  },
+  "29": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "infrastructure",
+      "kind:repair",
+      "status:available"
+    ],
+    "blocked_by": [
+      28
+    ]
+  },
+  "28": {
+    "state": "CLOSED",
+    "done": true,
+    "labels": [
+      "documentation",
+      "kind:protocol",
+      "status:done"
+    ],
+    "blocked_by": []
+  },
+  "27": {
+    "state": "CLOSED",
+    "done": true,
+    "labels": [
+      "infrastructure",
+      "needs-review",
+      "status:done"
+    ],
+    "blocked_by": [
+      26
+    ]
+  },
+  "26": {
+    "state": "CLOSED",
+    "done": true,
+    "labels": [
+      "documentation",
+      "needs-review",
+      "status:done"
+    ],
+    "blocked_by": []
+  },
+  "25": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "infrastructure"
+    ],
+    "blocked_by": []
+  },
+  "24": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "infrastructure",
+      "needs-review"
+    ],
+    "blocked_by": []
+  },
+  "23": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "methodology",
+      "needs-review"
+    ],
+    "blocked_by": [
+      22
+    ]
+  },
+  "22": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "infrastructure",
+      "status:available"
+    ],
+    "blocked_by": [
+      9
+    ]
+  },
+  "21": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "needs-review",
+      "status:available"
+    ],
+    "blocked_by": [
+      12
+    ]
+  },
+  "20": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "infrastructure",
+      "status:available"
+    ],
+    "blocked_by": [
+      9
+    ]
+  },
+  "19": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "infrastructure",
+      "status:available"
+    ],
+    "blocked_by": [
+      10
+    ]
+  },
+  "18": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "methodology",
+      "needs-review"
+    ],
+    "blocked_by": [
+      8
+    ]
+  },
+  "17": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "methodology",
+      "needs-review"
+    ],
+    "blocked_by": [
+      8
+    ]
+  },
+  "16": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "documentation",
+      "status:available"
+    ],
+    "blocked_by": [
+      11
+    ]
+  },
+  "15": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "infrastructure",
+      "needs-review"
+    ],
+    "blocked_by": [
+      10,
+      11,
+      12,
+      24
+    ]
+  },
+  "14": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "infrastructure",
+      "status:claimed"
+    ],
+    "blocked_by": [
+      8,
+      9
+    ]
+  },
+  "13": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "infrastructure"
+    ],
+    "blocked_by": [
+      10,
+      11,
+      12
+    ]
+  },
+  "12": {
+    "state": "CLOSED",
+    "done": true,
+    "labels": [
+      "infrastructure",
+      "status:done"
+    ],
+    "blocked_by": [
+      9
+    ]
+  },
+  "11": {
+    "state": "CLOSED",
+    "done": true,
+    "labels": [
+      "infrastructure",
+      "status:done"
+    ],
+    "blocked_by": [
+      9
+    ]
+  },
+  "10": {
+    "state": "CLOSED",
+    "done": true,
+    "labels": [
+      "infrastructure",
+      "status:done"
+    ],
+    "blocked_by": [
+      9
+    ]
+  },
+  "9": {
+    "state": "CLOSED",
+    "done": true,
+    "labels": [
+      "infrastructure",
+      "status:done"
+    ],
+    "blocked_by": [
+      8
+    ]
+  },
+  "8": {
+    "state": "CLOSED",
+    "done": true,
+    "labels": [
+      "documentation",
+      "needs-review",
+      "status:done"
+    ],
+    "blocked_by": []
+  },
+  "7": {
+    "state": "CLOSED",
+    "done": true,
+    "labels": [
+      "methodology",
+      "status:done"
+    ],
+    "blocked_by": []
+  },
+  "6": {
+    "state": "CLOSED",
+    "done": true,
+    "labels": [
+      "methodology",
+      "status:done"
+    ],
+    "blocked_by": []
+  },
+  "5": {
+    "state": "CLOSED",
+    "done": true,
+    "labels": [
+      "methodology",
+      "status:done"
+    ],
+    "blocked_by": []
+  },
+  "4": {
+    "state": "CLOSED",
+    "done": true,
+    "labels": [
+      "methodology",
+      "status:done"
+    ],
+    "blocked_by": [
+      3
+    ]
+  },
+  "3": {
+    "state": "CLOSED",
+    "done": true,
+    "labels": [
+      "methodology",
+      "status:done"
+    ],
+    "blocked_by": []
+  },
+  "2": {
+    "state": "CLOSED",
+    "done": true,
+    "labels": [
+      "infrastructure",
+      "status:done"
+    ],
+    "blocked_by": []
+  },
+  "1": {
+    "state": "CLOSED",
+    "done": true,
+    "labels": [
+      "infrastructure",
+      "status:done"
+    ],
+    "blocked_by": []
+  }
 }

@@ -601,3 +601,150 @@ def test_check_prefixed_gate_modules_are_discovered():
     assert "G-P2" in ids, (
         "G-P2 not registered — run_all._load_gate_modules is not discovering "
         "check_*.py modules")
+# -------------------------------------------------------------- G-M gates
+def test_g_m1_fires_on_two_status_labels():
+    """The exact illegal state created while filing #29-#34."""
+    import validate_program as V
+    status, findings = V.check_label_cardinality(
+        R.FIXTURES / "program_r1_two_status.json")
+    assert status == "FAIL", f"expected FAIL, got {status}"
+    assert any("2 status label" in f for f in findings), findings
+
+
+def test_g_m1_fires_on_a_missing_kind():
+    import validate_program as V
+    status, findings = V.check_label_cardinality(
+        R.FIXTURES / "program_r1_no_kind.json")
+    assert status == "FAIL"
+    assert any("0 kind label" in f for f in findings), findings
+
+
+def test_g_m1_fires_on_a_misspelled_label():
+    """Cardinality reads 1; only the vocabulary check catches a typo.
+
+    A typo'd label silently divides the queue, which is the failure mode a
+    count cannot see.
+    """
+    import validate_program as V
+    status, findings = V.check_label_cardinality(
+        R.FIXTURES / "program_r1_typo_status.json")
+    assert status == "FAIL", f"expected FAIL, got {status}"
+    assert any("outside the vocabulary" in f or "not a known" in f
+               for f in findings), findings
+
+
+def test_g_m2_fires_on_available_with_an_open_blocker():
+    """The defect G-M1 cannot see: correct cardinality, illegal combination."""
+    import validate_program as V
+    status, findings = V.check_dependency_coherence(
+        R.FIXTURES / "program_r2_available_blocked.json")
+    assert status == "FAIL", f"expected FAIL, got {status}"
+    assert any("must not be claimable" in f for f in findings), findings
+
+
+def test_g_m2_skips_rather_than_passing_when_no_edges_are_recorded():
+    """The vacancy guard.
+
+    The first version returned PASS with an empty dependency graph — a green
+    result computed from data it never had. It must SKIP with the reason.
+    """
+    import json
+    import tempfile
+    from pathlib import Path
+    import validate_program as V
+    d = json.loads((R.FIXTURES / "program_clean.json").read_text())
+    for k, v in d.items():
+        if not k.startswith("_"):
+            v["blocked_by"] = []
+    tmp = Path(tempfile.mkdtemp()) / "no_edges.json"
+    tmp.write_text(json.dumps(d))
+    status, findings = V.check_dependency_coherence(tmp)
+    assert status == "SKIP", f"expected SKIP, got {status}"
+    assert findings and "no `blocked_by` edges" in findings[0]
+
+
+def test_g_m1_and_g_m2_pass_on_the_clean_fixture():
+    import validate_program as V
+    clean = R.FIXTURES / "program_clean.json"
+    assert V.check_label_cardinality(clean) == ("PASS", [])
+    assert V.check_dependency_coherence(clean) == ("PASS", [])
+
+
+def test_real_cache_dependency_graph_is_not_vacuous():
+    """The committed cache must carry real edges, or G-M2 is green for nothing.
+
+    This is the regression guard for the vacuous-PASS defect: if a refresh stops
+    reading dependencies, this fails rather than silently hollowing out G-M2.
+    """
+    import json
+    import validate_program as V
+    d = json.loads(V.ISSUE_CACHE.read_text())
+    edges = sum(len(v.get("blocked_by") or []) for k, v in d.items()
+                if not k.startswith("_"))
+    assert edges > 0, ("the committed cache records no dependency edges — "
+                       "refresh with tooling/program/issue_state.py, or G-M2 is "
+                       "checking an empty graph")
+    status, _ = V.check_dependency_coherence(V.ISSUE_CACHE)
+    assert status in ("PASS", "FAIL"), f"expected PASS/FAIL, got {status}"
+
+
+def test_real_cache_open_issues_carry_labels():
+    """G-M1's input must be real: a refresh that drops labels hollows it out."""
+    import json
+    import validate_program as V
+    d = json.loads(V.ISSUE_CACHE.read_text())
+    open_with_labels = [
+        k for k, v in d.items()
+        if not k.startswith("_") and v.get("state") == "OPEN" and v.get("labels")
+    ]
+    assert open_with_labels, ("no OPEN cached issue carries labels — the cache "
+                              "predates label capture; refresh it")
+
+
+def test_label_delta_never_adds_and_removes_the_same_label():
+    """The bug that stripped #30's status.
+
+    `_apply_label_delta` must not put a label in both `to_add` and `to_remove`:
+    `gh` applies the removal, leaving zero labels in the family while reporting
+    success. Found by running set-status with the status already present.
+    """
+    import importlib
+    sys.path.insert(0, str(REPO / "tooling" / "program"))
+    import issue_state as S
+    importlib.reload(S)
+
+    current = ["status:claimed", "kind:gate"]
+    to_add, to_remove = S._apply_label_delta(30, "status", "status:claimed", current)
+    assert to_add == [], f"already-present label must not be re-added: {to_add}"
+    assert to_remove == [], f"the target must not be removed: {to_remove}"
+
+    # Changing status removes the sibling and adds the target, never overlapping.
+    to_add, to_remove = S._apply_label_delta(
+        30, "status", "status:done", ["status:claimed", "kind:gate"])
+    assert to_add == ["status:done"], to_add
+    assert to_remove == ["status:claimed"], to_remove
+    assert not (set(to_add) & set(to_remove)), "add/remove must not overlap"
+
+
+def test_set_status_refuses_an_out_of_vocabulary_value():
+    """A refusal must happen before mutation, so nothing is written."""
+    import importlib
+    sys.path.insert(0, str(REPO / "tooling" / "program"))
+    import issue_state as S
+    importlib.reload(S)
+    try:
+        S.set_status(999999, "status:bogus")
+    except S.InvariantViolation:
+        return
+    raise AssertionError("set_status accepted an out-of-vocabulary status")
+
+
+def test_validate_target_flags_two_status_labels():
+    import importlib
+    sys.path.insert(0, str(REPO / "tooling" / "program"))
+    import issue_state as S
+    importlib.reload(S)
+    problems = S.validate_target(
+        30, ["status:available", "status:claimed", "kind:gate"])
+    assert problems, "two status labels must be flagged before mutation"
+    assert any("2 status labels" in p for p in problems), problems

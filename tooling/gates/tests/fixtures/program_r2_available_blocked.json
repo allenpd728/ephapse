@@ -1,0 +1,46 @@
+{
+  "_comment": "G-M2 failing fixture: #29 is status:available while its blocker #31 is OPEN. Exactly one status label, so G-M1 is silent \u2014 this is the hole G-M2 exists to close.",
+  "_generated": "fixture",
+  "28": {
+    "state": "CLOSED",
+    "done": true,
+    "labels": [
+      "status:done",
+      "kind:protocol"
+    ],
+    "blocked_by": []
+  },
+  "29": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "status:available",
+      "kind:repair"
+    ],
+    "blocked_by": [
+      31
+    ]
+  },
+  "30": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "status:claimed",
+      "kind:gate"
+    ],
+    "blocked_by": [
+      28
+    ]
+  },
+  "31": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "status:claimed",
+      "kind:protocol"
+    ],
+    "blocked_by": [
+      30
+    ]
+  }
+}

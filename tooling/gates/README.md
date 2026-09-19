@@ -139,6 +139,48 @@ tooling/gates/
 | **G-E7** | `issue` cites a closed-done issue; `run_id` matches format | workflow § Run-ids | **wired** (SKIPs without the issue cache) |
 | **G-P2** | Two prompt sets share zero tokenizer ids; intersection size *and contents* reported | DEC-011; spec §3 | **wired** |
 | **G-P4** | No prompt string appears in both sets | spec §3 | **wired** (same module) |
+| **G-M1** | Exactly one `status:` and one `kind:` label per OPEN issue, from the registered vocabulary | program spec §7 | **wired** (SKIPs without the cache) |
+| **G-M2** | An `status:available` issue has no OPEN blocker | program spec §4; workflow §1a | **wired** (SKIPs without edges) |
+
+### Label-state protection: three failure modes, three mechanisms
+
+Three label-state defects appeared in one session while filing #29–#34. They are
+**different classes**, and only one is a gate's job:
+
+| Failure | What it looked like | Mechanism |
+|---|---|---|
+| **Invalid mutation** | Both `status:available` and `status:blocked-needs-input` set on one issue | **G-M1** detects it; `issue_state.py set-status` makes it unreachable |
+| **Dependency violation** | #32/#33 `available` while their blocker #31 was OPEN — cardinality correct, so G-M1 is silent | **G-M2** detects it; `issue_state.py block` enforces it at edge-creation |
+| **Omission** | The #31 dependency edge was never created, so there was nothing to violate | **No gate can see this** — an absent edge is indistinguishable from a task with no dependencies. Mitigated only by `block` being the sanctioned path to add one. |
+
+**Detection is partial; prevention is the rest.** `tooling/program/issue_state.py`
+is the *preventer*: it computes the target label set, validates it **before**
+mutating, and applies the whole set in one `gh issue edit`, so the two-status
+state cannot be produced. `set-status` removes every status label and adds
+exactly the requested one in the same invocation.
+
+**The vacancy guard, and why G-M2 needs one.** G-M2's first version reported
+**PASS while checking nothing**: a refresh via `gh issue list` cannot read
+dependencies, so `blocked_by` was empty for every issue and the gate found no
+violations in a graph it never saw. A green result that cannot come out red is
+not a result. G-M2 now returns **SKIP** when no cached issue carries any edge,
+and a test (`test_real_cache_dependency_graph_is_not_vacuous`) fails if a future
+refresh hollows the graph out again. `refresh` reads `blocked_by` via GraphQL —
+31 real edges at the time of writing.
+
+## Running the program-level checks
+
+```bash
+python3 tooling/gates/run_all.py --gate G-M1     # the authoritative gate run
+python3 tooling/program/issue_state.py audit     # both gates, pre-commit
+python3 tooling/program/issue_state.py refresh   # rewrite the committed cache
+python3 tooling/program/issue_state.py set-status 30 status:claimed
+python3 tooling/program/issue_state.py block 32 31
+```
+
+`audit` exists so a session can check its own work before committing — the
+cheapest place to catch a violation, and the place where the three defects above
+would have been caught.
 
 Spec §3 lists the remaining 17; issues #12–#14, #16, #19, #20, #22 add them.
 Each must trace to a documented concern — the suite asserts `traces_to` is
