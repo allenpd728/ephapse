@@ -1,7 +1,18 @@
 # Ephapse — Test & Validation Spec
 
-**Status:** proposal, drafted 2026-09-18 (run `20260918-2347-0201`). Not yet
-adopted; this document is the input to a decision-log entry, not a decision.
+**Status:** **adopted**, 2026-09-19 (DEC-021). Drafted 2026-09-18 (run
+`20260918-2347-0201`). This document is now the authority for Ephapse's
+automated validation layer; it was adopted by decision-log entry, as it
+specified.
+
+> **Definition of Done note (issue #8).** The issue's check has two clauses:
+> the spec must be referenced from the decision log and the handoff (it is,
+> both), and the status line above must no longer read as a draft (it does not).
+> The second clause was originally written as a whole-file grep for a word that
+> also appears in two unrelated senses in §3 and §8; those phrasings were changed
+> to "candidate generator" / "No gate-checker for candidates" so the whole-file
+> grep is unambiguous. Recorded because a DoD check that fires on the wrong
+> thing is the same class of defect as a gate without a valid fixture (spec §4).
 
 **Purpose.** Ephapse has no automated validation layer of any kind — no CI, no
 test suite, no gate scripts. Its process discipline is written entirely in
@@ -19,7 +30,7 @@ mechanically checkable into code.
 ## 1. Why this exists now — four failures in one day
 
 The scaffolding itself is deliberately minimal, per README's "What not to build
-yet". That stance is about *research* infrastructure — a proposal generator, a
+yet". That stance is about *research* infrastructure — a candidate generator, a
 gate-checker, a promoted-findings database. A validation layer over artifacts
 that already exist is a different thing, and the case for it is not
 speculative: the repo's own first two sessions produced four defects that a
@@ -270,7 +281,7 @@ that is a defect for the agent to fix, not a judgment call.
 - **No candidate-quality gate.** Nothing here judges whether a co-activation is
   mathematically interesting or correct. That is the human gate and Maith's
   gates 1–5.
-- **No gate-checker for proposals.** This layer validates artifacts that
+- **No gate-checker for candidates.** This layer validates artifacts that
   already exist. It does not generate, rank, or triage candidates.
 - **No Lean-side validation.** Unchanged from the handoff: if a candidate
   needs Lean checking it goes to Maith.

@@ -288,6 +288,49 @@ interesting. The filter has to be specified before the run, or
   mathematical concept. This is the most likely way for the project to
   produce a plausible artifact.
 
+## Validation layer (adopted 2026-09-19, DEC-021)
+
+**Read [`docs/reference/TEST_VALIDATION_SPEC.md`](reference/TEST_VALIDATION_SPEC.md)
+before claiming any result.** It is the adopted authority for Ephapse's
+automated validation layer, replacing prose-only discipline. This section is a
+pointer, not a substitute.
+
+**The two-tier split, binding, never merged.**
+
+- **Tier 0** — no model load, no torch. Schema, text, and cross-reference
+  checks over artifacts (`findings.jsonl`, experiment headers, requirements,
+  docs coherence). Runs in CI. 20 of the 24 gates.
+- **Tier 1** — requires loading the probed model. The detector-validity gates
+  (positive control, control-can-fail, null calibration, paraphrase survival,
+  causal load-bearing, interference control). 4 gates.
+
+**A tier-0 pass is not "gate passed."** Maith's formulation is exact and
+binding here: *"Treating a grep pass as a gate pass is itself an integrity
+hole."* A green CI run means the artifacts are internally consistent and their
+evidence is present. It does **not** mean a detector measures what it claims —
+that is tier 1, and beyond tier 1 it is the human's.
+
+**The fixture rule, non-negotiable.** Every gate ships a fixture that makes it
+fail, and the test suite asserts both directions (fires on its violation,
+silent on the clean case). A gate that cannot fail is removed, not kept.
+
+**Why this exists, in one line:** four failures in one day — DEC-016 to
+DEC-020 — all had the shape *a plausible-looking artifact from a process whose
+correctness was never checked*. The permutation null that could never fire; the
+positive control that activated neither group; the isolate score that was
+trivially 1.0 because nothing had moved.
+
+**The status ladder binds.** A record in `findings.jsonl` is rung 0
+(Observed). Rung 1 is tier-0-clean. Rung 2 needs paraphrase survival. Rung 3
+needs causal load-bearing above the interference control. **The word "finding"
+is reserved for rung 3 and above**; rungs 0–2 are observations. Rung 4
+(handoff) is not reachable by an agent.
+
+**Declined, so it is not re-proposed:** PleaNP's probe-checklist layer. It
+works there because expected answers are machine-derivable from Lean text;
+Ephapse has no formal text, so deriving them would insert an unverifiable LLM
+step between reviewer and artifact (DEC-021).
+
 ## Issue-based task management
 
 Ported from Maith's `docs/MULTI_AGENT_WORKFLOW.md` (itself ported from

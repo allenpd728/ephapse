@@ -712,3 +712,71 @@ low is not a reading.
   disentanglement vs 60.1/65.6 supervised. This run's per-feature numbers are
   below even that ceiling, consistent with the reconstruction error above.
 
+---
+
+## DEC-021 — Adopt the test & validation spec; decline PleaNP's probe-checklist layer
+
+**Date:** 2026-09-19 · **Status:** adopted
+
+**Decision:** `docs/reference/TEST_VALIDATION_SPEC.md` is **adopted** as the
+authority for Ephapse's automated validation layer. Its 24 gates (20 tier-0,
+4 tier-1) and their fixture rule become the standard; the two-tier split is
+binding and the tiers are never merged. Issue #8 carries this decision.
+
+**Why now.** Four failures in a single day (recorded across DEC-016 to
+DEC-020) shared one shape: **a plausible-looking artifact produced by a process
+whose correctness was never checked.** The permutation null that could not fire.
+The positive control that activated neither group. The per-feature isolate score
+that was trivially 1.0 because nothing had moved. Each read as a result and was
+an artifact of the apparatus. Ephapse's discipline until now has been prose in
+`MULTI_AGENT_WORKFLOW.md` and `AGENT_HANDOFF.md`, enforced by agent diligence —
+which is exactly the enforcement that failed four times.
+
+**What is borrowed, and from where.** The central test idea is Maith's
+prior-art alignment test (`EXPERIMENT_MEASUREMENT.md`): a result is credible
+when it lands where prior art predicts for these conditions. Ephapse's prior art
+predicts a **null**, an **absorption-limited** null, and **token-shaped**
+detector output — so a strong positive here is the surprising event and is
+treated as suspect, not celebrated. The production-line structure and the
+fixture rule come from Maith's `PIPELINE_QUALITY_GATES.md` and
+`tooling/gates/README.md`. The three-category shape (must-prove / must-refute /
+smoke) comes from PleaNP's `VALIDATION_SUITE.md`.
+
+**Declined: PleaNP's probe checklist, and the reason is recorded so it is not
+re-proposed.** PleaNP's Layer 3 turns a claim into 3–5 single-choice probes for
+a non-Lean-writing reviewer. That design works because the expected answers are
+**machine-derivable from the formal text** — `statement_lint.py` computes
+quantifier order, direction, and bound from Lean syntax. Ephapse has no formal
+text: it has activation statistics and a prose claim. Deriving "expected"
+answers would require asking an LLM what the claim means, inserting an
+unverifiable step between reviewer and artifact. That is precisely PleaNP's
+Pattern-A failure (`FAILURE_AUDIT.md`), where the check confirms the author's
+recollection rather than the artifact's content — and it is the same class as
+the four failures above, one level up. What does transfer is the *shape*: one
+crisp mechanical check on a rendered artifact beats asking a human to weigh
+subtle prose. Ephapse's rendering is the done-comment block that mechanically
+corresponds to `findings.jsonl` fields, so the human diff is a diff.
+
+**The two-tier rule, adopted verbatim from Maith.** Tier 0 needs no model and
+no torch and runs in CI; tier 1 requires loading the probed model. **A tier-0
+pass is not "gate passed."** Maith's formulation is exact and binding here:
+*"Treating a grep pass as a gate pass is itself an integrity hole."*
+
+**Why this is DEC-recorded rather than a doc edit.** The spec itself says it
+"is the input to a decision-log entry, not a decision." Adopting it changes the
+authority structure of the repo — what counts as evidence, and what an agent
+may not claim on its own. That is a decision, and per the workflow it needs a
+dated record with its rationale so a later session inherits the reasoning, not
+just the file.
+
+**Consequences.**
+
+- `docs/AGENT_HANDOFF.md` gains a **Validation layer** section pointing at the
+  spec, stating the two-tier split, and stating that a tier-0 pass is not a
+  gate pass.
+- The spec's `Status` line changes from proposal to adopted, citing this DEC.
+- Issue #8's Definition of Done becomes satisfiable; #9–#14 and #17–#20 are
+  unblocked in dependency order.
+- The status ladder (§5) binds: **the word "finding" is reserved for rung 3 and
+  above**; rungs 0–2 are observations. Rung 4 is not reachable by an agent.
+
