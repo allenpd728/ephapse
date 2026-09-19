@@ -149,10 +149,11 @@ is the adopted authority, implemented by `tooling/gates/`:
 
 - **Tier 0** — no model load, no torch, no network: schema, text, and
   cross-reference checks over `findings.jsonl`, experiment headers, and docs,
-  plus the `G-C` experiment-code gates. Runs in CI. 29 of the 34 gates.
+  plus the `G-C` experiment-code gates. Runs in CI. **29 of the 37 gates** (per
+  the spec's gate inventory).
 - **Tier 1** — requires loading the probed model: the detector-validity gates
-  (positive control, control-can-fail, null calibration, paraphrase survival,
-  causal load-bearing, interference control). 5 gates.
+  (positive control, control-can-fail, null calibration, constructibility,
+  paraphrase survival, causal load-bearing, interference control).
 
 **A tier-0 pass is not a gate pass** — a green run means the artifacts are
 internally consistent, not that a detector measures what it claims. Every gate
