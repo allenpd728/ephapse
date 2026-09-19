@@ -361,7 +361,7 @@ that is a defect for the agent to fix, not a judgment call.
   already exist. It does not generate, rank, or triage candidates.
 - **No Lean-side validation.** Unchanged from the handoff: if a candidate
   needs Lean checking it goes to Maith.
-- **No promoted-findings database.** Rung 4 artifacts live in Maith.
+- **No promoted-findings database.** Rung 5 artifacts live in Maith.
 - **No LLM in CI.** Every tier-0 gate is deterministic file inspection. PleaNP
   left the LLM-in-CI question open; Ephapse should not open it — a
   non-deterministic gate is not a gate.
