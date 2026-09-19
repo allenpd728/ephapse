@@ -950,3 +950,102 @@ detector, plus an input format too short for the substrate). Every one was a
 plausible-looking parameter written against an authoritative-sounding source
 rather than measured. The mitigation is not more care in writing — it is
 measuring before claiming, and recording the measurement.
+
+---
+
+## DEC-024 — Adjudication: the analytic-null positive control stands; the max-NPMI permutation variant does not
+
+**Date:** 2026-09-19 · **Status:** adopted (resolves the DEC-023 vs DEC-018/019
+conflict; supersedes the supersession in DEC-023)
+
+**Two concurrent sessions reached opposite verdicts on issue #5.** This entry
+resolves it from the committed result files rather than by preference.
+
+### The evidence
+
+**Sibling implementation** (`2026-09-18-injected-positive-control-results.json`,
+run `20260918-2332-e7c4`):
+
+```
+rate 0.00  n_injected 0    recovered 0    (cross_all3 = 0, no false positives)
+rate 0.001 n_injected 2    recovered 0
+rate 0.005 n_injected 10   recovered 0
+rate 0.01  n_injected 20   recovered 0
+rate 0.02  n_injected 40   recovered 0
+rate 0.05  n_injected 100  recovered 6     (recovery_rate 0.015)
+rate 0.10  n_injected 200  recovered 60    (0.15)
+rate 0.20  n_injected 400  recovered 347   (0.8675)
+rate 0.40  n_injected 800  recovered 358   (0.895)
+naive raw-co-occurrence baseline: 0 hits at every rate
+cross-pair minimum p as low as ~1.6e-101
+```
+
+**My implementation** (`2026-09-19-detector-positive-control-rerun.py`):
+
+```
+negative control: best 0.6322 vs cutoff 0.5830 -> 2 false positives
+injection sweep : best 0.6322 IDENTICAL at every rate including 0.0
+```
+
+### Verdict
+
+**The sibling's positive control is the valid one and stands.** Mine ran an
+instrument that cannot resolve the family it was pointed at. Both are honest
+work; they are not equally informative.
+
+### Root cause — three design differences, all favouring the sibling's form
+
+1. **Pair scope.** Theirs tests **400 pre-specified cross-group pairs**
+   (20 x 20). Mine tested **all pairs among ~2,500 x ~3,000 active features =
+   7.5M**. A max-statistic over 7.5M pairs is governed by the noisiest pair in
+   the family; over 400 targeted pairs it is well-behaved. This is the dominant
+   cause: my statistic's maximum was set by an unrelated high-frequency pair,
+   which is why `best` was *identical* with and without injection.
+2. **Group construction.** Theirs pre-specifies groups as
+   **low-background-support** features (support 0–30 of 2,000), which
+   guarantees the marginals can rise when injection occurs. Mine picked
+   features post hoc via a selectivity band, without checking that the planted
+   rows actually move them.
+3. **Null form.** Theirs is an **analytic Poisson-independence** per-pair
+   p-value with BH over the family — no resolution floor. Mine was a
+   **permutation null at N_PERM=100**, whose floor (p = 0.01) cannot resolve a
+   7.5M-pair family, and whose 95th-percentile estimate is itself noisy at
+   that size.
+
+### What my run *did* contribute
+
+Not nothing, and worth keeping distinct from the pass/fail:
+
+- **The pooled-threshold bug is real and independently confirmed** (DEC-023):
+  the 99th percentile of activations pooled across all features left 32,764 of
+  32,768 features firing on zero prompts. The sibling's DEC-019 trap 1 found
+  the same saturation phenomenon ("catch-all groups with marginal 1.0") from
+  the opposite direction. Two independent routes to one conclusion.
+- **The bridge statistic discriminated where max-NPMI did not** (#6: 6
+  survivors vs 0 null, on 63 features). That is a design finding for #3.
+- **The prompt-length dependence** (bare 541 / sentence 909 / passage 1,188
+  usable features) is a measured constraint on every future experiment, and
+  is not in the sibling's work.
+
+### Consequence for the record
+
+DEC-023's framing — "the max-NPMI statistic does not replicate under corrected
+thresholds" — is **correct in scope but was drafted as a supersession of #5's
+pass, which was wrong**. Corrected here: #5's pass stands; the
+*max-NPMI-plus-permutation-null* variant is the instrument that failed, and
+that instrument should not be used for a family of millions of pairs.
+
+**Protocol consequence:** the two failures were avoidable *by construction*.
+A positive control must demonstrate that the planted signal actually moves the
+selected features (a constructibility check), and must use a pre-specified,
+bounded pair set rather than an unbounded search. Both are now method-note
+requirements. The sibling's DEC-019 reached the first requirement
+independently; the second is new here.
+
+**Process note.** This conflict is the first real instance of the shared-identity
+hazard the run-id protocol exists for: two sessions, one GitHub account, opposite
+verdicts on the same issue, discovered only when a rebase collided. The protocol
+surfaced it — the claims carried run-ids and the collision was visible — but it
+took reading committed result files to resolve it. Recording that the mechanism
+worked, and that resolution required human-legible evidence files, which is why
+the results JSONs being committed mattered.

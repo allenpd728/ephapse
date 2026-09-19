@@ -235,15 +235,36 @@ interesting. The filter has to be specified before the run, or
   injection, and the negative control produced false positives. The
   per-feature bridge rate (`P(f fires in both renderings)`) over a restricted
   selectivity band did discriminate. Prefer the restricted statistic.
+- **Positive controls must pass a constructibility check and use a bounded
+  pair set.** Two requirements, both learned from instrument failures
+  (DEC-019, DEC-024):
+  1. **Constructibility.** Before the control is run, demonstrate that the
+     planted signal actually *moves* the selected features — check that the
+     injected rows raise the group marginals. A control whose groups cannot
+     fire is not a control, and four consecutive runs failed this way before
+     it was checked. (Sibling session's DEC-019; reached independently.)
+  2. **Bounded, pre-specified pairs.** Test a pre-specified set (e.g. 20 x 20
+     = 400 cross-group pairs), **not** all pairs among active features. An
+     unbounded max-statistic over 7.5M pairs is governed by the noisiest pair
+     in the family and will not separate an injected signal from noise — and
+     it can produce false positives under the null. Measured: the bounded
+     version recovers 0.87 at rate 0.20 with 0 false positives; the unbounded
+     version returned an identical maximum with and without injection.
+- **Two valid nulls, with different failure modes.** A **permutation** null
+  has a resolution floor (p >= 1/N_PERM) and cannot resolve a family of
+  millions at q=0.1 with N_PERM=100. An **analytic** per-pair null (e.g.
+  Poisson independence) has no floor and is the right choice for large
+  families. Choose per family size, and state which is in use.
 - **Correct for multiplicity — with the max-statistic permutation cutoff.**
   With 10^5 features and many prompt pairs, per-pair significance is
   meaningless. **Use the 95th percentile of the per-permutation maximum**
-  (family-wise control). **Do not use BH-FDR unless `N_PERM >= 1e4`**: with
-  N_PERM=100 over m=6.3e4 pairs the smallest achievable p is 0.01 while BH
-  needs 1.6e-6, so *nothing can pass and the zero is an artifact* (DEC-016).
-  A subtlety from DEC-018: a 100-permutation 95th percentile is itself a noisy
-  null estimate over millions of pairs, and can yield false positives under
-  the null — check the negative control every time.
+  (family-wise control). **Do not use BH-FDR with a permutation null unless
+  `N_PERM >= 1e4`**: with N_PERM=100 over m=6.3e4 pairs the smallest
+  achievable p is 0.01 while BH needs 1.6e-6, so *nothing can pass and the
+  zero is an artifact* (DEC-016). With an analytic null, BH is fine (DEC-018).
+  A 100-permutation 95th percentile is also a noisy null estimate over
+  millions of pairs and can yield false positives under the null — check the
+  negative control every time.
   Anchor for scale: one study finds only ~25% of highly active features in
   a layer encode genuine task-relevant information (arXiv:2511.11711).
 - **Cluster before counting.** Feature splitting means one coherent
