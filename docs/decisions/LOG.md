@@ -714,6 +714,72 @@ low is not a reading.
 
 ---
 
+## DEC-022 — The validation layer gains a code-gate series; the spec was pointed one level too high
+
+**Date:** 2026-09-19 · **Status:** adopted (revises the spec adopted by
+DEC-021; #22 created)
+
+**Decision:** add a `G-C` series of gates over experiment **code**
+(`experiments/*.py`), plus four new artifact gates (G-D7 constructibility,
+G-D8 frozen parameters, G-F5 aggregate attribution, and G-D2's
+arithmetic-capability requirement), raising the inventory from 24 gates to 34.
+The spec's causal rung splits into a per-feature rung 3 (not currently
+reachable) and an aggregate rung 4.
+
+**Rationale — the spec's gate inventory gated artifacts, and the failures were
+in code.** `TEST_VALIDATION_SPEC.md` was drafted and filed as #8–#21 on
+2026-09-18, before issues #5 and #7 ran. Those runs produced five measurements
+that looked like results and were artifacts of vacuous code:
+
+| Defect | Decision | Shape |
+|---|---|---|
+| BH-FDR arithmetically unable to fire (permutation floor p=0.01 vs required 1.6e-6) | DEC-016 | a criterion that cannot pass |
+| Catch-all groups with marginal 1.0 | DEC-019 | a statistic bounded below its own threshold |
+| Band ceiling still leaving the statistic bounded | DEC-019 | same |
+| Groups that never fire on the planted text | DEC-019 | a control never shown constructible |
+| Inverted survival function (`gammaincc` for `poisson.sf`) returning 1.0 for every pair | DEC-019 | a test that cannot fire |
+| Isolate `0.996` computed entirely from no-effect cases | DEC-020 | a reading that cannot come out low |
+
+None would have been caught by any gate in the original inventory, because all
+of them were in the experiment code, not in the artifact it emitted. Every one
+is mechanically detectable at design time. This is DEC-019's own formulation —
+*a check that cannot fail is not a check* — applied one level up: the spec
+checked the outputs and not the apparatus that produced them.
+
+**The self-implicating part, recorded deliberately.** The original spec
+contained the right principle in §4: *a gate without a failing fixture is
+assumed broken*. Applied to the experiment code rather than to the gate
+scripts, that principle would have caught the catch-all groups and the
+inverted survival function before either ran. The gates were pointed one level
+too high — the same mistake the spec's §1 table attributes to the repo's first
+two sessions, made by the spec itself.
+
+**What this changes.**
+
+- `TEST_VALIDATION_SPEC.md` §1 gains the fifth defect class; §3 gains `G-C1–C5`,
+  G-D7, G-D8, G-F5 and the corrected G-D2; §5 splits rungs 3 and 4; §6 adds
+  `check_experiment_code.py` and `fixture_code/`.
+- `docs/AGENT_HANDOFF.md` § Validation layer gate counts updated from DEC-021's
+  "20 of 24" to 29 of 34, with the count history noted rather than silently
+  rewritten.
+- **#22** carries the `G-C` implementation; **#23** logs the detector-contract
+  registry as an open gap.
+- `fixture_code/` is drawn from the real DEC-019/020 failures, since the
+  original code is already fixed — the fixtures are the only way to show a
+  `G-C` gate can fire on the shapes that motivated it.
+
+**Scope note — this does not reopen #8.** #8's Definition of Done was met
+honestly by run `20260918-2332-e7c4` (`4c84ec6`, DEC-021) against the spec as
+then written. Per `MULTI_AGENT_WORKFLOW.md` § 8, a later finding that work was
+lacking becomes a new task (#22), not a reopened issue. The sequencing was
+briefly wrong in the other direction too: run `20260918-2332-e7c4` blocked #8
+on the spec being absent from git, which was correct — the filing run had
+written the spec and filed thirteen dependent issues without committing the
+document. That is the same class of defect as the ones above, in the process
+rather than the code.
+
+---
+
 ## DEC-021 — Adopt the test & validation spec; decline PleaNP's probe-checklist layer
 
 **Date:** 2026-09-19 · **Status:** adopted

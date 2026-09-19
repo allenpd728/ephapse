@@ -299,10 +299,16 @@ pointer, not a substitute.
 
 - **Tier 0** — no model load, no torch. Schema, text, and cross-reference
   checks over artifacts (`findings.jsonl`, experiment headers, requirements,
-  docs coherence). Runs in CI. 20 of the 24 gates.
+  docs coherence), **plus the `G-C` experiment-code gates**. Runs in CI. 29 of
+  the 34 gates.
 - **Tier 1** — requires loading the probed model. The detector-validity gates
   (positive control, control-can-fail, null calibration, paraphrase survival,
-  causal load-bearing, interference control). 4 gates.
+  causal load-bearing, interference control). 5 gates.
+
+> **Count history.** DEC-021 recorded "20 of 24" from the spec as committed at
+> `26840ed`. DEC-022 added the `G-C` series (five experiment-code gates) and
+> the constructibility / frozen-parameter / arithmetic-capability gates,
+> raising the inventory to 34 (29 tier-0). The larger number is current.
 
 **A tier-0 pass is not "gate passed."** Maith's formulation is exact and
 binding here: *"Treating a grep pass as a gate pass is itself an integrity
@@ -321,10 +327,13 @@ positive control that activated neither group; the isolate score that was
 trivially 1.0 because nothing had moved.
 
 **The status ladder binds.** A record in `findings.jsonl` is rung 0
-(Observed). Rung 1 is tier-0-clean. Rung 2 needs paraphrase survival. Rung 3
-needs causal load-bearing above the interference control. **The word "finding"
-is reserved for rung 3 and above**; rungs 0–2 are observations. Rung 4
-(handoff) is not reachable by an agent.
+(Observed). Rung 1 is tier-0-clean. Rung 2 needs paraphrase survival. **Rung 3
+is causal at *per-feature* granularity and is not currently reachable** —
+DEC-020 measured 0/50 features above the cause threshold at pythia-70m. Rung 4
+is causal at *aggregate* granularity (the cumulative dose-response ladder,
+DEC-020) and is the strongest currently attainable causal rung. **The word
+"finding" is reserved for rung 3 and above**; rungs 0–2 are observations. Rung
+5 (handoff) is not reachable by an agent.
 
 **Declined, so it is not re-proposed:** PleaNP's probe-checklist layer. It
 works there because expected answers are machine-derivable from Lean text;

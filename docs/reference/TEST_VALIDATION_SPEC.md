@@ -56,6 +56,43 @@ task in this spec claims that. Every gate here checks that evidence was
 produced, recorded, and internally consistent. The human gate stays exactly
 where it is.
 
+### The fifth defect class, and it is the one that matters
+
+This spec was drafted before issues #5 and #7 ran. Its first version gated only
+**artifacts** — findings records, experiment headers, docs. Those runs then
+demonstrated that the dominant failure mode is one step earlier, in the
+experiment **code**, and none of the original gates would have caught it.
+
+Four consecutive #5 designs produced plausible-looking negative results for
+reasons that had nothing to do with the phenomenon (DEC-019). Each was found
+by running, not by review:
+
+1. Catch-all feature groups — a marginal already at 1.0 cannot rise, so the
+   statistic is structurally bounded below threshold.
+2. A band ceiling that still left the statistic bounded.
+3. Groups that never fire on the planted text — the control was never shown to
+   be **constructible**.
+4. An inverted survival function (`gammaincc` where `poisson.sf` was needed),
+   returning 1.0 for every pair. Detection that "fired" was the mask alone.
+
+Every one of these is a **vacuity** defect — a reading that cannot come out
+low, or a test that cannot fire — and every one is mechanically detectable.
+The same class recurred in #7: the isolate score read `0.996` across all 50
+features, computed entirely from cases where nothing had happened (DEC-020).
+DEC-019's own formulation is the general rule: *a check that cannot fail is not
+a check*, applied to the control and the code, not just the metric.
+
+So a gate inventory over artifacts alone is insufficient. §3's code-gate series
+(`G-C`) is the response, and it is the highest-value part of this layer —
+higher than CI wiring, higher than the findings schema, because it is the only
+part that catches the failure mode this repo has actually hit five times.
+
+**The defensible claim in hindsight.** The original version of this spec said,
+in §4: *a gate without a failing fixture is assumed broken*. That principle, if
+applied to the experiment code rather than to the gate scripts, would have
+caught failures 1–4 at design time. The gates were pointed one level too high.
+That is the correction this revision makes.
+
 ---
 
 ## 2. What is borrowed, what is new, what is rejected
@@ -75,6 +112,7 @@ adjacent reference docs can, and one should be explicitly declined.
 | PleaNP `STATEMENTS/HUMAN_REVIEW_LAYERS.md` § the irreducibility argument | **The human layer's scope** | The argument that one human step is irreducible, and every other layer must absorb ambiguity so the human is never the tiebreaker. |
 | Maith `docs/reference/EXPERIMENT_MEASUREMENT.md` § "Automated Prevention" | **Map each gate to a documented concern** | Every gate traces to a specific validity gap, stated in advance. |
 | Maith `TOOLCHAIN_AND_CI.md` | **Pins, two tiers, single dev branch** | Already partly present (`requirements.txt` is pinned); the two-tier split maps cleanly onto "no model load" vs "model load". |
+| Maith `EXPERIMENT_MEASUREMENT.md` § "Measurement Validity via Prior-Art Alignment" | **The prediction-before-run discipline** | Maith's guard against post-hoc rationalization is that predictions were recorded *before* the experiments. DEC-018 applies the same move to the control's parameters. |
 
 ### Rejected: PleaNP's probe checklist
 
@@ -129,15 +167,31 @@ runs in CI) or 1 (requires loading the probed model).
 | **G-P3** | Domain unrelatedness asserted in writing *before* the run, timestamped | issue #3 DoD 1 | 0 |
 | **G-P4** | Split disjointness — no prompt appears in both sets | Maith G3-1 analogue | 0 |
 | **G-D1** | Null model fixed and recorded **before** the run; header mtime precedes result mtime | DEC-005; workflow § Gates | 0 |
-| **G-D2** | Multiplicity correction named, and `N` (the family size) recorded | issue #3 DoD 3; workflow § Gates | 0 |
+| **G-D2** | Multiplicity correction named **and arithmetically capable of firing** at this N and m — the DEC-016 check | DEC-005, **DEC-016**; workflow § Gates | 0 |
 | **G-D3** | Positive control present: recovery-vs-injection curve at ≥3 rates, including a near-zero rate | DEC-007; PRIOR_ART §2 | 1 |
-| **G-D4** | Control can fail — recovery at the near-zero injection rate is *not* 1.0 | fixture rule | 1 |
-| **G-D5** | Null calibration — on un-injected background, flagged count falls inside the FDR band the correction predicts | PRIOR_ART §3 | 1 |
+| **G-D4** | Control can fail — recovery at the near-zero injection rate is *not* 1.0 | fixture rule; **DEC-019** | 1 |
+| **G-D5** | Null calibration — on un-injected background, flagged count falls inside the band the correction predicts | PRIOR_ART §3 | 1 |
 | **G-D6** | Sensitivity floor stated numerically; every downstream null cites it | DEC-007 (interpretability) | 0 |
+| **G-D7** | **Constructibility** — the planted signal is shown present in both groups by construction, before recovery is interpreted | **DEC-019** | 1 |
+| **G-D8** | Injection/threshold/rate-grid parameters committed **before** the run; result artifact is not a reshaping | **DEC-018** | 0 |
 | **G-F1** | Paraphrase survival — lexical-shuffle and/or zero-shared-token control ran, result recorded as a bool | DEC-011; issue #6 | 1 |
-| **G-F2** | Causal load-bearing — intervention at a named hook/layer, with `cause` **and** `isolate` both present | DEC-013; PRIOR_ART §11 Q1 | 1 |
+| **G-F2** | Causal load-bearing — intervention at a named hook/layer, with `cause` **and** `isolate` both present, **and `isolate` reported only where `cause` cleared the threshold** | DEC-013; **DEC-020**; PRIOR_ART §11 Q1 | 1 |
 | **G-F3** | Interference control run and reported | DEC-008 | 1 |
 | **G-F4** | Verdict rule enforced: `flagged` **iff** `paraphrase_survived` and `causal_claim` | `findings.jsonl` header | 0 |
+| **G-F5** | Aggregate-vs-per-feature attribution — a causal claim names the level it holds at (feature vs cumulative ladder) and carries the reconstruction error | **DEC-020** | 0 |
+
+**Code gates (`G-C`) — over `experiments/*.py`.** These are the gates for the
+fifth defect class (§1). They inspect experiment *code*, not its output, and
+they are the cheapest place to catch a vacuous measurement — at design time
+rather than after a plausible-looking null.
+
+| Gate | Checks | Traces to | Tier |
+|---|---|---|---|
+| **G-C1** | Declared statistic is not structurally bounded below its own threshold — computing the bound from the declared marginals, N, and threshold | DEC-019 failures 1–2 | 0 |
+| **G-C2** | Declared control is constructible — the code computes and records the planted signal's presence in both groups before recovery is read | DEC-019 failure 3 | 0 |
+| **G-C3** | Statistical-test direction is asserted — every survival/CDF call is bound to a known-answer case in the fixture | DEC-019 failure 4 | 0 |
+| **G-C4** | Every reported reading can come out low — no metric computed solely from cases where the effect was absent | DEC-020 isolate vacuity | 0 |
+| **G-C5** | Cross-run comparability of experiment parameters (the Maith G5-4 analogue: what must match for two numbers to be compared) | Maith `PIPELINE_QUALITY_GATES` G5-4 | 0 |
 | **G-E1** | Schema validity — record parses, all required keys present, no unknown keys | `findings.jsonl` header | 0 |
 | **G-E2** | Required values non-empty — `null_model`, `correction`, `n` | issue #4 DoD; header | 0 |
 | **G-E3** | Causal consistency — `causal_claim: true` requires an `intervention` object with both properties and a control result | DEC-013 | 0 |
@@ -152,10 +206,11 @@ runs in CI) or 1 (requires loading the probed model).
 | **G-R4** | Docs coherence — README / handoff / DEC log / experiments README agree on target model and settled facts | workflow § Step 1b | 0 |
 | **G-R5** | Run-log currency — every `experiments/*.py` has a row in the experiments README run log | **defect #2** | 0 |
 
-**Tier 0 is the first deliverable.** It is 20 of the 24 gates, needs no model,
-no torch, and no GPU, and it covers defects #1 and #2 outright plus most of the
-evidence-integrity surface. Tier 1 gates are the detector-validity ones, and
-they can wait for the runs that produce their inputs.
+**Tier 0 is the first deliverable.** It is 29 of the 34 gates, needs no model,
+no torch, and no GPU, and it covers defects #1 and #2 outright, the whole
+evidence-integrity surface, and — most importantly — the entire `G-C` code-gate
+series for the fifth defect class. Tier 1 gates are the detector-validity ones,
+and they can wait for the runs that produce their inputs.
 
 ---
 
@@ -212,15 +267,26 @@ definitions, since that is Ephapse's unit.
 | Rung | Name | Requires |
 |---|---|---|
 | 0 | **Observed** | A record exists in `findings.jsonl` with `verdict: null` or `flagged`. Nothing is claimed. |
-| 1 | **Recorded** | Passes all tier-0 gates (G-E1–G-E8, G-R1–G-R5). The record is internally consistent and its evidence is present. |
+| 1 | **Recorded** | Passes all tier-0 gates (G-C1–G-C5, G-E1–G-E8, G-R1–G-R5). The record is internally consistent and its evidence is present. |
 | 2 | **Surface-controlled** | G-F1 passed. The overlap survived paraphrase / zero-shared-token. |
-| 3 | **Causal** | G-F2 and G-F3 passed. The feature is causally load-bearing in both domains, above the interference control. |
-| 4 | **Handed off** | A **human** articulates the candidate as a plain-language mathematical claim and passes it to Maith's gate 1. |
+| 3 | **Causal, per-feature** | G-F2, G-F3, and G-F5 passed, with the claim at feature granularity. **Not currently reachable at pythia-70m** — DEC-020 measured 0/50 features above the cause threshold. |
+| 4 | **Causal, aggregate** | The cumulative dose-response ladder (DEC-020) moves the target monotonically, with reconstruction error recorded. This is the strongest *currently attainable* causal rung at this scale. |
+| 5 | **Handed off** | A **human** articulates the candidate as a plain-language mathematical claim and passes it to Maith's gate 1. |
 
-**Rung 4 is not reachable by an agent, and rung 3 is not a discovery.** The
+**Rung 5 is not reachable by an agent, and rungs 3–4 are not a discovery.** The
 word "finding" is reserved for rung 3 and above; rungs 0–2 are observations.
-Nothing below rung 4 is described as a mathematical result — that language
+Nothing below rung 5 is described as a mathematical result — that language
 belongs to Maith's gate-3 survivors (README; workflow § Gates).
+
+**Why rungs 3 and 4 split.** DEC-020 measured single-feature intervention at
+pythia-70m as below the noise floor (0/50 features above threshold; mean
+relative SAE reconstruction error 0.362). Per DEC-008 a null there is
+*inconclusive, not negative* — it does not count against any feature. So the
+per-feature claim `PRIOR_ART.md` §11 originally described is not testable at
+this scale, and the aggregate ladder is what the apparatus can actually
+support. Recording that as two rungs rather than one avoids the failure mode
+where an unattainable rung 3 makes the whole ladder look blocked when a
+weaker but honest rung 4 is available.
 
 ---
 
@@ -238,17 +304,27 @@ tooling/gates/
   validate_deps.py              — G-R3        (requirements pinning)
   check_docs_coherence.py       — G-R4        (cross-doc settled facts)
   check_prompt_disjointness.py  — G-P2, G-P4  (tokenizer-level; needs tokenizer, not model)
+  check_experiment_code.py      — G-C1..G-C5  (experiment code; the DEC-019/020 gates)
   tests/
     conftest.py
     fixture_findings/           — one minimal JSONL per G-E gate, each violating exactly one
-    fixture_experiments/        — one .py per G-R1/G-R2 violation
+    fixture_experiments/        — one .py per G-R1/G-R2/R5 violation
     fixture_requirements/       — unpinned / pinned pairs
+    fixture_code/               — one .py per G-C violation, drawn from the real DEC-019/020 failures
     test_gates.py               — asserts each gate fires on its fixture and passes on clean
 ```
 
 **Fixture rule in practice:** `test_gates.py` asserts, for each gate, both
 directions — fires on its fixture, silent on the clean fixture. A gate with
 only the positive direction is incomplete.
+
+**The `fixture_code/` set is not synthetic.** The four DEC-019 failures and the
+DEC-020 isolate-vacuity bug are known, reproducible shapes, so the G-C fixtures
+are drawn from them directly: a catch-all group whose marginal is 1.0, a
+bounded statistic, a control that never fires, an inverted survival function,
+and a metric computed only over no-effect cases. A G-C gate that cannot fire on
+the bug that motivated it is not a gate — and these fixtures are the only way
+to demonstrate that, because the original code is already fixed.
 
 ---
 
@@ -321,6 +397,18 @@ string anchor silently missed.
 | #19 | `validate_findings.py` — claim-consistency rules | G-E3, E4, E5, E8 | #10 |
 | #20 | `check_docs_coherence.py` | G-R4 | #9 |
 | #21 | Reconcile `requirements.txt` with the pinning gate | G-R3 | #12 |
+| **#22** | **`check_experiment_code.py` — the `G-C` code gates** | **G-C1–C5** | #9 |
+
+**Revision 2026-09-19 (run `20260918-2347-0201`).** This spec's first version
+gated artifacts only, and was filed as #8–#21 before issues #5 and #7 ran. Those
+runs (DEC-016–DEC-020) established a fifth defect class one level lower — in
+experiment *code* — that no gate in the original inventory would have caught.
+Four consecutive #5 designs and one #7 metric produced plausible-looking results
+that were artifacts of vacuous measurement. The revision adds the `G-C` series
+(§3), the constructibility and frozen-parameter gates (G-D7, G-D8), the
+arithmetic-capability requirement on multiplicity correction (G-D2, corrected by
+DEC-016), the isolate-vacuity rule (G-F2), the aggregate-attribution gate
+(G-F5), and the split causal rung (§5). #22 is the new highest-value task.
 
 **Three splits, each because the bundled task had more than one signal.**
 This is the substantive change from the first filing, and it is worth recording
