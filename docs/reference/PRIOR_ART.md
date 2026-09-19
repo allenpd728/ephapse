@@ -478,6 +478,23 @@ choose domain pairs whose overlap is *a priori* improbable, and keep the human
 gate at the handoff. The honest framing is that Ephapse can make a candidate
 *credible* but never *interesting*; interestingness is the human's call.
 
+**A candidate framing for the human step** (rolled in from the external spec
+reviewed in `EPHAPSE_SPECIFICATION_ASSESSMENT.md` §3.1, DEC-033). The human has to
+phrase *why* a cross-domain match might matter, and that phrasing is where the
+base-rate problem is actually confronted. A candidate way to do it, taken from the
+reviewed document: **index a candidate by the frictions it obliterates rather
+than by its features.** Radical cross-domain transfers are unlikely to map onto an
+articulated demand, so "what does this make easier that was previously blocked"
+may be a more productive question than "what is this similar to" — and it is
+domain-general rather than mathematical.
+
+It is not a gate and cannot be one (it has no deterministic check), and it does
+not solve the base-rate problem. It is offered as an input to the human's
+judgment, in the same spirit as the domain-pair guidance above. Recorded here
+because the reviewed document arrived at the same wall independently — from the
+commercial side, via "radical innovation circumvents explicit consumer requests" —
+and two independent arrivals are weak evidence the wall is structural.
+
 ---
 
 ## 12. What this means for the issues

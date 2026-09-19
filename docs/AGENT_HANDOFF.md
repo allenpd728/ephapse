@@ -484,6 +484,31 @@ this repo for the full protocol. Summary:
 - Dependencies use GitHub "blocked by" relationships. A task becomes
   available only when every blocker is `status:done`.
 
+## Where the method stands — read `docs/ROADMAP.md` first
+
+If you are picking this repo up and wondering what to work on, read
+[`docs/ROADMAP.md`](ROADMAP.md) before the issue queue. It is the **verdict-
+revision rung ladder** (adopted DEC-033) and it states, for each rung, what the
+project is testing, what it costs, and what would falsify it.
+
+Summary as of 2026-09-19: rungs 0–2 are **done** (detector validated;
+surface-controlled signal weakly positive; general cross-domain probe a clean
+null, DEC-027). **Rung 3 — sensitivity at scale — is the single live rung**, and
+it is *feasible, not blocked*: `gemma-2-2b` has 316 SAEs in the Gemma Scope
+residual release, ~28× the current parameter count. Rung 4 (causal reachability)
+depends on rung 3. Rung 5 (interestingness) is explicitly a human step with **no
+falsifier** — a rung without one is appropriate only when it is a human judgment.
+Rung 6 is the Maith handoff and is not this repo's to reach.
+
+**Foreclosed at every rung, so it does not need re-arguing.** This project does
+not certify novelty and does not produce commercial assets. An external spec
+proposing a B2B "Innovation Asset Inventory" was reviewed and rejected on this
+repo's stated position (DEC-033,
+[`EPHAPSE_SPECIFICATION_ASSESSMENT.md`](reference/EPHAPSE_SPECIFICATION_ASSESSMENT.md)).
+Two ideas from it were rolled in (the "frictions obliterated" framing, PRIOR_ART
+§11) and three postponed with stated conditions (the vault, hotspot search,
+feasibility grading) — do not re-propose the rejected parts as new.
+
 ## Repo scaffolding (minimal — this is proof-of-concept stage)
 
 ```

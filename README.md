@@ -144,10 +144,30 @@ docs/MULTI_AGENT_WORKFLOW.md — claiming, run-ids, dependencies, done-evidence
 docs/reference/SANDBOX_BASELINE.md — measured sandbox numbers + evidence
 docs/reference/PRIOR_ART.md  — literature review; read before designing a probe
 docs/reference/TEST_VALIDATION_SPEC.md — the adopted two-tier validation layer
+docs/reference/PROGRAM_MANAGEMENT_SPEC.md — the adopted program-tracking layer
+docs/reference/EPHAPSE_SPECIFICATION_ASSESSMENT.md — review of the external spec
+docs/ROADMAP.md              — the verdict-revision rung ladder (where the
+                               method stands, and what would revise the null)
 docs/decisions/LOG.md        — decision log (DEC-001 onward)
 tooling/gates/               — Tier-0 integrity gates (fixture-gated) + runner
+tooling/program/             — atomic issue-state setter + cache refresh
 tooling/claims/              — claim lock (git-ref CAS) + collision audit
 ```
+
+## Where the method stands
+
+The claim-level ladder is in `TEST_VALIDATION_SPEC.md` §5; the **project-level**
+ladder is `docs/ROADMAP.md`, adopted in DEC-033. It is a *verdict-revision*
+ladder rather than PleaNP's construction ladder, because the method has already
+returned a verdict: rungs 0–2 are done (validated, surface-controlled, clean
+null), rung 3 (sensitivity at scale) is the single live rung and is **feasible**
+(`gemma-2-2b` has 316 SAEs), rung 4 depends on it, rung 5 is an explicitly
+human step with no falsifier, and rung 6 is the Maith handoff.
+
+**Foreclosed at every rung, so it is not re-argued:** this project does not
+certify novelty and does not produce commercial assets. An external spec
+proposing exactly that was reviewed and rejected (DEC-033,
+`EPHAPSE_SPECIFICATION_ASSESSMENT.md`).
 
 ## Validation layer (adopted 2026-09-19, DEC-021)
 

@@ -1701,3 +1701,118 @@ re-provisioning) recurs every session. `AGENT_HANDOFF.md` §Compute now points
 at §Credentials for the same reason the environment-persistence note already
 exists: the session starts cold, and both the toolchain and the push
 credentials have to be re-established before work can land.
+
+---
+
+## DEC-033 — The commercial "Innovation Asset" framing is rejected; a verdict-revision rung ladder is adopted
+
+**Date:** 2026-09-19 · **Status:** adopted
+
+**Decision:** an externally-authored v1.0.0 spec, *Cross-Domain Synthesis &
+Latent Novelty Discovery Engine*, was reviewed
+(`docs/reference/EPHAPSE_SPECIFICATION_ASSESSMENT.md`). Its **commercial framing
+is rejected** on this repo's stated position, its **pipeline and schema are
+rejected** as infrastructure ahead of results, its **contamination-shield design
+is rejected** as cruder than what exists, **two ideas are rolled in**, and **three
+are postponed with stated conditions**. In its place, `docs/ROADMAP.md` is adopted
+as a **verdict-revision rung ladder** — the project-level counterpart to the
+claim-level ladder in `TEST_VALIDATION_SPEC.md` §5.
+
+**Why this needed a DEC rather than a doc edit.** The reviewed spec proposes a
+*direction*, not a component. Adopting or rejecting a direction changes what the
+repo may work on, and the repo has already declined one such direction (DEC-012).
+Recording this prevents the same proposal being re-litigated as though it were
+new — which matters more than usual because the reviewed document is
+well-specified and would look actionable to a fresh session.
+
+**The rejection is structural, not stylistic.** The spec's end product is a
+saleable Innovation Asset Inventory for B2B clients. That requires asserting
+novelty and validity, and the README states the repo "is not authorized to claim
+a discovery is novel or valid" on the strength of anything computed here. The
+validation layer exists *because* the repo cannot make that claim —
+`TEST_VALIDATION_SPEC.md` §8 excludes candidate-quality judgments outright.
+Adopting the framing would not need new infrastructure; it would need the repo to
+assert what its own gates are built to prevent it asserting.
+
+**The Zero-Synapse Mandate inverts the measured problem, and this is the
+engineering reason it is rejected.** The mandate filters candidates on
+*commercial and bibliographic* novelty — reject if cosine similarity to an
+existing patent exceeds 0.65, or if a knowledge-graph path is ≤ 3 edges. But this
+repo's problem is the **opposite**: cross-domain co-activation fires *too much*.
+Feature universality makes overlap the near-default (DEC-006), and five issues
+were spent building filters that kill *boring* co-activation — NPMI, a
+decoder-cosine semantic-distance screen, clustering for splitting, paraphrase
+invariance, and a standardized family-wise cutoff. A filter keyed to commercial
+precedent addresses a problem this substrate does not have. It also re-opens
+DEC-012, whose reasoning applies unchanged: no validation oracle, and an
+apparatus that substitutes for one.
+
+**Why the pipeline and schema are rejected.** Four stages, a feasibility matrix,
+and a UUID/keyed asset schema for a set that is **empty** — zero human-reviewed
+co-activation events exist and the general probe is a null (DEC-027). Building
+grading machinery for nothing is the failure mode this repo and Maith both name:
+infrastructure ahead of results. The repo's own README forbids it, and the
+program ledger (`PROGRAM_MANAGEMENT_SPEC.md` §4) already specifies the record
+schema a candidate would use.
+
+**What is rolled in — two items, both small.**
+
+1. **"Index a candidate by the frictions it obliterates, not its features"** —
+   added to `PRIOR_ART.md` §11 as a candidate *input to the human step*. It is
+   the most valuable line in the reviewed document, for a reason the document
+   does not claim: it is a candidate framing for the base-rate problem (§11), the
+   repo's deepest open question, which "resists technical solution." It is
+   explicitly **not** a gate and does not solve that problem.
+2. **A citation.** The reviewed document independently reached the same wall from
+   the commercial side ("radical innovation circumvents explicit consumer
+   requests"). Two independent arrivals are weak evidence the wall is structural,
+   and that is recorded where the wall is documented.
+
+**What is postponed, each with its condition stated so it is not re-proposed as
+immediately actionable:**
+
+- **The Vault / time-capsule** — stored candidates that failed for a *fixable*
+  reason, re-opened when the reason lapses. Genuinely transferable, and the repo
+  has an exact instance already: DEC-020/DEC-025 established that rung-3
+  per-feature causal claims are unreachable at 70M, a failure with a named and
+  changeable cause. Conditioned on there being a *candidate*; the ledger's
+  `blocks` and `kind:gap` already cover most of the mechanism.
+- **Hotspot-density search** — redirect search toward the neighbours of
+  successes. Conditioned on there being *successes*. Also has a secondary
+  objection recorded now: it assumes proximity to a success is informative across
+  domains, which is the base-rate problem again, not a solution to it.
+- **Multi-domain feasibility grading** — conditioned on candidates, and narrowed
+  to *technical* readiness only; commercial readiness is not a criterion this
+  repo may apply.
+
+**The new ladder, and why it is not PleaNP's.** PleaNP's rungs are a
+*construction* ladder toward a known target, valuable at every rung. Ephapse's
+method has already returned a verdict — the general probe is a clean null
+(DEC-027) — so a construction ladder would have no next component. `ROADMAP.md`
+is therefore a **verdict-revision ladder**: each rung is a pre-specified reason
+the negative verdict might be wrong, with its cost and its falsifier. Rungs 0–2
+are done (method validated, surface-controlled, clean null); rung 3 (sensitivity
+at scale) is the single live rung; rung 4 (causal reachability) depends on it;
+rung 5 (interestingness) is explicitly a human step with **no falsifier**; rung 6
+is the Maith handoff.
+
+**A correction the ladder's first draft needed, recorded because it is the same
+class of error the repo keeps finding.** Rung 3 was written as "blocked on SAE
+availability", by analogy with DEC-014's Pythia-160M finding. Querying the SAE
+registry **contradicted it**: `gemma-2-2b` has 316 SAEs in the Gemma Scope
+residual release, ~28× the current parameter count. Rung 3 is therefore
+**feasible, not blocked** — the open questions are CPU feasibility at 2B and
+re-deriving the statistic for a new SAE, both measurements rather than blockers.
+This is DEC-014's actual lesson: answer the availability question by querying,
+never by assuming. Fifth instance of the pattern in five issues.
+
+**Consequences.**
+
+- `docs/reference/EPHAPSE_SPECIFICATION_ASSESSMENT.md` — the review, with every
+  item dispositioned.
+- `docs/ROADMAP.md` — the verdict-revision ladder.
+- `docs/reference/PRIOR_ART.md` §11 — the frictions framing and the base-rate
+  citation.
+- The commercial framing is **foreclosed at every rung** rather than re-argued,
+  which is stated once in the ladder's out-of-scope section.
+- No pipeline, shield, matrix, vault, or asset schema is built.
