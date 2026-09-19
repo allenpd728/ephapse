@@ -1,7 +1,8 @@
 # Roadmap: the verdict-revision ladder
 
-> **Status:** proposal, drafted 2026-09-19 (run `20260918-2332-e7c4`). Input to
-> DEC-033. Not yet adopted.
+> **Status:** **adopted**, 2026-09-19 (DEC-033). Drafted 2026-09-19 (run
+> `20260918-2332-e7c4`). This document is now the authority for the project-level
+> ladder; it was adopted by decision-log entry.
 >
 > **Why this is not PleaNP's ladder.** PleaNP's rungs are a *construction* ladder
 > toward a known target — each rung builds a component, and the project is
@@ -187,6 +188,27 @@ reproduces. Either outcome is a result. A reproduction at larger scale is
 `gemma-2-2b` (316 SAEs in the Gemma Scope residual release). The open question is
 CPU feasibility at 2B and re-deriving the statistic for a new SAE, both of which
 are measurements to take rather than blockers to report.
+
+**Filed as two prerequisite issues** (plus the probe, deliberately not yet filed):
+
+| Issue | What | Why separate |
+|---|---|---|
+| **#39** | CPU feasibility for `gemma-2-2b` — load, RSS, latency, SAE load, reconstruction error | answers "can we run it" |
+| **#40** | Re-derive and pre-register the detector statistic for the new SAE | answers "what exactly do we compute" |
+| — | The probe itself | **not filed** — its DoD cannot be written before #40 pins the statistic |
+
+**A cross-cut this rung does not yet record: the comparator baselines (DEC-034).**
+#37 adds supervised baselines (difference-in-means, linear probe) alongside the
+SAE, because RAVEL's ceiling measures *isolation*, not *detection*, and on
+detection a vanilla SAE scores 0.695 mean AUROC against 0.942 for
+difference-in-means (AxBench, arXiv:2501.17148). That is a change to the
+**apparatus**, not a rung, and it cuts across rungs 1–3: if a probe detects a
+paraphrase-invariant bridge the SAE misses, the bottleneck moves from *model
+scale* to *instrument* — a different verdict-revision than this rung tests.
+
+That possibility is not yet in the ladder. It should be folded in when #37 lands,
+because it would mean rung 3 is testing the wrong explanation for the null.
+Recorded here rather than left to be rediscovered.
 
 ---
 

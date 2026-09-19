@@ -1,12 +1,17 @@
 # Next Steps — Ephapse handoff for orchestration
 
-**Written:** 2026-09-19, at commit `7727d98` on `dev`.
+**Written:** 2026-09-19, at commit `7727d98` on `dev`; **updated** at `f0581ec`
+plus the rung-3 filings (#39, #40).
 **Audience:** a high-level orchestrator dispatching agent sessions.
 **Purpose:** what the project is, where it stands, what to work on next, and what
 not to do.
 
-Every number here was measured at the commit above. Counts drift (two issues were
-filed during a previous analysis), so re-measure before acting on a count.
+Every number here was measured, not inferred. Counts drift — issues were filed
+during earlier analyses, and a sibling session landed DEC-034 and #37/#38 while
+this document was being revised — so re-measure before acting on a count.
+`gh issue list --repo allenpd728/ephapse --state open --json number,labels` is
+the cheap check; `python3 tooling/program/issue_state.py audit` covers labels and
+dependencies.
 
 ---
 
@@ -40,7 +45,7 @@ disjoint, and the cross-domain probe found nothing at 70M. The honest reading is
 *poor signal-to-noise at this scale*, not *absence of structure* — feature
 absorption is the primary alternative explanation.
 
-## 3. The next action, and it is one action
+## 3. The next action, and it is filed
 
 **Rung 3: re-run the rung-2 probe at larger scale.**
 
@@ -48,6 +53,19 @@ This is the only live rung and it is the highest-value work in the repo. It
 converts "we could not see it at 70M" into "we could not see it at scale *X*",
 which is either a materially stronger negative or the discovery the project
 exists to find.
+
+**It is filed as two prerequisite issues plus the probe:**
+
+| Issue | What | Status |
+|---|---|---|
+| **#39** | Measure CPU feasibility for `gemma-2-2b` (load, RSS, latency, SAE load, reconstruction error) | **claimable now** |
+| **#40** | Re-derive the detector statistic and pre-register it for the new SAE | blocked by #39 |
+| — | The rung-3 probe itself | **not yet filed** — it should be filed once #40 lands and its parameters are known |
+
+That sequencing is deliberate. The probe cannot be specified before its statistic
+is pre-registered, and the statistic cannot be chosen before the SAE and its hook
+are known. Filing the probe now would produce an issue whose Definition of Done
+could not be written.
 
 **The correction that makes this actionable.** An earlier draft called rung 3
 "blocked on SAE availability." **That was wrong** — queried 2026-09-19:
@@ -62,31 +80,24 @@ exists to find.
 **Target: `gemma-2-2b`** — ~28× the current parameter count, ~8 GB fp32 against a
 ~10 GB per-run budget.
 
-**Two prerequisites, each a measurement rather than a build** (do these as one
-scoped task before the full probe):
-
-1. **CPU feasibility at 2B** — load it, measure RSS and per-prompt latency at
-   batch, per `SANDBOX_BASELINE.md`'s discipline. Do not assume; the sandbox has
-   no cgroup cap and ~10 GB is a budget, not a guarantee.
-2. **Re-derive the statistic for the new SAE** — the hook changes
-   (`layer_N/width_16k/...` for Gemma Scope residual, vs `blocks.3.hook_resid_post`
-   now), the family is larger, and the multiplicity parameters from DEC-016/018 do
-   **not** transfer silently. Re-pre-register them and keep the positive control
-   mandatory (DEC-019).
-
 **The rule that has cost this project the most, and must be honored on rung 3:**
 run the positive control *first*. Four statistics in four issues looked plausible
 and could not fire — a model target, a multiplicity correction, a threshold, and a
 rate cutoff. Only the control caught each. The working rule is stated in DEC-027:
 **a family-wise cutoff over an unstandardized statistic is the recurring bug.**
+Issue #40 exists to re-derive the statistic rather than copy it, precisely because
+of this.
 
 ## 4. The work queue
 
-### Claimable now (8 issues)
+### Claimable now (11 issues)
 
 | # | Kind | What |
 |---|---|---|
+| **#39** | experiment | **Rung 3 prerequisite A** — CPU feasibility for `gemma-2-2b` (the top action, §3) |
 | **#31** | protocol | Build the program ledger (`program/ledger.jsonl`) — **keystone; #32/#33 are blocked on it** |
+| **#37** | gate | Supervised comparator baselines (difference-in-means, linear probe) alongside the SAE — DEC-034 |
+| **#38** | repair | Reconcile the gate-count figures (37 vs 38 vs 11 wired) and single-source them |
 | #29 | repair | Backfill `kind:`/`status:` labels on open issues |
 | #34 | protocol | Adopt the emergent-requirement protocol into the workflow doc |
 | #22 | gate | Experiment-code gates G-C1..G-C5 |
@@ -95,14 +106,16 @@ rate cutoff. Only the control caught each. The working rule is stated in DEC-027
 | #21 | decision | Reconcile `requirements.txt` with the pinning gate (numpy exception) |
 | #16 | documentation | Make the experiment-header rule checkable and single-sourced |
 
-**Sequencing note:** #31 first among these — it unblocks #32 and #33.
+**Sequencing note:** #39 first — it is the top action and it unblocks #40. #31
+second among the rest — it unblocks #32 and #33.
 
 ### Blocked
 
 | # | Blocked by | Note |
 |---|---|---|
+| **#40** | #39 | Rung 3 prerequisite B (statistic re-derivation) |
 | #32, #33 | #31 | Program views and ledger backfill |
-| #23 | #22 | Detector contract registry |
+| #23 | #22 | Detector contract registry — **overlaps #40; coordinate rather than duplicate** |
 | #15 | **#24**, #10, #11, #12 | Repair the four artifacts — **cannot proceed honestly until #24 fixes the gates it repairs against** |
 | #13 | #10, #11, #12 | Wire tier-0 gates into CI |
 
@@ -134,7 +147,15 @@ rate cutoff. Only the control caught each. The working rule is stated in DEC-027
 | The failure | `test_real_findings_file_passes_the_registered_findings_gates` → **#25** (pre-existing, owned by that issue) |
 | **CI** | **Not wired.** No `.github/workflows/`. Gates run only when a session invokes them manually → **#13** |
 | Label hygiene | **8 open issues carry no `status:` label** (#13, #15, #17, #18, #23, #24, #25, #36) |
-| `kind:` coverage | Present on newer issues (#29–#36); older ones need #29 |
+| `kind:` coverage | Present on #29–#40; the eight above still need it → #29 |
+| Open issues | **22**, of which **11 are claimable** |
+
+**The gate-count discrepancy is real and has its own issue (#38).** Four documents
+say 37, `PROGRAM_MANAGEMENT_SPEC.md` says 38, and the registry says 11 wired. The
+spec contains 38 distinct gate ids; "37" is stale in the README, the handoff, and
+the validation spec itself. This is exactly the docs-coherence drift **G-R4**
+exists to catch, occurring in the window before G-R4 is wired (#20). It is cited
+here rather than fixed, because #38 owns it.
 
 **Two tooling facts a session needs:**
 
@@ -143,6 +164,11 @@ rate cutoff. Only the control caught each. The working rule is stated in DEC-027
   GraphQL (`gh issue list` cannot read dependencies).
 - `python3 tooling/gates/run_all.py` — the authoritative gate run. A gate with no
   failing fixture reports `BROKEN` and fails, by design.
+- **The `kind:` label vocabulary is a closed set** — `experiment`, `gate`,
+  `repair`, `defect`, `gap`, `decision`, `protocol`. An out-of-vocabulary kind
+  makes `gh issue create` fail. This happened while filing #40 (`kind:methodology`
+  was rejected); the fix was `kind:gap`, and the mismatch is noted in that issue
+  rather than papered over.
 
 ## 6. What NOT to do — foreclosed, do not re-propose
 
@@ -186,13 +212,42 @@ Lean-side validation layer (that is Maith's).
 
 ## 8. If only one thing gets dispatched
 
-**Rung 3's prerequisites** (§3): measure CPU feasibility at `gemma-2-2b`, and
-re-derive the detection statistic for its SAE hook. Both are bounded, both are
-measurements rather than builds, and together they unblock the only live rung in
-the project.
+**#39 — rung 3 prerequisite A** (§3): measure CPU feasibility for `gemma-2-2b`.
+It is bounded, it is a measurement rather than a build, and it unblocks #40,
+which unblocks the only live rung in the project.
 
 If a second: **#24**, because it is an open defect in shipped validation work and
 it currently blocks #15.
+
+If a third, and this one is different in kind: **#37** (supervised comparator
+baselines, DEC-034). It is the only newly-adopted apparatus change, it runs at
+zero additional compute, and it converts the feature-absorption *disclaimer* into
+a *measurement* — the caveat that currently every null writeup must state and
+nothing checks.
+
+---
+
+## 9. What changed since the first version of this document
+
+Recorded so a reader can tell what is current rather than assuming the whole
+document is one vintage:
+
+| Change | Source |
+|---|---|
+| Rung 3 prerequisites **filed** as #39 (feasibility) and #40 (statistic), linked `#39 → #40` | this session |
+| The rung-3 probe is deliberately **not** filed yet — its DoD cannot be written before #40 pins the statistic | this session |
+| **DEC-034** adopted: (1) supervised comparator baselines (#37); (2) the validation layer declared a first-class project output (#38) | sibling session |
+| README gained a **"What this project produces"** section | sibling session, `7474329` |
+| **#38** filed for the gate-count discrepancy (37 vs 38 vs 11 wired) | sibling session |
+| A **critique response** document exists at `docs/reference/CRITIQUE_RESPONSE_2026-09-19.md` | sibling session |
+| DEC count is now **34** (was 33) | measured |
+
+**One consequence for the ladder.** DEC-034's comparator baselines are a change to
+the *apparatus*, not a rung. They cut across rungs 1–3: a probe that detects a
+paraphrase-invariant bridge the SAE misses would move the bottleneck from model
+scale to *instrument*, which is a different verdict-revision than rung 3 tests.
+The roadmap has not yet been updated to record that cross-cut — worth doing when
+#37 lands, and flagged here so it is not lost.
 
 ---
 
@@ -205,6 +260,7 @@ it currently blocks #15.
 | How is work tracked? | `docs/reference/PROGRAM_MANAGEMENT_SPEC.md` |
 | How do agents claim and finish work? | `docs/MULTI_AGENT_WORKFLOW.md` |
 | What is the literature position? | `docs/reference/PRIOR_ART.md` |
-| What was decided, and why? | `docs/decisions/LOG.md` (DEC-001 … DEC-033) |
+| What was decided, and why? | `docs/decisions/LOG.md` (DEC-001 … DEC-034) |
 | What has been measured? | `experiments/README.md`, `findings.jsonl` |
 | Why was the external spec rejected? | `docs/reference/EPHAPSE_SPECIFICATION_ASSESSMENT.md` |
+| What was the response to the audio critique? | `docs/reference/CRITIQUE_RESPONSE_2026-09-19.md` (DEC-034) |
