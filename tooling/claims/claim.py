@@ -70,14 +70,13 @@ def run(args: list[str], cwd: Path | None = None, check: bool = True,
     CREDENTIALS — which token, and why `GIT_TERMINAL_PROMPT=0` is not enough on
     its own (docs/MULTI_AGENT_WORKFLOW.md § Credentials):
 
-      * `GITHUB_TOKEN` (a per-session `ghu_` install token) is the credential
-        every git operation here must use. It is what `gh` reads and what the
-        session refreshes; treat it as the only routine credential.
-      * `ALL_REPOs_GH_TOKEN` (a long-lived `ghp_` PAT) has the same scope and
-        resolves to the same account, so it changes nothing about *who* pushes.
-        Use it only as a fallback if `GITHUB_TOKEN` stops authenticating — never
-        as the default, because it outlives the session and is the wrong thing
-        to depend on.
+      * `GITHUB_TOKEN` (a `ghu_` session token) is the default for every git
+        operation here. It is what `gh` reads, and the session refreshes it.
+      * `ALL_REPOs_GH_TOKEN` (a `ghp_` PAT) has the same scope and resolves to
+        the same account, so it changes nothing about *who* pushes. It is the
+        **fallback**: `GITHUB_TOKEN` was observed returning 401 mid-session, and
+        this token still authenticated, so a claim run should retry with it
+        rather than fail.
       * The clone URL as provisioned *embeds* a token. That embedded value
         expires mid-session (verified: HTTP 401 while the session was live), and
         it is what makes git fall through to a password prompt. Do not rely on
@@ -91,6 +90,11 @@ def run(args: list[str], cwd: Path | None = None, check: bool = True,
     and the push below works. Without it, `GIT_TERMINAL_PROMPT=0` turns the hang
     into an error (exit 1) — correct, but it means the claim was never taken, so
     `claim` still fails closed rather than silently succeeding locally.
+
+    Note: do NOT use `git ls-remote` to check whether a token works here. The
+    repo is public, so it succeeds anonymously and cannot fail — it reports OK
+    for a dead token. Check with an authenticated API call (`GET /repos/...`)
+    or an actual push.
     """
     env = dict(os.environ)
     env["GIT_TERMINAL_PROMPT"] = "0"

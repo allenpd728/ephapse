@@ -26,23 +26,28 @@ re-fetch check in §Claiming has no teeth.
 
 ## Credentials — which token goes where
 
-Two token-shaped credentials are available in a session, and they are **not
-interchangeable**. Both belong to the same account (`allenpd728`), so neither
-changes *who* a push is attributed to; the difference is lifetime and scope.
+Two token-shaped credentials are available in a session. Both belong to the
+same account (`allenpd728`), so neither changes *who* a push is attributed to;
+the difference is **lifetime**.
 
-| Credential | Kind | Use it for | Do **not** use it for |
+| Credential | Kind | Use it for | Notes |
 |---|---|---|---|
-| `$GITHUB_TOKEN` | short-lived install/session token (`ghu_…`) | **git push/fetch to `dev`**, and every `gh` CLI call against this repo | baking into a URL or file |
-| `$ALL_REPOs_GH_TOKEN` | long-lived scoped PAT (`ghp_…`) | nothing routine; a fallback if `$GITHUB_TOKEN` stops authenticating | routine pushes — it outlives the session |
+| `$GITHUB_TOKEN` | session token (`ghu_…`) | the default for git and `gh` work | **can expire mid-session** (observed) — see below |
+| `$ALL_REPOs_GH_TOKEN` | scoped PAT (`ghp_…`) | the fallback when `$GITHUB_TOKEN` returns 401 | durable; outlives the session |
 
-**The rule: always let `$GITHUB_TOKEN` do git work, and never write any token
-into the remote URL.**
+**The rule: use `$GITHUB_TOKEN` by default, wire it through a
+`credential.helper`, and fall back to `$ALL_REPOs_GH_TOKEN` the moment git or
+`gh` reports a 401. Never write any token into the remote URL.**
 
 Why this is written down: the clone URL as provisioned embeds a token
-(`https://<token>@github.com/allenpd728/ephapse.git`). That embedded value can
-and does expire inside a long session, after which a plain `git push` stops and
-**blocks on an interactive password prompt** instead of failing. That prompt is
-the symptom; the cause is the stale embedded token.
+(`https://<token>@github.com/allenpd728/ephapse.git`). With no
+`credential.helper` configured, git falls through to an interactive password
+prompt — and an agent session has no one to answer it, so the command **hangs
+rather than failing**, silently stranding committed work. Two separate tokens
+were observed to return 401 during a single session: the embedded URL token,
+and later `$GITHUB_TOKEN` itself (it authenticated fine at session start, then
+failed mid-session). The expiry is real, not hypothetical, and it happens to
+the session token too.
 
 **Set this once at the start of every session** (idempotent; keeps the token
 out of the URL and re-reads the live value from the environment on each use):
@@ -56,8 +61,22 @@ git config credential.helper \
 Then a plain `git push origin dev` / `git pull --rebase origin dev` works, and
 `gh issue …` / `gh pr …` work because the CLI already reads `$GITHUB_TOKEN`.
 
-**Non-interactive guard.** Never let a git command block on a prompt. Either
-set the helper above, or make the failure loud:
+**If you get a 401** (`Invalid username or token`, or `Bad credentials` from
+`gh`), `$GITHUB_TOKEN` is stale. Switch that one command to the fallback rather
+than stopping:
+
+```bash
+# git: push with the durable token in the URL for this one command
+GIT_TERMINAL_PROMPT=0 git push \
+  "https://x-access-token:${ALL_REPOs_GH_TOKEN}@github.com/allenpd728/ephapse.git" HEAD:dev
+
+# gh: GH_TOKEN takes precedence over GITHUB_TOKEN
+GH_TOKEN="$ALL_REPOs_GH_TOKEN" gh issue view <n> --repo allenpd728/ephapse
+```
+
+Then report the expiry, because a session that hit it once will hit it again.
+
+**Non-interactive guard.** Never let a git command block on a prompt:
 
 ```bash
 GIT_TERMINAL_PROMPT=0 git push origin dev   # exits non-zero instead of hanging
@@ -65,7 +84,19 @@ GIT_TERMINAL_PROMPT=0 git push origin dev   # exits non-zero instead of hanging
 
 A push that hangs on a password prompt is the failure mode to design out — it
 silently strands committed work on the local branch, which is exactly what
-"never stop on local" forbids (§5).
+"never stop on local" forbids (§1c, §5).
+
+**Testing a credential: do not trust `git ls-remote`.** `allenpd728/ephapse` is
+**public**, so `git ls-remote` succeeds anonymously and *cannot fail* — it
+reports "OK" for a token that is already dead. A check that cannot fail is not
+a check (the repo's own rule). Test authentication with an authenticated API
+call instead:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H "Authorization: Bearer $TOKEN" \
+  https://api.github.com/repos/allenpd728/ephapse   # 200 = valid, 401 = stale
+```
 
 ## Task states (labels)
 

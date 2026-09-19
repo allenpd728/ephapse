@@ -1629,16 +1629,36 @@ push was retried with a working credential.
 
 | Credential | Kind | Verified capability |
 |---|---|---|
-| `$GITHUB_TOKEN` | install/session token (`ghu_…`) | API 200 with push+admin on `allenpd728/ephapse`; `git ls-remote` OK; this is what `gh auth status` reports as active |
-| `$ALL_REPOs_GH_TOKEN` | scoped PAT (`ghp_…`) | same repo permissions, longer-lived |
+| `$GITHUB_TOKEN` | session token (`ghu_…`) | valid at session start (API 200 with push+admin); **observed returning HTTP 401 later in the same session** |
+| `$ALL_REPOs_GH_TOKEN` | scoped PAT (`ghp_…`) | same repo permissions; still working after `$GITHUB_TOKEN` had expired |
 | embedded in `origin` URL | expired `ghu_…` | **HTTP 401** |
 
 Both working tokens resolve to the same account, so the choice does not affect
-attribution — only lifetime and scope. Decision: **`$GITHUB_TOKEN` performs all
-git and `gh` work** (it is the one the CLI already reads, and it is
-session-scoped); `$ALL_REPOs_GH_TOKEN` is **not** used routinely and exists only
-as a fallback if the session token stops authenticating. No token is written
-into the remote URL or any file.
+attribution — only lifetime. Decision: **`$GITHUB_TOKEN` is the default** for
+git and `gh` work (the CLI already reads it, and it is session-scoped), wired
+through a `credential.helper`; **`$ALL_REPOs_GH_TOKEN` is the fallback** used
+for a single command when the default returns 401. No token is written into the
+remote URL or any file.
+
+**Two findings from exercising the fallback for real, both correcting the first
+draft of this entry.**
+
+1. **The session token expires too, not just the embedded URL token.** The first
+   draft said "use `$GITHUB_TOKEN` for everything." That held at session start
+   and then stopped holding: a mid-session `git push` returned
+   `Invalid username or token. Password authentication is not supported`, and
+   `gh` returned `HTTP 401: Bad credentials`, while `$ALL_REPOs_GH_TOKEN` still
+   authenticated. The rule is therefore *default, then fall back* — not
+   *always use one*.
+2. **`git ls-remote` cannot test a credential against this repo.** It was used
+   as the "does this token work" check in the first draft and reported OK for a
+   token that was already dead. `allenpd728/ephapse` is **public** (verified:
+   unauthenticated API returns 200), so `ls-remote` succeeds anonymously and
+   *cannot fail* — precisely the "a check that cannot fail is not a check" rule
+   this repo applies to its gates, violated in an ad-hoc credential probe. The
+   valid test is an authenticated API call (`GET /repos/…` → 200 vs 401) or an
+   actual push. Recorded because the same mistake will otherwise be repeated
+   every time someone sanity-checks a token.
 
 **The fix, now documented in `MULTI_AGENT_WORKFLOW.md` §Credentials**, is two
 idempotent lines run at session start:
