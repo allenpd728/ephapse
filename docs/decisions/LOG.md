@@ -1665,6 +1665,15 @@ reads `dev`" assumes cannot happen. Three changes follow:
 3. §5 — done means pushed; confirm with `git push origin dev && git status
    --porcelain` (must print nothing) before the done comment.
 
+**Where the sweep tool sees this.** `tooling/claims/claim.py` is the sweep's
+actual pusher — its lock *is* a `git push` — and it already disables prompts
+(`GIT_TERMINAL_PROMPT=0`, `GIT_ASKPASS`), which converts this failure from a
+hang into an error. Its `run()` now carries the token guidance inline, so the
+rule sits next to the code it governs and not only in prose. Note the
+interaction is correct rather than accidental: with prompts disabled and no
+credential helper, a claim **fails closed** (exit 1) instead of appearing to
+succeed locally, which is the behaviour a lock must have.
+
 **Process note.** The instruction that surfaced this — "a sweep must end with a
 push and should never stay local" — is recorded here as a rule rather than
 applied once, because the underlying cause (per-session credential

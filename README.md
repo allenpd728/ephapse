@@ -146,6 +146,7 @@ docs/reference/PRIOR_ART.md  — literature review; read before designing a prob
 docs/reference/TEST_VALIDATION_SPEC.md — the adopted two-tier validation layer
 docs/decisions/LOG.md        — decision log (DEC-001 onward)
 tooling/gates/               — Tier-0 integrity gates (fixture-gated) + runner
+tooling/claims/              — claim lock (git-ref CAS) + collision audit
 ```
 
 ## Validation layer (adopted 2026-09-19, DEC-021)
