@@ -37,6 +37,7 @@ import json
 import os
 import re
 import sys
+import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -194,6 +195,23 @@ def cache_evaluate_at(path: Path) -> datetime | None:
     return _parse(ts) if ts else None
 
 
+def token_candidates() -> list[tuple[str, str]]:
+    """Credentials to try, in order: (env-var name, value).
+
+    Presence is not validity. The session token can expire mid-run (observed:
+    it authenticated at session start and later returned 401), so a non-empty
+    `GITHUB_TOKEN` may still be dead. The caller must therefore *try* the
+    default and fall back on an auth failure, not merely check that it is set.
+    See MULTI_AGENT_WORKFLOW.md § Credentials.
+    """
+    out = []
+    for name in ("GITHUB_TOKEN", "ALL_REPOs_GH_TOKEN"):
+        val = os.environ.get(name, "")
+        if val:
+            out.append((name, val))
+    return out
+
+
 def fetch(repo: str, token: str) -> tuple[list[dict], dict[str, list[dict]]]:
     """Read live issue + comment state from the API."""
     def api(url: str):
@@ -228,11 +246,28 @@ def main(argv: list[str] | None = None) -> int:
         issues, comments = load_cache(args.cache)
         now = cache_evaluate_at(args.cache)
     elif args.fetch:
-        token = os.environ.get("GITHUB_TOKEN", "")
-        if not token:
-            print("ERROR: --fetch needs GITHUB_TOKEN", file=sys.stderr)
+        cands = token_candidates()
+        if not cands:
+            print("ERROR: --fetch needs a token; set GITHUB_TOKEN (or "
+                  "ALL_REPOs_GH_TOKEN as fallback)", file=sys.stderr)
             return 1
-        issues, comments = fetch(args.repo, token)
+        issues = comments = None
+        for name, tok in cands:
+            try:
+                issues, comments = fetch(args.repo, tok)
+                if name != cands[0][0]:
+                    print(f"NOTE: {cands[0][0]} was rejected (401); used "
+                          f"{name} instead.", file=sys.stderr)
+                break
+            except urllib.error.HTTPError as e:
+                if e.code in (401, 403):
+                    print(f"NOTE: {name} rejected (HTTP {e.code}); trying next "
+                          f"credential.", file=sys.stderr)
+                    continue
+                raise
+        if issues is None:
+            print("ERROR: no available credential authenticated.", file=sys.stderr)
+            return 1
         now = None
     else:
         print("ERROR: pass --cache <file> or --fetch", file=sys.stderr)
