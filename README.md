@@ -1,8 +1,17 @@
 # Ephapse
 
 > **Proof-of-concept stage.** No co-activation event has been found and
-> reviewed yet. The scaffolding is deliberately minimal — see "What not to
-> build yet" below.
+> reviewed by a human yet. The scaffolding is deliberately minimal — see
+> "What not to build yet" below.
+>
+> What *has* landed, as of 2026-09-19: the detector is validated against an
+> injected positive control (DEC-017/018/024), the target model is settled at
+> `pythia-70m-deduped` (DEC-014), the validation layer is adopted (DEC-021),
+> and the first real probe found a **weak but non-trivial** verbal↔symbolic
+> bridging signal (6 survivors vs 0 under a shuffled null). Single-feature
+> intervention is below the noise floor at this scale (DEC-020), so rung-3
+> causal claims are not currently reachable — see `findings.jsonl` and
+> `experiments/README.md` for the run log.
 
 Ephapse probes open-weight model internals — activations, sparse-autoencoder
 features, circuits — to find **cross-domain co-activation**: cases where
@@ -19,10 +28,14 @@ activation space instead of a brain.
 - **Substrate:** open-weight model weights and activations (not Lean terms).
 - **Toolchain:** Python / PyTorch — TransformerLens, SAELens, Neuronpedia.
 - **Validation story:** statistical and exploratory. **There is no kernel
-  oracle here** — that is the central difference from Maith.
+  oracle here** — that is the central difference from Maith — so a two-tier
+  automated validation layer (`tooling/gates/`, DEC-021) carries as much of
+  the discipline as is mechanically checkable.
 - **Single active branch:** `dev`.
-- **Status:** scaffolding only. First real output will be a methodology
-  null-result assessment, not a mathematical claim.
+- **Status:** proof-of-concept. The detector is validated; the first probe
+  returned a weak bridging signal (see the status note above). No
+  co-activation event has been human-reviewed, and no mathematical claim has
+  been handed to Maith.
 
 ## What this project is not
 
@@ -67,13 +80,18 @@ Frequently conflated; see `docs/AGENT_HANDOFF.md` for the full statement.
 
 1. **The agent-driving LLM** — writes code, drives the agent loop, API-only.
    **It cannot be probed.** No role in the research subject.
-2. **The probed model** — a small open-weight model (Pythia-70M–410M),
-   downloaded from HuggingFace and loaded locally in-process. The only kind
-   of model TransformerLens/SAELens can instrument.
+2. **The probed model** — a small open-weight model, downloaded from
+   HuggingFace and loaded locally in-process. The only kind of model
+   TransformerLens/SAELens can instrument. Note the choice is constrained by
+   **SAE availability, not size**: SAELens ships Pythia SAEs only for
+   `pythia-70m-deduped` (no 160M release), so that is the settled target
+   (DEC-014).
 3. **The remote probing API** (Neuronpedia; nnsight/NDIF for larger models)
-   — a *third path*, not a smaller local one. Returns top-k activations or a
-   feature's decoder vector, never an arbitrary activation matrix. Its
-   binding constraint is rate limit, not sandbox RAM.
+   — a *third path*, not a smaller local one. Returns dashboards and top-k
+   activations, never an arbitrary activation matrix — and **not** decoder
+   vectors: `hasVector` is false and `vector` is empty, so the decoder
+   direction comes from local `sae.W_dec` (DEC-015). Its binding constraint
+   is rate limit, not sandbox RAM.
 
 ## Compute
 
@@ -81,16 +99,20 @@ Measured, not estimated — see `docs/reference/SANDBOX_BASELINE.md`.
 
 | Resource | Measured |
 |---|---|
-| RAM | 15 GiB total, ~13 GiB available (CPU only, no GPU) |
+| RAM | 15 GiB total, ~13 GiB available (CPU only, no GPU); budget ~10 GB per run — no cgroup cap is enforced |
 | CPU | 4 cores |
-| Disk | 55 GB free |
-| Pythia-160M | 2.65 GB RSS, ~217 ms/forward pass |
-| Pythia-70M | 1.52 GB RSS, ~121 ms/forward pass |
+| Disk | 58 GB free on `/` |
+| Pythia-160M | 2.68 GB RSS; 207 ms single-prompt, **21 ms/prompt at batch 64** |
+| Pythia-70M | 1.52 GB RSS |
 
-This caps interactive CPU probing at roughly 70M–1B parameters. Larger
-models technically run but forward-pass latency makes iteration
-impractical. Note TransformerLens loads fp32 by default, so parameter count
-alone is not the constraint — dtype and cached activations are.
+The old "Pythia-160M / ~217 ms per pass" row described a model that has no
+usable SAE release (DEC-014) and a latency figure that conflated per-call
+overhead with batched throughput. Size **sweeps** on the batched number
+(2,000 prompts ≈ 40 s) and **interactive iteration** on the single-prompt
+number. This caps interactive CPU probing at roughly 70M–1B parameters;
+larger models technically run but latency makes iteration impractical.
+TransformerLens loads fp32 by default, so dtype and cached activations — not
+parameter count alone — are the real constraint.
 
 ## Tooling
 
@@ -107,15 +129,43 @@ have the deepest coverage — over picking a size and hoping an SAE exists.
 README.md                    — this file
 requirements.txt             — pinned deps (CPU torch build)
 experiments/                 — one dated file per experiment, with a header
-                               stating model, inputs, and what's tested
+                               stating model, inputs, and what's tested;
+                               run log in experiments/README.md
 findings.jsonl               — append-only log of flagged co-activation
                                events. Observations only; no conclusions.
 docs/AGENT_HANDOFF.md        — scope, non-goals, constraints, first issues
 docs/MULTI_AGENT_WORKFLOW.md — claiming, run-ids, dependencies, done-evidence
 docs/reference/SANDBOX_BASELINE.md — measured sandbox numbers + evidence
 docs/reference/PRIOR_ART.md  — literature review; read before designing a probe
-docs/decisions/LOG.md        — decision log (DEC-0xx)
+docs/reference/TEST_VALIDATION_SPEC.md — the adopted two-tier validation layer
+docs/decisions/LOG.md        — decision log (DEC-001..DEC-024)
+tooling/gates/               — Tier-0 integrity gates (fixture-gated) + runner
 ```
+
+## Validation layer (adopted 2026-09-19, DEC-021)
+
+The discipline is not prose-only any more. `docs/reference/TEST_VALIDATION_SPEC.md`
+is the adopted authority, implemented by `tooling/gates/`:
+
+- **Tier 0** — no model load, no torch, no network: schema, text, and
+  cross-reference checks over `findings.jsonl`, experiment headers, and docs,
+  plus the `G-C` experiment-code gates. Runs in CI. 29 of the 34 gates.
+- **Tier 1** — requires loading the probed model: the detector-validity gates
+  (positive control, control-can-fail, null calibration, paraphrase survival,
+  causal load-bearing, interference control). 5 gates.
+
+**A tier-0 pass is not a gate pass** — a green run means the artifacts are
+internally consistent, not that a detector measures what it claims. Every gate
+ships a fixture that makes it fail, and the runner reports `BROKEN` (and fails)
+if it cannot demonstrate the gate firing. A gate that cannot fail is not a
+check.
+
+Records in `findings.jsonl` sit on a status ladder: rung 0 Observed, rung 1
+tier-0-clean, rung 2 paraphrase-surviving, rung 3 causal at *per-feature*
+granularity (not currently reachable at `pythia-70m` — DEC-020 measured 0/50),
+rung 4 causal at *aggregate* granularity (the dose-response ladder — the
+strongest rung currently attainable). **The word "finding" is reserved for
+rung 3 and above.**
 
 ## Read this before designing an experiment
 
