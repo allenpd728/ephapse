@@ -95,6 +95,58 @@ returns mostly noise. It also supplies the right statistical tool — FDR
 control — which is the same family as the BH-FDR correction already
 specified in the handoff doc.
 
+### 3a. SAEs are contested on *detection*, not only isolation
+
+**Added 2026-09-19 (DEC-034).** §5 and §11 Q1 already carry RAVEL's ceiling,
+but RAVEL measures **isolation** — whether intervening on a feature leaves
+other attributes intact. It says nothing about whether an SAE *detects* a
+concept better than a cheaper method. Two recent results say it does not.
+
+**AxBench** (Wu, Arora, Geiger, Wang, Huang, Jurafsky, Manning & Potts,
+arXiv:2501.17148; ICML 2025, *Steering LLMs? Even Simple Baselines Outperform
+Sparse Autoencoders*) benchmarks both concept detection and steering. On
+detection, simple supervised methods win decisively:
+
+| Method | Mean AUROC (concept detection) |
+|---|---|
+| Difference-in-means (`DiffMean`) | **0.942** |
+| Linear probe | **0.940** |
+| `ReFT-r1` | 0.938 |
+| SAE with AUROC-based feature selection (`SAE-A`) | 0.917 |
+| Vanilla SAE | **0.695** |
+
+Kantamneni et al. (2025), evaluating across 113 probing datasets, separately
+find SAEs give no consistent advantage in harder regimes — data scarcity,
+class imbalance, label noise, covariate shift.
+
+**There is a partial rebuttal, and it must be carried rather than omitted.**
+A later paper (arXiv:2605.31183, *Steering LLMs? Actually, Sparse Autoencoders
+can outperform simple baselines*) argues AxBench under-served SAEs, and reports
+that with a **supervised feature-selection and labelling pipeline**, SAEs
+approach the reference LoRA performance, and that the selected features are
+surprisingly causal of their labels. The conditions matter: the rebuttal's
+advantage comes from supervision added *around* the SAE, not from the SAE
+alone. So the fair statement is not "SAEs are worse" but **"vanilla SAEs are
+worse than trivial baselines at detection, and closing the gap requires
+supervised machinery on top."**
+
+**Why this matters more than a citation.** Ephapse's detector reads SAE
+features, and its nulls inherit a caveat that absorption *may* be producing
+false negatives (`PRIOR_ART` §4). Today that caveat is a **disclaimer** — the
+writeups must state it, but nothing measures it. A comparator baseline converts
+it into a **measurement**: run the same inputs through a difference-in-means
+baseline and a linear probe alongside the SAE, and the question "would a
+cheaper, non-sparse method have seen this overlap the SAE missed?" gets an
+answer at no additional compute. See DEC-034 and issue #37.
+
+**What a comparator does not give you.** A probe yields a *direction* — a vector
+in activation space along which the concept varies — not an interpretable,
+enumerable feature with a decoder direction. The SAE's reason for existing is
+the feature list; a probe cannot substitute for it. A comparator is a
+**sensitivity check on the detector**, not a replacement substrate. Any result
+must state this, or a positive probe result would be over-read as "we did not
+need the SAE".
+
 ---
 
 ## 4. Failure modes that bias the search in *both* directions
@@ -579,5 +631,6 @@ Maith already has.
 | Non-verbal robustness / latent-space-as-evidence critique | General cross-domain hypothesis-generation review (2026-09-18); see §6 and DEC-011 |
 | Interchange intervention / causal role of features | Geiger et al., NeurIPS 2021 & ICML 2022; causal-abstraction formalization, JMLR 26 (2025); SAIL blog overview |
 | Cause / Isolate scoring of SAE features | RAVEL, Huang, Wu, Potts, Geva & Geiger, ACL 2024 (arXiv:2402.17700); SAE 48.6/46.8 vs MDAS 60.1/65.6 |
+| SAE vs simple baselines on **detection** (added DEC-034) | AxBench, arXiv:2501.17148 (Wu et al., ICML 2025): DiffMean 0.942 / linear probe 0.940 AUROC vs vanilla SAE 0.695. Partial rebuttal: arXiv:2605.31183 (SAEs reach parity with a *supervised* selection pipeline). Kantamneni et al. (2025), 113 probing datasets: no consistent SAE advantage under distribution shift |
 | Synthetic ground-truth SAE benchmark | SynthSAEBench, arXiv:2602.14687 (Chanin & Garriga-Alonso); 16,384 ground-truth features, extends SAELens |
 | Retrospective rediscovery protocol (LBD replication) | Swanson (1986) fish-oil/Raynaud, (1988) magnesium/migraine; ARROWSMITH; LBD evaluation-methodology critique, PMC9945845 |

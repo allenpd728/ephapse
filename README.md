@@ -42,6 +42,40 @@ activation space instead of a brain.
   at 70M (see the status note above). No co-activation event has been
   human-reviewed, and no mathematical claim has been handed to Maith.
 
+## What this project produces
+
+Two outputs, and the second is not scaffolding for the first. Stated plainly
+because the repo has under-claimed it (DEC-034).
+
+1. **The candidate generator.** Cross-domain co-activation as a source of
+   candidate mathematical hypotheses. This is the *scientific* goal. It has
+   returned a clean null at 70M so far (`docs/ROADMAP.md` rungs 0–2), and the
+   live question is whether that null survives at larger scale (rung 3).
+2. **The validation layer.** A two-tier, fixture-gated method for telling
+   **instrument failure** from **phenomenon absence** —
+   `instrument-validated` / `instrument-failed` / `phenomenon-null` /
+   `phenomenon-present` — plus the discipline that makes it enforceable: every
+   check ships a fixture that makes it fail, and a check that cannot fail is not
+   a check. Authority: `docs/reference/TEST_VALIDATION_SPEC.md`; the
+   `instrument-*` / `phenomenon-*` vocabulary is defined in
+   `docs/reference/PROGRAM_MANAGEMENT_SPEC.md` §3.2.
+
+**Why (2) is a first-class output and not a prerequisite.** The vocabulary is
+rare in practice and was expensive here: five measurements in this repo produced
+plausible-looking results that were artifacts of vacuous code, and a single null
+had to be adjudicated across three decision entries to establish whether it was
+an instrument failure or an absent phenomenon (DEC-019, DEC-020, DEC-023,
+DEC-024). A method whose nulls carry a *demonstrated* sensitivity floor is
+usable by anyone probing small models, independently of whether (1) ever
+succeeds.
+
+**What this does not change.** Repositioning an existing asset is not building
+new infrastructure. This is a statement about what the work *is*, not a licence
+to build more: "What not to build yet" below is unchanged, and no new validation
+machinery is proposed by this framing. The layer's ~37 specified gates and their
+fixtures already exist; the change is that they are described as an output rather
+than as scaffolding.
+
 ## What this project is not
 
 - **Not a fork or extension of Maith.** Different substrate, different

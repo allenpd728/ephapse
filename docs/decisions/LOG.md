@@ -1816,3 +1816,127 @@ never by assuming. Fifth instance of the pattern in five issues.
 - The commercial framing is **foreclosed at every rung** rather than re-argued,
   which is stated once in the ladder's out-of-scope section.
 - No pipeline, shield, matrix, vault, or asset schema is built.
+
+---
+
+## DEC-034 — Comparator baselines join the detector; the validation layer is a first-class output
+
+**Date:** 2026-09-19 · **Status:** adopted (issues #37, #38)
+
+**Source.** An externally-authored audio critique of the project's own narrative
+write-up was evaluated against the repo (`docs/reference/CRITIQUE_RESPONSE_2026-09-19.md`).
+Most of its recommendations were already-recorded items or the
+infrastructure-ahead-of-results move DEC-012 and DEC-033 have twice rejected. Two
+items survive and are adopted here. Recorded as a DEC because item 1 changes the
+**apparatus**, and item 2 changes what the repo says it **is**.
+
+### 1. Supervised comparator baselines run alongside the SAE (issue #37)
+
+**Decision:** every detector measurement runs the same inputs through, at minimum,
+a **difference-in-means** baseline and a **linear probe**, in addition to the SAE.
+All three are recorded in the finding.
+
+**Why.** `PRIOR_ART.md` §4 carries the feature-absorption caveat — a null may mean
+"the SAE cannot represent the structure" rather than "the structure is absent." As
+written, that caveat is a **disclaimer**: every null writeup must state it, and
+nothing measures it. A comparator converts it into a **measurement**, and does so
+at zero additional compute.
+
+The prior-art grounding is newly recorded in `PRIOR_ART.md` §3a, because it was
+**not in this repo before this decision** — an earlier narrative document had
+cited it, and the critique mistook that document for the repo's own review. That
+sourcing error is worth recording: adopting a premise from an un-reviewed
+document is the same class of defect as adopting an API contract from its shape
+(DEC-015). The source is now reviewed and cited.
+
+The relevant finding is that RAVEL's ceiling (§5, §11 Q1) measures **isolation**,
+not **detection**. On detection, AxBench (arXiv:2501.17148, ICML 2025) reports
+difference-in-means at 0.942 and a linear probe at 0.940 mean AUROC against
+**0.695 for a vanilla SAE**. The partial rebuttal (arXiv:2605.31183) is carried
+too: SAEs reach parity *with a supervised feature-selection pipeline*, i.e. when
+machinery is added around them. So the honest statement is "vanilla SAEs lose to
+trivial baselines at detection," not "SAEs are useless."
+
+**The specific experiment, and why it is the right one.** The gating measurement
+is the paraphrase-invariance test (#6, DEC-011). Run the *same* inputs through
+both substrates:
+
+- If the probe detects a paraphrase-invariant bridge the SAE misses, then the
+  **instrument, not the model scale, is the current bottleneck** — an actionable
+  result obtainable at this budget, and a materially more informative one than
+  another null.
+- If both miss it, the surface-form explanation gains independent support from a
+  non-sparse method, which strengthens the rung-2 null (`docs/ROADMAP.md`)
+  against the objection that it is an SAE artifact.
+
+**What it does not do, stated so the result cannot be over-read.** A probe yields
+a *direction*, not an interpretable enumerable feature with a decoder vector. The
+SAE's justification is the feature list; a probe cannot replace it. A comparator
+is a **sensitivity check on the detector**, not a substitute substrate. A positive
+probe result does not mean the SAE was unnecessary.
+
+**Scope.** Tier 0-adjacent: the comparators are cheap enough to live in the
+harness. No new model, no new compute, no new download beyond the tokenizer
+already used by G-P2.
+
+### 2. The validation layer is declared a first-class output (issue #38)
+
+**Decision:** `README.md` states that the repo produces **two** outputs — the
+candidate generator, and the validation layer — and that the second is **not
+scaffolding for the first**. The `instrument-*` / `phenomenon-*` vocabulary
+(`PROGRAM_MANAGEMENT_SPEC.md` §3.2) and the fixture-gated two-tier method
+(`TEST_VALIDATION_SPEC.md`) are described as a contribution in their own right.
+
+**Why this is a decision and not a README edit.** It changes what the project
+claims to be, which is the class of change DEC-033 was recorded to prevent from
+being made silently. The evidence is already in the repo: five measurements
+produced plausible-looking results that were artifacts of vacuous code (DEC-019,
+DEC-020); one null required three decision entries to establish whether it was an
+instrument failure or an absent phenomenon (DEC-023, DEC-024); and
+`PROGRAM_MANAGEMENT_SPEC.md` §3.2 names the separating vocabulary as "the
+load-bearing decision." The layer is expensive, rare, and usable by others
+probing small models regardless of whether the co-activation bet pays off.
+
+**The boundary that keeps this honest, and it is binding.** Repositioning an
+existing asset is **not** building new infrastructure. This decision asserts what
+the work *is*; it authorizes no new validation machinery. `README.md`'s "What not
+to build yet" is unchanged, DEC-012's reasoning is unchanged, and the rejected
+items of the external spec (DEC-033) stay rejected. In particular the critique's
+proposal to **extract the ~37 gates into a standalone library is declined**: the
+concrete gates check repo-local conventions (`findings.jsonl` schema, experiment
+headers, `requirements.txt` pinning, this tokenizer's disjointness) and do not
+generalize. Only the *pattern* generalizes, and writing up the pattern is a
+separate, smaller question — not authorized here.
+
+### Recorded as not-adopted
+
+The critique's remaining items are **not** adopted, and the reasons are inherited
+rather than re-argued:
+
+- **Pivot to task-trained/grokking models as the immediate target** — already
+  recorded as a possible future direction (`PRIOR_ART.md` §7). It is a priority
+  argument, not a new finding, and it carries an unstated cost: the target has
+  **no pretrained SAE**, so one must be trained first.
+- **Synthetic ground-truth panel (SynthSAEBench)** — already on the optional
+  track (`PRIOR_ART.md` §11 Q2). Its own ceiling applies (best SAE F1 0.88 vs
+  0.974 for a probe), so it cannot validate an SAE pipeline outright.
+- **"Hard compute wall"** — the diagnosis is wrong. The binding constraint is SAE
+  *availability* plus iteration latency, not raw compute, and DEC-033 already
+  corrected the scale question by querying the registry: `gemma-2-2b` has 316
+  SAEs. Adopting the critique's diagnosis would point the fix in the wrong
+  direction.
+- **"Biological hypothesis"** — the framing is wrong throughout the critique. The
+  target is *mathematical* structure read from an artificial substrate; the
+  neuroscience reference is the project's name, not its subject. The critique's
+  closing phrase ("even if the primary biological hypothesis remains null")
+  would change what a null means.
+
+### Corrections carried
+
+- **Gate count.** The critique repeats "38-gate specifications." The repo says
+  **37** in four places (`TEST_VALIDATION_SPEC.md` ×2, `README.md`,
+  `AGENT_HANDOFF.md`) and **38** once (`PROGRAM_MANAGEMENT_SPEC.md:16`); 9 are
+  wired. Three circulating figures is exactly the docs-coherence drift **G-R4**
+  (issue #20) exists to catch, and #20 is unwired, so nothing detects it. Folded
+  into #38 rather than filed separately.
+- **Transcription artifacts** in the source are not carried into repo text.
