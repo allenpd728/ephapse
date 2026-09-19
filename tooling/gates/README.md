@@ -131,6 +131,7 @@ tooling/gates/
 |---|---|---|---|
 | **G-R1** | Experiment header completeness — six fields, or the documented three for an infrastructure file | `experiments/README.md`; spec §3 | **wired** |
 | **G-R2** | Experiment model id is an authorized target (fails closed) | DEC-014; spec §1 defect #1 | **wired** |
+| **G-R3** | Every requirement pinned, or an inline `# unpinned-by-policy: <rationale>` exemption | `requirements.txt` header; spec §3 | **wired** |
 | **G-R5** | Every `experiments/*.py` has a run-log row | spec §1 defect #2 | **wired** |
 | **G-E1** | Findings schema — parses, required keys present, no undeclared keys | `findings.jsonl` header | **wired** |
 | **G-E2** | `null_model`, `correction`, `n` non-empty — the evidence bar | issue #4 DoD | **wired** |
@@ -144,10 +145,18 @@ non-empty for every registered gate.
 ### The shared model target
 
 `tooling/gates/target_model.txt` is the **single machine-readable source** for
-the authorized probed-model id(s). G-R2 reads it, and issue #12's pinning gate
-reads the same file. `docs/decisions/LOG.md` is prose and deriving a model id
-from it is brittle, so the gate never parses the log — a DEC that authorizes a
-new model adds a line to `target_model.txt` *and* records the DEC.
+the authorized probed-model id(s). G-R2 reads it. `docs/decisions/LOG.md` is prose
+and deriving a model id from it is brittle, so the gate never parses the log — a
+DEC that authorizes a new model adds a line to `target_model.txt` *and* records
+the DEC.
+
+> **Correction (issue #12).** Issue #11's method constraint asked for "one
+> machine-readable source shared with #12". That reference does not resolve: #12
+> is dependency pinning over `requirements.txt`, which has no model dimension, so
+> its gate (`validate_deps.py`) reads no target file. The target source is read
+> by G-R2 alone. Recorded rather than silently ignored, because a doc claiming a
+> consumer that does not exist is the same class of drift G-R4 (#20) exists to
+> catch.
 
 ### Findings worth keeping
 

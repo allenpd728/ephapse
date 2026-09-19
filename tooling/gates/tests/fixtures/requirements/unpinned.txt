@@ -1,0 +1,14 @@
+# Failing fixture for G-R3 — a near miss, not an obviously-broken file.
+#
+# Four requirements are correctly pinned or exempted; exactly one is a bare
+# unpinned package with no declared policy. A gate that only fired on an empty
+# file would satisfy the letter of the fixture rule and none of its purpose, so
+# the violation sits among valid lines.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+torch==2.14.0+cpu
+transformer-lens==3.9.0
+sae-lens~=6.51.0
+numpy  # unpinned-by-policy: determined by the parent package
+
+pandas   # <-- the violation: unpinned, and no policy marker

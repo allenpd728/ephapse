@@ -1,0 +1,13 @@
+# Clean fixture for G-R3 — every requirement pinned, or explicitly exempt.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+torch==2.14.0+cpu
+transformer-lens==3.9.0   # inline comment after a pin is fine
+sae-lens~=6.51.0
+tokenizers>=0.23.2 ; python_version >= "3.10"
+
+# An explicit policy exception with a rationale is allowed.
+numpy  # unpinned-by-policy: version determined by the parent package
+
+# A URL requirement with a fragment is not a comment.
+pkg @ https://example.invalid/pkg.whl#egg=pkg

@@ -1,0 +1,10 @@
+# Failing fixture for G-R3 — an exemption with NO rationale.
+#
+# The clean fixture shows `# unpinned-by-policy: <rationale>` is allowed. This
+# fixture is the near miss for that rule: the marker is present but states no
+# reason, so it must NOT exempt. Without this case the marker could decay into a
+# blanket silence — add `# unpinned-by-policy:` to any line and the gate goes
+# quiet — which is the "a check that cannot fail is not a check" failure mode
+# (spec §4) expressed inside the exemption itself.
+torch==2.14.0+cpu
+numpy  # unpinned-by-policy:

@@ -386,6 +386,100 @@ def test_model_target_source_is_machine_readable():
     assert "pythia-70m-deduped" in targets
 
 
+# -------------------------------------------------------------- G-R3 gates
+def test_g_r3_is_silent_on_the_pinned_fixture():
+    import validate_deps as V
+    assert V.check_deps(R.FIXTURES / "requirements" / "pinned.txt") == []
+
+
+def test_g_r3_fires_on_the_unpinned_fixture():
+    import validate_deps as V
+    findings = V.check_deps(R.FIXTURES / "requirements" / "unpinned.txt")
+    assert findings, "G-R3 did not fire on an unpinned requirement"
+    assert any("pandas" in f for f in findings), findings
+
+
+def test_g_r3_ignores_pip_options_and_inline_comments():
+    """`--extra-index-url` and inline `#` comments must not be false positives.
+
+    Issue #12's DoD names both explicitly. A gate that flagged either would push
+    an author to mangle a correct line to appease it.
+    """
+    import validate_deps as V
+    clean = R.FIXTURES / "requirements" / "pinned.txt"
+    findings = V.check_deps(clean)
+    assert not any("extra-index-url" in f for f in findings), findings
+    assert not any("transformer-lens" in f for f in findings), findings
+
+
+def test_g_r3_allows_a_direct_reference_requirement():
+    """`pkg @ https://...#egg=pkg` carries its version in the URL, and the `#`
+    is a fragment, not a comment."""
+    import validate_deps as V
+    clean = R.FIXTURES / "requirements" / "pinned.txt"
+    assert not any("pkg" in f for f in V.check_deps(clean))
+
+
+def test_g_r3_exemption_requires_a_rationale():
+    """An empty `# unpinned-by-policy:` must NOT exempt.
+
+    Without this the marker becomes a blanket silence — the guard that makes the
+    exemption a check rather than an escape hatch.
+    """
+    import validate_deps as V
+    findings = V.check_deps(R.FIXTURES / "requirements" / "empty_rationale.txt")
+    assert findings, "G-R3 exempted a marker with no rationale"
+    assert any("no rationale" in f for f in findings), findings
+
+
+def test_g_r3_is_silent_when_the_only_unpinned_line_is_exempt_with_reason():
+    import validate_deps as V
+    clean = R.FIXTURES / "requirements" / "pinned.txt"
+    text = clean.read_text()
+    assert "unpinned-by-policy:" in text, "fixture must exercise the exemption"
+    assert V.check_deps(clean) == []
+
+
+def test_g_r3_extra_index_url_alone_does_not_satisfy_a_pin():
+    """A stray `--extra-index-url` must not mask the requirements around it."""
+    import validate_deps as V
+    findings = V.check_deps(R.FIXTURES / "requirements" / "unpinned.txt")
+    assert len(findings) == 1, f"expected exactly one finding, got {findings}"
+
+
+def test_real_requirements_is_red_until_21_reconciles_numpy():
+    """G-R3 MUST fire on the real requirements.txt until #21 settles `numpy`.
+
+    Mirrors `test_experiment_gates_fail_on_the_real_tree_at_this_issue`: if this
+    ever passes, either #21 landed (and `numpy` is pinned or marked inline) or a
+    gate stopped firing. Both are events worth surfacing rather than silently
+    accepting. #21's method constraint is explicit that the gate must not force
+    the pin, so this test asserts the *disagreement* is still visible, not that
+    it is permanent.
+    """
+    import validate_deps as V
+    findings = V.check_deps(V.REQUIREMENTS)
+    assert findings, (
+        "G-R3 is green on the real requirements.txt. At issue #12 that means "
+        "either #21 landed or the gate stopped firing — re-check both.")
+    assert any("numpy" in f for f in findings), findings
+
+
+def test_g_r3_exemption_marker_is_inline_by_design():
+    """The exemption is an *inline* marker, deliberately not a preceding comment.
+
+    A preceding comment would attach to a line the parser cannot associate
+    reliably across blank lines and reordering. Requiring the marker on the
+    requirement's own line keeps `requirements.txt` and the gate stating one rule
+    in one place (#21's "make the prose and the gate agree").
+    """
+    import validate_deps as V
+    clean = R.FIXTURES / "requirements" / "pinned.txt"
+    assert "unpinned-by-policy:" in clean.read_text()
+    assert V.check_deps(clean) == []
+
+
+
 def test_experiment_gates_fail_on_the_real_tree_at_this_issue():
     """Issue #11's DoD: these gates MUST be red on the real tree until #15.
 

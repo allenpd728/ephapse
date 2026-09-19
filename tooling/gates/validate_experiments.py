@@ -27,9 +27,12 @@ go unnoticed, so accepting it would defeat the gate.
 THE MODEL SOURCE (the "single machine-readable source" the issue asks for).
 `docs/decisions/LOG.md` is prose and deriving a model id from it is brittle, so
 the authorized target is declared in `tooling/gates/target_model.txt`. That file
-is the one place #12 and this gate read the target from, per the issue's "prefer
-one machine-readable source shared with #12". A DEC authorizing a different model
-adds a line there *and* records the DEC; the gate does not parse the decision log.
+is the one place this gate reads the target from. Issue #11's method constraint
+phrased this as "one machine-readable source shared with #12", but that reference
+does not resolve — #12 is dependency pinning over `requirements.txt` and has no
+model dimension, so `validate_deps.py` reads no target file. A DEC authorizing a
+different model adds a line to `target_model.txt` *and* records the DEC; the gate
+does not parse the decision log.
 """
 from __future__ import annotations
 
