@@ -35,6 +35,7 @@ results land in `docs/reference/SANDBOX_BASELINE.md` rather than
 | 2026-09-18 | `2026-09-18-toolchain-neuronpedia-crosscheck.py` | #2 | End-to-end TransformerLens + SAELens, cross-checked against Neuronpedia's hosted copy of the same feature |
 | 2026-09-18 | `2026-09-18-detector-positive-control.py` | #5 | Injected-correlation positive control: detector recovery vs injection rate, permutation null, negative control. **PASSES** on the max-statistic test; BH-FDR layer found broken (DEC-016) |
 | 2026-09-18 | `2026-09-18-injected-positive-control-detector-validation.py` | #5 | Detector recovery vs injected-correlation rate at pythia-70m; **detector recovers 0.87 at rate 0.20 vs 0.00 for a naive raw-co-occurrence baseline**. Four prior runs (same file, preserved as `*-results-initial.json`, `-v2`, `-v3`, `-v4`) returned zero for control-side and test-side reasons documented in DEC-019 |
+| 2026-09-19 | `2026-09-18-intervention-positive-control.py` | #7 | Interchange-intervention harness (ablation). **Known-positive passes 5/5** (full residual swap moves the target); cumulative ablation ladder **MOVES 5/5**; but **0/50 single features** exceed the cause threshold — per-feature claims are inconclusive at this scale, not negative (DEC-020). SAE reconstruction rel. error 0.362 |
 
 Note: the first two are the pre-existing exceptions to the naming convention
 above (they omit the `null`/`correction` headers deliberately). Future files

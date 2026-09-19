@@ -651,3 +651,64 @@ A x B block), and 6 further pairs fall below NPMI 0.8 even at rate 0.40. The
 0.90 is therefore a property of this group construction, not a detector
 limitation.
 
+---
+
+## DEC-020 — Single-feature intervention is below the noise floor at pythia-70m; the ladder is the interpretable instrument
+
+**Date:** 2026-09-19 · **Status:** adopted
+
+**Decision:** a per-feature intervention null at pythia-70m-deduped /
+`blocks.3.hook_resid_post` is **inconclusive by construction**, and the
+ablation harness must report a **cumulative dose-response ladder** alongside it
+or the per-feature reading is uninterpretable. Issue #7's harness implements
+both.
+
+**Rationale — measured, issue #7 (`2026-09-18-intervention-positive-control.py`).**
+
+Three things were established, in this order:
+
+1. **The harness works.** Full residual-stream interchange (the known-positive
+   DEC-019 requires) moves the output on **5/5** prompt pairs — e.g. base target
+   probability 0.389 -> 0.000 while the source target rises 0.000 -> 0.280. So
+   the intervention mechanic reaches the output; a null below is about features,
+   not about the plumbing.
+2. **Single features do not.** Across 50 features (top-10 by source activation
+   on 5 pairs), **0** exceeded the 0.01 cause threshold. Cause values were
+   0.000 to 0.004. The interference control was clean (max probability shift
+   0.00e+00 for a feature inactive in both prompts), so this is not leakage.
+3. **The ladder does.** Cumulatively ablating the top-k base features moves the
+   target monotonically — e.g. p(base target) 0.389 at k=1 -> 0.055 at k=25 and
+   flat thereafter, in 5/5 pairs.
+
+**The interpretive consequence, which is the actual decision.** A single SAE
+feature at this scale contributes a share of an output that is small relative to
+the residual stream's other ~100 active features, and the SAE's own
+reconstruction error is large: **mean relative error 0.362, mean cosine 0.933**
+between `resid_post` and `sae.decode(sae.encode(resid_post))`. At 36% relative
+reconstruction error, "feature F is causally load-bearing" is not a claim this
+setup can test per-feature. Per DEC-008 a null here is **inconclusive, not
+negative** — it does not count against any feature.
+
+**A vacuity trap the harness now blocks.** The isolate score (RAVEL's second
+property) is *trivially* high when the cause is ~0: if nothing moved, "other
+attributes untouched" is necessarily true. The first version of the harness
+reported `isolate = 0.996` across all 50 features, which reads like a strong
+result and was computed entirely from cases where nothing happened. The harness
+now reports isolate **only when cause exceeds the threshold**, and prints
+`n/a (cause~0)` otherwise, with the summary stating "NOT REPORTABLE" when no
+feature qualifies. This is DEC-019 applied again: a reading that cannot come out
+low is not a reading.
+
+**Consequences.**
+
+- #7's `findings.jsonl` record (if any) must carry the ladder and the
+  reconstruction error, not a per-feature cause/isolate pair.
+- Any later claim of the form "feature F is causally load-bearing in both
+  domains" (the claim `PRIOR_ART.md` §11 supports) needs either a larger model,
+  a narrower intervention that isolates F's downstream target rather than the
+  next-token distribution, or acceptance that the claim is about *aggregate*
+  structure rather than a single feature.
+- RAVEL's ceiling is carried for calibration as required: SAE 48.6/46.8
+  disentanglement vs 60.1/65.6 supervised. This run's per-feature numbers are
+  below even that ceiling, consistent with the reconstruction error above.
+
