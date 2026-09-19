@@ -1,1 +1,0 @@
-{"flow": {"available": 11, "blocked": 3, "blocked_ratio": 0.1364, "closed_last_30d": 18, "cycle_time_median_hours": 7.53, "needs_review": 7, "open_total": 22, "stale_reversions_since_last": 0, "wip": 0}, "notes": "sweep: 22 open, 0 claimed, 3 blocked, 11 available | median cycle 7.53h | 7 awaiting review", "timestamp": "2026-09-19T22:32:42Z"}
