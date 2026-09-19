@@ -24,6 +24,49 @@ identity — all agents authenticate as the same account, so labels,
 assignees, and author fields cannot tell claims apart. Without run-ids the
 re-fetch check in §Claiming has no teeth.
 
+## Credentials — which token goes where
+
+Two token-shaped credentials are available in a session, and they are **not
+interchangeable**. Both belong to the same account (`allenpd728`), so neither
+changes *who* a push is attributed to; the difference is lifetime and scope.
+
+| Credential | Kind | Use it for | Do **not** use it for |
+|---|---|---|---|
+| `$GITHUB_TOKEN` | short-lived install/session token (`ghu_…`) | **git push/fetch to `dev`**, and every `gh` CLI call against this repo | baking into a URL or file |
+| `$ALL_REPOs_GH_TOKEN` | long-lived scoped PAT (`ghp_…`) | nothing routine; a fallback if `$GITHUB_TOKEN` stops authenticating | routine pushes — it outlives the session |
+
+**The rule: always let `$GITHUB_TOKEN` do git work, and never write any token
+into the remote URL.**
+
+Why this is written down: the clone URL as provisioned embeds a token
+(`https://<token>@github.com/allenpd728/ephapse.git`). That embedded value can
+and does expire inside a long session, after which a plain `git push` stops and
+**blocks on an interactive password prompt** instead of failing. That prompt is
+the symptom; the cause is the stale embedded token.
+
+**Set this once at the start of every session** (idempotent; keeps the token
+out of the URL and re-reads the live value from the environment on each use):
+
+```bash
+git remote set-url origin https://github.com/allenpd728/ephapse.git
+git config credential.helper \
+  '!f() { echo "username=x-access-token"; echo "password=${GITHUB_TOKEN}"; }; f'
+```
+
+Then a plain `git push origin dev` / `git pull --rebase origin dev` works, and
+`gh issue …` / `gh pr …` work because the CLI already reads `$GITHUB_TOKEN`.
+
+**Non-interactive guard.** Never let a git command block on a prompt. Either
+set the helper above, or make the failure loud:
+
+```bash
+GIT_TERMINAL_PROMPT=0 git push origin dev   # exits non-zero instead of hanging
+```
+
+A push that hangs on a password prompt is the failure mode to design out — it
+silently strands committed work on the local branch, which is exactly what
+"never stop on local" forbids (§5).
+
 ## Task states (labels)
 
 | Label | Meaning |
@@ -95,6 +138,30 @@ close + unblock dependents) before claiming the next.
    recently-closed task changed the design or the plan, the sibling docs
    must reflect it in the same session — a stale doc is a process failure
    on par with a stale claim.
+
+1c. **A sweep is not finished until it is pushed.** Any sweep that changed
+   the tracker or the tree — reclaimed a claim (1), repaired a label (1a),
+   or fixed a doc (1b) — **must end with the change committed and pushed to
+   `origin/dev`**, and the sweep's results comment must name the commit it
+   pushed. A sweep that stops at the local tree has not happened: the next
+   session sees the unchanged remote and repeats the same work, and if the
+   sweep only changed labels it leaves the tree and the tracker inconsistent.
+
+   This is the same rule as §5 (work commits directly to `dev`) applied to
+   sweeps. It applies with two caveats:
+
+   - **Tracker-only sweeps** (label changes, reclaim comments) push nothing
+     — there is no tree change — but they are still not finished until the
+     comment recording them is posted, and the sweep comment says so
+     explicitly.
+   - **A sweep that finds nothing to change** is a valid, complete outcome.
+     Say that, with the evidence checked (e.g. the `gh issue list` output),
+     rather than leaving the absence of a comment ambiguous.
+
+   Concretely: if `git status` is dirty when the sweep ends, the sweep is
+   unfinished. Commit, `git pull --rebase origin dev`, push, and only then
+   write the sweep comment. See §Credentials for the push setup — and never
+   leave work sitting on the local branch behind a credentials prompt.
 
 2. **Pick work.** Any `status:available` issue the agent can start. Default
    order: lowest issue number first; `priority:high` jumps the queue.
@@ -175,6 +242,20 @@ close + unblock dependents) before claiming the next.
    **Tasks with known-answer criteria close only when the done comment
    includes the exact command and its output** — a done claim without
    evidence is how full maps ship empty and nobody notices.
+
+   **Done means pushed, not committed.** A task is not done while its
+   commits exist only on the local branch; the reviewer reads `dev` on the
+   remote. Before writing the done comment, confirm the remote actually has
+   the commit:
+
+   ```bash
+   git push origin dev && git status --porcelain    # must print nothing
+   ```
+
+   A `git push` that hangs on a password prompt has failed even though it
+   did not exit — set the credential helper in §Credentials, and use
+   `GIT_TERMINAL_PROMPT=0` so a credential problem errors out instead of
+   silently stranding the work.
 
    **Concurrent-work rules** (agents run in parallel against `dev`):
    - Pull before you start, and again before you push.

@@ -1605,3 +1605,70 @@ fixed here.
 
 *Supersedes the label-as-lock framing in DEC-029 § 4; DEC-029's detection rule
 and earliest-id tiebreak remain in force.*
+
+---
+
+## DEC-032 — Credentials: one token for git, one for fallback; and a done/sweep is not finished until it is pushed
+
+**Date:** 2026-09-19 · **Status:** adopted
+
+**Decision:** the workflow now states explicitly which credential does what,
+and both the claiming sweep (§1c) and the done rule (§5) require a push to
+`origin/dev` before they count as finished. Committed to `dev`, not left local.
+
+**What was wrong.** A session's `git push origin dev` **blocked on an
+interactive password prompt** rather than failing. The cause: the provisioned
+clone URL embeds a token (`https://<token>@github.com/allenpd728/ephapse.git`)
+and that embedded value expires inside a long session (verified: it returned
+HTTP 401 while the session was still live). With no `credential.helper`
+configured and no shell prompt available, the command hung. The commit had been
+made and reported in the work summary, so the failure was invisible until the
+push was retried with a working credential.
+
+**The two credentials, measured.**
+
+| Credential | Kind | Verified capability |
+|---|---|---|
+| `$GITHUB_TOKEN` | install/session token (`ghu_…`) | API 200 with push+admin on `allenpd728/ephapse`; `git ls-remote` OK; this is what `gh auth status` reports as active |
+| `$ALL_REPOs_GH_TOKEN` | scoped PAT (`ghp_…`) | same repo permissions, longer-lived |
+| embedded in `origin` URL | expired `ghu_…` | **HTTP 401** |
+
+Both working tokens resolve to the same account, so the choice does not affect
+attribution — only lifetime and scope. Decision: **`$GITHUB_TOKEN` performs all
+git and `gh` work** (it is the one the CLI already reads, and it is
+session-scoped); `$ALL_REPOs_GH_TOKEN` is **not** used routinely and exists only
+as a fallback if the session token stops authenticating. No token is written
+into the remote URL or any file.
+
+**The fix, now documented in `MULTI_AGENT_WORKFLOW.md` §Credentials**, is two
+idempotent lines run at session start:
+
+```bash
+git remote set-url origin https://github.com/allenpd728/ephapse.git
+git config credential.helper \
+  '!f() { echo "username=x-access-token"; echo "password=${GITHUB_TOKEN}"; }; f'
+```
+
+plus `GIT_TERMINAL_PROMPT=0` on push so a credential problem **errors** rather
+than hanging. Verified this session: with the helper set, `git push origin dev`
+authenticated without a prompt.
+
+**Why a decision and not just a doc edit.** This is the same failure class the
+repo keeps catching: a control that cannot fail loudly. A hung push looks like
+a slow push, so the work appears done while sitting only on the local branch —
+which is precisely the state §5's "commit directly to `dev` and the reviewer
+reads `dev`" assumes cannot happen. Three changes follow:
+
+1. §Credentials — which token, where, and the setup command.
+2. §1c — a sweep is not finished until pushed (with tracker-only and
+   nothing-to-change being valid, explicitly-stated exceptions).
+3. §5 — done means pushed; confirm with `git push origin dev && git status
+   --porcelain` (must print nothing) before the done comment.
+
+**Process note.** The instruction that surfaced this — "a sweep must end with a
+push and should never stay local" — is recorded here as a rule rather than
+applied once, because the underlying cause (per-session credential
+re-provisioning) recurs every session. `AGENT_HANDOFF.md` §Compute now points
+at §Credentials for the same reason the environment-persistence note already
+exists: the session starts cold, and both the toolchain and the push
+credentials have to be re-established before work can land.

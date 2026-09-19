@@ -149,6 +149,13 @@ provisioning can change.
   interpretability libraries had to be reinstalled at the start of the issue-1
   run. Assume a cold environment or install from `requirements.txt` first
   thing.
+- **Credentials are re-provisioned per session too.** The clone URL embeds a
+  token that can expire mid-session, after which `git push` blocks on a
+  password prompt (it does not fail). Re-run the two-line `git remote set-url`
+  + `credential.helper` setup from `MULTI_AGENT_WORKFLOW.md` §Credentials at
+  session start. Which token does what — `$GITHUB_TOKEN` for all git and `gh`
+  work, `$ALL_REPOs_GH_TOKEN` only as a fallback — is stated there and should
+  not be re-derived.
 - **Model size ceiling**: the doc's "70M–1B" is directionally right but the
   mechanism matters. TransformerLens loads **fp32 by default** (hence
   160M → 2.68 GB). With dtype control (fp16) and no autograd, ~1–2B
