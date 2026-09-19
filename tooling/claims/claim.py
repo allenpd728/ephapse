@@ -33,6 +33,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -56,8 +57,23 @@ class GitError(Exception):
     pass
 
 
-def run(args: list[str], cwd: Path | None = None, check: bool = True):
-    proc = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+def run(args: list[str], cwd: Path | None = None, check: bool = True,
+        env_extra: dict[str, str] | None = None):
+    """Run git with prompts disabled.
+
+    `GIT_TERMINAL_PROMPT=0` matters more than it looks. If the remote URL holds
+    a stale credential, git blocks on an interactive password prompt — which, in
+    an agent session, means the claim hangs until the harness times out instead
+    of reporting a lost race or an error. Observed live while dogfooding this
+    tool. Failing fast is the only acceptable behaviour for a lock.
+    """
+    env = dict(os.environ)
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    env.setdefault("GIT_ASKPASS", "true")      # never launch a prompt helper
+    if env_extra:
+        env.update(env_extra)
+    proc = subprocess.run(["git", *args], cwd=cwd, capture_output=True,
+                          text=True, env=env)
     if check and proc.returncode != 0:
         raise GitError(f"git {' '.join(args)} failed ({proc.returncode}): "
                        f"{proc.stderr.strip() or proc.stdout.strip()}")
@@ -182,14 +198,25 @@ def cmd_claim(args) -> int:
 
 def cmd_status(args) -> int:
     repo = Path(args.repo).resolve()
-    run(["fetch", "origin", args.branch], cwd=repo, check=False)
+    fetch = run(["fetch", "origin", args.branch], cwd=repo, check=False)
+    if fetch.returncode != 0:
+        # Fail CLOSED. Reporting "unclaimed" when the remote could not be read
+        # would tell a session the item is free when we simply do not know —
+        # and a claim taken on that basis is exactly the race this tool exists
+        # to prevent. Observed live with a stale credential in the remote URL.
+        print(f"ERROR: cannot read origin/{args.branch} "
+              f"({fetch.stderr.strip() or 'fetch failed'}) — "
+              f"claim state is UNKNOWN, not unclaimed", file=sys.stderr)
+        return EXIT_ERROR
+
     text = read_remote_claim(repo, args.branch, args.issue)
     if not text:
         print(f"#{args.issue}: unclaimed")
         return EXIT_OK
     parsed = parse_claim(text)
     if parsed is None:
-        print(f"#{args.issue}: unparseable claim record {text!r}")
+        print(f"#{args.issue}: unparseable claim record {text!r} — "
+              f"treat as UNKNOWN, not unclaimed")
         return EXIT_ERROR
     owner, when = parsed
     now = datetime.now(timezone.utc)

@@ -145,6 +145,26 @@ grep -q "$RID_C" "$TMP/status.out" && ok "status names the owner" || bad "status
 grep -q "LIVE" "$TMP/status.out" && ok "status marks it LIVE" || bad "status marks it LIVE"
 
 echo
+echo "== 7. an unreadable remote fails FAST and CLOSED =="
+# Both halves matter. FAST: a stale credential must not hang on an interactive
+# password prompt (observed live while dogfooding this tool). CLOSED: status
+# must never report "unclaimed" when it simply cannot read the remote -- a claim
+# taken on that basis is exactly the race this tool exists to prevent.
+( cd "$LOSER_CLONE" && git remote set-url origin "https://stale-token@example.invalid/x.git" )
+
+START=$(date +%s)
+( cd "$LOSER_CLONE" && timeout 30 python3 "$CLAIM_PY" --repo . status 99 >"$TMP/badstatus.out" 2>&1 )
+RC=$?
+ELAPSED=$(( $(date +%s) - START ))
+check "status exits 1 when the remote is unreadable" "$RC" "1"
+if [ "$ELAPSED" -lt 20 ]; then ok "status failed fast (${ELAPSED}s, no hang)"; else bad "status hung (${ELAPSED}s)"; fi
+grep -qi "UNKNOWN" "$TMP/badstatus.out" && ok "status says UNKNOWN, not unclaimed" || bad "status must not imply unclaimed"
+if grep -qi "^#99: unclaimed" "$TMP/badstatus.out"; then bad "status reported unclaimed on an unreadable remote"; else ok "status did not report unclaimed"; fi
+
+# Restore for any later section.
+( cd "$LOSER_CLONE" && git remote set-url origin "$TMP/remote.git" )
+
+echo
 echo "=============================================================="
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1
