@@ -148,11 +148,36 @@ The claim lock applies to **any issue an agent is actively working**.
 close + unblock dependents) before claiming the next.
 
 1. **Sweep stale claims.** Before selecting work, list all
-   `status:claimed` issues. For each, if the claim comment is older than
-   **1 hour** with no activity since, the claim is void: remove
-   `status:claimed`, restore the prior label, comment that the work was
-   reclaimed (audit trail). A fresh claim carrying a run-id that is not
-   yours belongs to a live sibling — leave it alone.
+   `status:claimed` issues. For each, a claim is void when **both** hold:
+
+   - the authoritative lock (`claims/<issue>.claim`, § 4a) is older than
+     **1 hour**, and
+   - there has been **no activity by that run-id since** — no claim comment, no
+     commit, no comment mentioning `run=<id>`.
+
+   Then remove `status:claimed`, release the claim file, restore the prior
+   label, and comment that the work was reclaimed (audit trail). A fresh claim
+   carrying a run-id that is not yours belongs to a live sibling — leave it
+   alone.
+
+   **Measure age from the server, never from the typed timestamp.**
+   `claims/<n>.claim` carries a timestamp written by the claiming agent, and
+   comment bodies carry an `at <ts>` clause of the same kind. Both are
+   claimant-controlled and have been wrong; GitHub's `created_at` is
+   authoritative. This is the same rule § 4c applies to *ordering*, applied to
+   *liveness* — DEC-031.
+
+   **The heartbeat works, and is what keeps a long-running claim.** The
+   Ephapse caveat below tells a session waiting on a remote queue to post a
+   heartbeat carrying its run-id rather than lose the claim. Any comment
+   mentioning `run=<id>` counts as activity for that run, so a heartbeat does
+   extend liveness — that path is implemented in `claim.py status` and
+   `audit_claims.py` and covered by tests (#35).
+
+   ```
+   python3 tooling/claims/claim.py status <issue> --run-id <run-id>
+   python3 tooling/claims/audit_claims.py --fetch --run-id <run-id>
+   ```
 
    **Ephapse caveat:** remote probing (NDIF queue waits) and cold model
    downloads can legitimately exceed an hour without producing a commit.

@@ -102,17 +102,24 @@ def test_earliest_id_wins_even_when_timestamp_shows_the_opposite():
 
     A skewed clock could make the later claim *report* an earlier time. The id
     is server-assigned and monotonic, so it must decide regardless.
+
+    Note both `created_at` values are fresh server-side: liveness now follows
+    the server timestamp (#35 defect 1), so a fixture relying on the declared
+    string to stay live would be testing the wrong thing.
     """
     issues = [{"number": 99, "title": "t", "state": "open"}]
     comments = {"99": [
-        {"id": 5000, "created_at": "2026-09-19T09:59:00Z",
+        # later comment id, earlier DECLARED time
+        {"id": 5000, "created_at": "2026-09-19T10:59:00Z",
          "body": "claimed by openhands run=later-id-early-clock "
                  "at 2026-09-19T09:00:00Z"},
-        {"id": 4000, "created_at": "2026-09-19T09:01:00Z",
+        # earlier comment id, later DECLARED time
+        {"id": 4000, "created_at": "2026-09-19T10:58:00Z",
          "body": "claimed by openhands run=earlier-id-late-clock "
                  "at 2026-09-19T10:30:00Z"},
     ]}
     v = A.audit(issues, comments, now=NOW)[0]
+    assert v["winner"] is not None, "both claims are server-fresh, so both are live"
     assert v["winner"].comment_id == 4000, "id must decide, not the timestamp"
     assert v["winner"].run_id == "earlier-id-late-clock"
 
@@ -163,15 +170,134 @@ def test_done_comments_are_not_parsed_as_claims():
 
 
 def test_unparseable_timestamp_is_treated_as_stale_not_live():
-    """A malformed timestamp must not create a permanent phantom lock."""
+    """An unparseable declared timestamp must not create a phantom lock.
+
+    Superseded in mechanism by #35 defect 1: liveness now follows the SERVER
+    timestamp, so a malformed in-body timestamp is simply ignored. The property
+    this test protects is unchanged — a claim that is genuinely old must be
+    reclaimable, and must not be kept alive by a broken timestamp string. The
+    fixture is now server-stale so it exercises that.
+    """
     issues = [{"number": 96, "title": "t", "state": "open"}]
     comments = {"96": [
-        {"id": 300, "created_at": "2026-09-19T10:00:00Z",
-         "body": "claimed by openhands run=x at NOT-A-TIMESTAMP"},
+        {"id": 300, "created_at": "2026-09-19T08:00:00Z",   # 3h: genuinely old
+         "body": "claimed by openhands run=20260919-0800-aaaa "
+                 "at NOT-A-TIMESTAMP"},
     ]}
     v = A.audit(issues, comments, now=NOW)[0]
-    assert not v["live"], "a claim with no valid timestamp cannot be live"
+    assert not v["live"], "a server-old claim with a broken ts is not live"
     assert v["winner"] is None
+
+
+# ------------------------------------------- #35 defects 1-3 (each fails on
+# pre-fix code; see the issue for the reproductions)
+def test_35_defect1_liveness_uses_server_time_not_declared_time():
+    """A skewed in-body timestamp must not make a fresh claim look stale.
+
+    The server says the comment is 2 minutes old; the body claims 2020. Before
+    the fix `age()` read the body string, so this reported stale and reclaimable
+    — letting a live claim be swept, or (by the mirror) never swept at all.
+    """
+    issues = [{"number": 1, "title": "t", "state": "open"}]
+    comments = {"1": [
+        {"id": 9001, "created_at": "2026-09-19T11:58:00Z",
+         "body": "claimed by openhands run=20260919-1158-aaaa "
+                 "at 2020-01-01T00:00:00Z"},
+    ]}
+    v = A.audit(issues, comments, now=NOW)[0]
+    assert v["live"], "a claim must be live by SERVER time, not declared time"
+    assert v["winner"].comment_id == 9001
+
+
+def test_35_defect1b_declared_time_cannot_make_a_stale_claim_immortal():
+    """The mirror of defect 1: a future in-body timestamp must not prevent a sweep."""
+    issues = [{"number": 1, "title": "t", "state": "open"}]
+    comments = {"1": [
+        {"id": 9002, "created_at": "2026-09-19T09:00:00Z",   # 3h old: stale
+         "body": "claimed by openhands run=20260919-0900-aaaa "
+                 "at 2099-01-01T00:00:00Z"},
+    ]}
+    v = A.audit(issues, comments, now=NOW)[0]
+    assert not v["live"], "a server-stale claim must be sweepable regardless of prose"
+
+
+def test_35_defect2_heartbeat_extends_liveness():
+    """A heartbeat comment after the window keeps the claim alive.
+
+    Protocol § 1 tells a session waiting on a remote queue to post a heartbeat
+    with its run-id rather than lose the claim. Before the fix the parser looked
+    only at `claimed by` clauses, so that prescribed heartbeat did nothing.
+    """
+    issues = [{"number": 1, "title": "t", "state": "open"}]
+    comments = {"1": [
+        {"id": 9003, "created_at": "2026-09-19T09:30:00Z",
+         "body": "claimed by openhands run=20260919-0930-bbbb "
+                 "at 2026-09-19T09:30:00Z"},
+        {"id": 9004, "created_at": "2026-09-19T10:50:00Z",
+         "body": "heartbeat run=20260919-0930-bbbb - waiting on the NDIF queue"},
+    ]}
+    v = A.audit(issues, comments, now=NOW)[0]
+    assert v["live"], "the § 1 heartbeat must extend liveness"
+
+
+def test_35_defect2b_without_heartbeat_the_claim_is_stale():
+    """The negative direction: no later activity ⇒ genuinely stale."""
+    issues = [{"number": 1, "title": "t", "state": "open"}]
+    comments = {"1": [
+        {"id": 9005, "created_at": "2026-09-19T09:30:00Z",
+         "body": "claimed by openhands run=20260919-0930-bbbb "
+                 "at 2026-09-19T09:30:00Z"},
+        {"id": 9006, "created_at": "2026-09-19T10:50:00Z",
+         "body": "unrelated remark from another session about the weather"},
+    ]}
+    v = A.audit(issues, comments, now=NOW)[0]
+    assert not v["live"], "a heartbeat by another run must not keep this claim alive"
+
+
+def test_35_defect3_claim_without_at_clause_is_parsed():
+    """A claim omitting ` at <ts>` must still count, or a collision is missed.
+
+    Before the fix this failed OPEN: the earlier real claim was invisible, so no
+    collision was reported and the SECOND claimer could be named the winner.
+    """
+    issues = [{"number": 1, "title": "t", "state": "open"}]
+    comments = {"1": [
+        {"id": 9100, "created_at": "2026-09-19T11:50:00Z",
+         "body": "claimed by openhands run=20260919-1150-cccc"},
+        {"id": 9101, "created_at": "2026-09-19T11:52:00Z",
+         "body": "claimed by openhands run=20260919-1152-dddd "
+                 "at 2026-09-19T11:52:00Z"},
+    ]}
+    claims = A.parse_claims(issues, comments, now=NOW)
+    assert len(claims) == 2, "a claim without the optional at-clause must parse"
+    v = A.audit(issues, comments, now=NOW)[0]
+    assert v["collisions"], "the collision must be reported"
+    assert v["winner"].comment_id == 9100, "earliest id wins, not the later claimer"
+
+
+def test_35_describe_issue_states_which_timestamp_was_used():
+    """The lock and the auditor must not disagree about ownership (#35 DoD)."""
+    issues = [{"number": 1, "title": "t", "state": "open"}]
+    comments = {"1": [
+        {"id": 9200, "created_at": "2026-09-19T11:58:00Z",
+         "body": "claimed by openhands run=20260919-1158-aaaa "
+                 "at 2020-01-01T00:00:00Z"},
+    ]}
+    v = A.audit(issues, comments, now=NOW)[0]
+    text = A.describe_issue(v, now=NOW)
+    assert "server_time" in text
+    assert "declared_time" in text
+    assert "2026-09-19T11:58:00Z" in text
+
+
+def test_35_claim_is_live_accepts_a_heartbeat():
+    """claim.py's is_live must honour the same heartbeat rule as the auditor."""
+    import claim as C
+    old = "20260919-0930-bbbb 2026-09-19T09:30:00Z"
+    fresh = datetime(2026, 9, 19, 10, 50, 0, tzinfo=timezone.utc)
+    assert not C.is_live(old, now=NOW), "90 min old with no activity is stale"
+    assert C.is_live(old, now=NOW, last_activity=fresh), \
+        "recent activity must keep the lock"
 
 
 def main() -> int:

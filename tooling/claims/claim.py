@@ -33,10 +33,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import subprocess
 import sys
+import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -124,14 +126,29 @@ def parse_claim(text: str) -> tuple[str, datetime] | None:
     return run_id, when
 
 
-def is_live(text: str, now: datetime | None = None) -> bool:
-    """A claim is live unless it is older than the stale window (§ 1)."""
+def is_live(text: str, now: datetime | None = None,
+            last_activity: datetime | None = None) -> bool:
+    """Is this claim file live?
+
+    A claim is live when it is within the stale window, OR when its holder has
+    activity more recent than that — the protocol § 1 heartbeat (#35 defect 2).
+
+    The lock previously took only the file text, so a session waiting on a
+    remote queue lost its claim while doing exactly what § 1 tells it to do:
+    "post a heartbeat comment with your run-id rather than losing the claim to
+    the sweep". `last_activity` is the newest server-side comment time carrying
+    that run-id, supplied by the caller.
+    """
     parsed = parse_claim(text)
     if parsed is None:
         return False          # unparseable ⇒ cannot block anyone
     _, when = parsed
     now = now or datetime.now(timezone.utc)
-    return (now - when) <= STALE_AFTER
+    if (now - when) <= STALE_AFTER:
+        return True
+    if last_activity is not None and (now - last_activity) <= STALE_AFTER:
+        return True
+    return False
 
 
 def claim_path(issue: int) -> str:
@@ -225,6 +242,52 @@ def cmd_claim(args) -> int:
     return EXIT_ERROR
 
 
+def last_activity_for(repo: Path, run_id: str, issue: int,
+                      token: str | None = None) -> datetime | None:
+    """Newest server-side comment time mentioning this run-id, or None.
+
+    The § 1 heartbeat arrives as an issue comment, not as a claim file, so the
+    lock has to ask the tracker (#35 defect 2). Best-effort: any failure returns
+    None, which makes the caller fall back to file-age only — the safe direction
+    (over-reserve rather than silently free a held claim).
+
+    The API base is read from the remote URL so a scratch/test remote does not
+    hit the real GitHub.
+    """
+    remote = run(["remote", "get-url", "origin"], cwd=repo, check=False).stdout.strip()
+    m = re.search(r"github\.com[:/]+([^/]+)/([^/.]+?)(?:\.git)?$", remote)
+    if not m:
+        return None
+    owner, name = m.group(1), m.group(2)
+    url = (f"https://api.github.com/repos/{owner}/{name}/issues/{issue}"
+           f"/comments?per_page=100")
+    req = urllib.request.Request(url, headers={
+        "Accept": "application/vnd.github+json",
+        **({"Authorization": f"token {token}"} if token else {}),
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            comments = json.load(r)
+    except Exception:
+        return None
+    newest: datetime | None = None
+    for c in comments:
+        if run_id not in (c.get("body") or ""):
+            continue
+        when = _parse_ts(c.get("created_at", ""))
+        if when and (newest is None or when > newest):
+            newest = when
+    return newest
+
+
+def _parse_ts(ts: str) -> datetime | None:
+    try:
+        return datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ").replace(
+            tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        return None
+
+
 def cmd_status(args) -> int:
     repo = Path(args.repo).resolve()
     fetch = run(["fetch", "origin", args.branch], cwd=repo, check=False)
@@ -247,13 +310,26 @@ def cmd_status(args) -> int:
         print(f"#{args.issue}: unparseable claim record {text!r} — "
               f"treat as UNKNOWN, not unclaimed")
         return EXIT_ERROR
+
     owner, when = parsed
     now = datetime.now(timezone.utc)
-    age = now - when
-    state = "LIVE" if age <= STALE_AFTER else "STALE (reclaimable per § 1)"
+    heartbeat = last_activity_for(repo, owner, args.issue, token=args.token)
+    held = is_live(text, now=now, last_activity=heartbeat)
+
     mine = " (mine)" if args.run_id and owner == args.run_id else ""
-    print(f"#{args.issue}: {owner}{mine} — {state}, age "
-          f"{int(age.total_seconds() // 60)} min")
+    age_min = int((now - when).total_seconds() // 60)
+    if held and (now - when) > STALE_AFTER:
+        # Keep or release, and say why — the lock and the auditor must not
+        # disagree about who owns an issue (#35 DoD).
+        basis = (f"held by heartbeat, last activity "
+                 f"{int((now - heartbeat).total_seconds() // 60)} min ago")
+    elif held:
+        basis = f"within the {int(STALE_AFTER.total_seconds() // 60)} min window"
+    else:
+        basis = "STALE (reclaimable per § 1)"
+    print(f"#{args.issue}: {owner}{mine} — "
+          f"{'LIVE' if held else basis}"
+          f"{', ' + basis if held else ''}, file age {age_min} min")
     return EXIT_OK
 
 
@@ -297,6 +373,9 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="git-ref claim CAS (issue #27)")
     ap.add_argument("--repo", default=".", help="repository working copy")
     ap.add_argument("--branch", default="dev")
+    ap.add_argument("--token", default=os.environ.get("GITHUB_TOKEN"),
+                    help="API token for heartbeat lookups (defaults to "
+                         "GITHUB_TOKEN; omit to skip the lookup)")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     c = sub.add_parser("claim", help="claim an issue (CAS)")

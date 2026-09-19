@@ -43,25 +43,52 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 CLAIM_RE = re.compile(
-    r"claimed\s+by\s+(?P<agent>\S+)\s+run=(?P<runid>\S+)\s+at\s+(?P<ts>\S+)",
+    r"claimed\s+by\s+(?P<agent>\S+)\s+run=(?P<runid>[0-9A-Za-z._-]+)"
+    r"(?:\s+at\s+(?P<ts>[0-9T:Z+-]+))?",
     re.IGNORECASE)
+
+# Any comment that mentions a run-id counts as activity by that run. This is
+# what makes the § 1 heartbeat work: the protocol tells a session waiting on a
+# remote queue to "post a heartbeat comment with your run-id", and that comment
+# has no `claimed by` clause, so a parser keyed only on claim syntax cannot see
+# it. #35 defect 2.
+RUNID_IN_BODY_RE = re.compile(r"run=([0-9A-Za-z._-]+)")
 
 STALE_AFTER = timedelta(hours=1)
 
 
 class Claim:
-    __slots__ = ("comment_id", "created_at", "run_id", "agent", "issue")
+    """One claim comment.
 
-    def __init__(self, comment_id: int, created_at: str, run_id: str,
-                 agent: str, issue: int):
+    Two timestamps, and the distinction is load-bearing (#35 defect 1):
+
+    * `server_time`  — the comment's `created_at`, assigned by GitHub. This is
+      authoritative and is what `age()` uses.
+    * `declared_time` — the timestamp the agent typed into the comment body.
+      Retained for reporting only. It is claimant-controlled, so it must never
+      decide liveness: a claim could otherwise be made to look expired (inviting
+      reclaim of a live item) or immortal (never swept).
+
+    DEC-029 already rejected the declared timestamp as authoritative for
+    *ordering*. It was still being used for *liveness*; this closes that.
+    """
+
+    __slots__ = ("comment_id", "server_time", "declared_time", "run_id",
+                 "agent", "issue")
+
+    def __init__(self, comment_id: int, server_time: datetime,
+                 declared_time: datetime | None, run_id: str, agent: str,
+                 issue: int):
         self.comment_id = comment_id
-        self.created_at = created_at
+        self.server_time = server_time
+        self.declared_time = declared_time
         self.run_id = run_id
         self.agent = agent
         self.issue = issue
 
     def age(self, now: datetime) -> timedelta:
-        return now - _parse(self.created_at)
+        """Age from the SERVER timestamp, never the declared one."""
+        return now - self.server_time
 
     def __repr__(self) -> str:
         return f"<Claim #{self.issue} run={self.run_id} id={self.comment_id}>"
@@ -81,9 +108,15 @@ def parse_claims(issues: list[dict], comments_by_issue: dict[str, list[dict]],
     """Extract every claim comment, newest-agnostic.
 
     Deliberately returns ALL claims rather than the latest — reading only the
-    latest is the defect this module exists to fix.
+    latest is the defect #26 exists to fix.
+
+    The `at <ts>` clause is OPTIONAL (#35 defect 3). Requiring it meant a
+    well-formed claim that omitted the trailing clause was not merely mis-aged,
+    it was invisible — so a genuine collision went unreported and the *second*
+    claimer could be named the winner. It failed OPEN, and its trigger was a
+    formatting slip by an otherwise-compliant agent. The clause is now optional
+    and, when present, is recorded for reporting only.
     """
-    now = now or datetime.now(timezone.utc)
     out: list[Claim] = []
     for issue in issues:
         num = issue["number"]
@@ -91,14 +124,42 @@ def parse_claims(issues: list[dict], comments_by_issue: dict[str, list[dict]],
             m = CLAIM_RE.search(c.get("body", "") or "")
             if not m:
                 continue
+            declared = _parse(m.group("ts")) if m.group("ts") else None
             out.append(Claim(
                 comment_id=int(c["id"]),
-                created_at=m.group("ts"),
+                server_time=_parse(c.get("created_at", "")),
+                declared_time=declared,
                 run_id=m.group("runid"),
                 agent=m.group("agent"),
                 issue=num,
             ))
     return out
+
+
+def activity_by_run(issues: list[dict],
+                    comments_by_issue: dict[str, list[dict]]) -> dict[int, dict[str, datetime]]:
+    """Latest server-time activity per (issue, run-id), for the heartbeat rule.
+
+    Protocol § 1 applies the sweep only when a claim is older than 1 hour *with
+    no activity since*, and it tells a session on a remote queue to keep the
+    claim by posting a heartbeat comment carrying its run-id. A parser keyed
+    only on `claimed by ...` syntax cannot see that heartbeat, so the prescribed
+    remedy did not work (#35 defect 2).
+
+    Any comment mentioning `run=<id>` counts as activity by that run; the
+    claim comment itself is one such comment, so a bare claim still ages
+    normally.
+    """
+    activity: dict[int, dict[str, datetime]] = {}
+    for issue in issues:
+        num = issue["number"]
+        for c in comments_by_issue.get(str(num), []):
+            when = _parse(c.get("created_at", ""))
+            for run_id in set(RUNID_IN_BODY_RE.findall(c.get("body", "") or "")):
+                prev = activity.setdefault(num, {}).get(run_id)
+                if prev is None or when > prev:
+                    activity[num][run_id] = when
+    return activity
 
 
 def live_claims(claims: list[Claim], now: datetime | None = None) -> list[Claim]:
@@ -111,11 +172,13 @@ def audit(issues: list[dict], comments_by_issue: dict[str, list[dict]],
           mine: str | None = None, now: datetime | None = None) -> list[dict]:
     """Per-issue verdict.
 
-    Returns a list of {issue, claims, live, winner, collisions, mine}.
-    `winner` is the earliest comment id among live claims (None if none live).
+    Liveness is: the claim is within the window, OR the run has activity since
+    the window closed (the § 1 heartbeat). Age is measured from GitHub's
+    `created_at`, never from the timestamp the agent typed.
     """
     now = now or datetime.now(timezone.utc)
     all_claims = parse_claims(issues, comments_by_issue, now)
+    activity = activity_by_run(issues, comments_by_issue)
     by_issue: dict[int, list[Claim]] = {}
     for c in all_claims:
         by_issue.setdefault(c.issue, []).append(c)
@@ -126,7 +189,14 @@ def audit(issues: list[dict], comments_by_issue: dict[str, list[dict]],
         cs = by_issue.get(num, [])
         if not cs:
             continue
-        live = [c for c in cs if c.age(now) <= STALE_AFTER]
+
+        def still_live(c: Claim) -> bool:
+            if c.age(now) <= STALE_AFTER:
+                return True
+            last = activity.get(num, {}).get(c.run_id)
+            return last is not None and (now - last) <= STALE_AFTER
+
+        live = [c for c in cs if still_live(c)]
         winner = min(live, key=lambda c: c.comment_id) if live else None
         verdicts.append({
             "issue": num,
@@ -152,9 +222,14 @@ def report(verdicts: list[dict], mine: str | None) -> str:
                      f"(collision)")
         for c in sorted(v["live"], key=lambda c: c.comment_id):
             mark = "  <- winner" if c.comment_id == v["winner"].comment_id else ""
-            lines.append(f"    id={c.comment_id} run={c.run_id} "
-                         f"at={c.created_at}{mark}")
-        lines.append(f"    tiebreak: earliest server-assigned comment id wins")
+            declared = (c.declared_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+                        if c.declared_time else "absent")
+            lines.append(
+                f"    id={c.comment_id} run={c.run_id} "
+                f"server_time={c.server_time.strftime('%Y-%m-%dT%H:%M:%SZ')} "
+                f"declared_time={declared}{mark}")
+        lines.append("    liveness measured from server_time; ordering by "
+                     "earliest comment id")
         if mine:
             lines.append(
                 f"    my run {mine}: "
@@ -171,6 +246,33 @@ def report(verdicts: list[dict], mine: str | None) -> str:
     lines.append("-" * 78)
     lines.append(f"{problems} collision(s)")
     return "\n".join(lines)
+
+
+def describe_issue(verdict: dict, now: datetime | None = None) -> str:
+    """Single-issue liveness in prose, stating which timestamp was used.
+
+    #35's DoD asks that the lock and the auditor cannot disagree about who owns
+    an issue. Both must therefore say *which* timestamp decided liveness and
+    whether a heartbeat extended it.
+    """
+    now = now or datetime.now(timezone.utc)
+    if not verdict["claims"]:
+        return "unclaimed"
+    c = verdict["winner"]
+    if c is None:
+        return "no live claim (expired; reclaimable per § 1)"
+    age_min = int(c.age(now).total_seconds() // 60)
+    if c.age(now) <= STALE_AFTER:
+        basis = f"within the {int(STALE_AFTER.total_seconds() // 60)} min window"
+        heartbeat = ""
+    else:
+        basis = "held open by recent activity (heartbeat)"
+        heartbeat = " — NOT from the declared timestamp"
+    declared = (c.declared_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+                if c.declared_time else "absent")
+    return (f"{c.run_id} — LIVE, {basis}; "
+            f"server_time={c.server_time.strftime('%Y-%m-%dT%H:%M:%SZ')} "
+            f"(age {age_min} min), declared_time={declared}{heartbeat}")
 
 
 # ------------------------------------------------------------------ I/O
