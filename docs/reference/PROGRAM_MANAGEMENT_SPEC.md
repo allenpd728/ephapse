@@ -1,7 +1,9 @@
 # Ephapse — Experiment Program Management Spec
 
-**Status:** proposal, drafted 2026-09-19 (run `20260918-2332-e7c4`). Not yet
-adopted; this document is the input to a decision-log entry, not a decision.
+**Status:** **adopted**, 2026-09-19 (DEC-030). Drafted 2026-09-19 (run
+`20260918-2332-e7c4`). This document is now the authority for Ephapse's
+experiment program management; it was adopted by decision-log entry, as it
+specified.
 Modelled on `TEST_VALIDATION_SPEC.md`, which it complements.
 
 **Purpose.** `TEST_VALIDATION_SPEC.md` answers *"is this artifact valid?"* — it

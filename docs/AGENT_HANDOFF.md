@@ -404,6 +404,50 @@ works there because expected answers are machine-derivable from Lean text;
 Ephapse has no formal text, so deriving them would insert an unverifiable LLM
 step between reviewer and artifact (DEC-021).
 
+## Program management (adopted 2026-09-19, DEC-030)
+
+**Read [`docs/reference/PROGRAM_MANAGEMENT_SPEC.md`](reference/PROGRAM_MANAGEMENT_SPEC.md)
+before filing or closing work.** The validation layer above asks *"is this
+artifact valid?"* This one asks *"where is the program, and what does it need
+next?"* They fail separately, so they are adopted separately.
+
+**Three classification axes, each independent.** A piece of work carries one
+value from each.
+
+| Axis | Values | Where it lives |
+|---|---|---|
+| **Issue kind** | `experiment`, `gate`, `repair`, `defect`, `gap`, `decision`, `protocol` | a `kind:` label, orthogonal to `status:` |
+| **Outcome class** | `instrument-validated`, `instrument-failed`, `phenomenon-null`, `phenomenon-present`, `defect-found`, `requirement-emerged` | the program ledger |
+| **Rung** | 0–5 (reused verbatim from the validation spec §5) | the program ledger |
+
+**The axis that matters most is the second, and specifically this split:**
+`instrument-failed` and `phenomenon-null` both read "no significant result" and
+mean opposite things — *the apparatus is broken* versus *the world is empty
+here*. DEC-023→025 is the record of this project rediscovering that distinction
+three times. If you record a null, say which one it is.
+
+**`kind:decision` is not `status:blocked-needs-input`.** The status says "this is
+stopped"; the kind says "this is a judgment, and stopping is correct." A
+`kind:decision` issue should not be picked up by an agent however available it
+looks.
+
+**The ledger.** `program/ledger.jsonl` (task D, #31) is append-only and holds
+**only what GitHub cannot express** — the outcome class, the rung, and the
+traversal links between results, findings, and decisions. It does not copy issue
+titles, statuses, or priority. GitHub remains the system of record for tasks; a
+stored copy drifts, a derived view cannot. Every view in spec §5 is computed.
+
+**Emergent requirements.** Discovering something outside your claimed task is
+the normal case. File it, label it, record it under `emergent` in your ledger
+entry, and **do not fix it inside the claimed task** — that makes the done
+comment unverifiable. An agent filing an emergent issue does not have to solve
+it; the discovery is the deliverable. The worked example is #24: it does not
+block #11 (closed, and its work corrected) but it does block #15.
+
+**`G-M1`** (task C, #30) enforces one `status:` and one `kind:` per open issue.
+It exists because nine violations appeared within a day of the rule being
+written down — including one produced by the session that proposed the gate.
+
 ## Issue-based task management
 
 Ported from Maith's `docs/MULTI_AGENT_WORKFLOW.md` (itself ported from

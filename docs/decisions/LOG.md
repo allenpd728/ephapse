@@ -1430,3 +1430,104 @@ rule rather than one being rewritten concurrently.
 visible — the collision on #11 was found because the two claims carried distinct
 run-ids. What it lacked was a rule that could act on what it revealed. That is
 the gap this closes: the mechanism was sound, the check was wrong.
+
+---
+
+## DEC-030 — Adopt the program management spec; the outcome vocabulary separates instrument failure from phenomenon absence
+
+**Date:** 2026-09-19 · **Status:** adopted
+
+**Decision:** `docs/reference/PROGRAM_MANAGEMENT_SPEC.md` is **adopted** as the
+authority for experiment program management. Its three classification axes
+(issue kind, outcome class, rung), its append-only program ledger, its five
+derived views, its emergent-requirement protocol, and the `G-M1` label-hygiene
+gate become the standard. Issue #28 carries this decision.
+
+**Why a second spec rather than an extension of DEC-021's.**
+`TEST_VALIDATION_SPEC.md` gates the *evidence* — "is this artifact valid?" This
+one tracks the *work* — "where is the program, and what does it need next?" They
+fail separately: a repo can have perfectly gated artifacts and no idea what it
+is doing, or a clear plan and invalid evidence. Ephapse has the first problem in
+its primitive form and the second solved, which is why the two are adopted
+separately.
+
+**Why now, measured.** At `cc09eb6`: **8 of 15 open issues carried no `status:`
+label** despite `MULTI_AGENT_WORKFLOW.md` § Task states requiring one; no issue
+carried a *kind*, so "build a gate", "fix a bug in a gate", "we found a hole",
+and "a human must decide" were indistinguishable; `findings.jsonl` classified
+outcomes by `verdict` and a free-string `kind` but not by what they mean for the
+program; 7 result JSONs sat unindexed with no traversal to their findings or
+DECs; and the state of the program was only readable by reading 26 DECs across
+1,217 lines, 15 issues, and 4 findings.
+
+The measurement that settles the case: **the tree drifted while the analysis was
+being written.** Two further issues were filed by a parallel session during it
+(#26, #27) and one arrived unlabelled. A program view that must be re-measured
+by hand to be trusted is the gap, not a caveat on it.
+
+**The load-bearing decision, and the reason this needed a DEC rather than a doc
+edit: the outcome vocabulary separates `instrument-failed` from
+`phenomenon-null`.**
+
+Those two look identical in a log — both read "no significant result" — and mean
+opposite things. One says *the apparatus is broken, repair it*; the other says
+*the world is empty here*. DEC-023, DEC-024, and DEC-025 are the record of this
+project discovering that the same null was one, then the other, then
+adjudicating between them across three entries. A vocabulary that cannot express
+the distinction at a glance will keep costing that rediscovery.
+
+The consequence is concrete and testable: issue #33's backfill gives #5 and #7
+**two records each with opposite outcomes** (`instrument-validated` for the
+original #5 control, `instrument-failed` for the rerun under corrected
+thresholds; `instrument-failed` for #7 under DEC-020, revised by DEC-025). If
+the vocabulary cannot carry that, it is the wrong vocabulary.
+
+**Why this is not a second source of truth.** The ledger holds **only** what
+GitHub cannot express: the outcome classification, the rung, and the traversal
+links between results, findings, and decisions. It does not copy issue titles,
+statuses, assignees, or priority. This is the direct application of Maith's
+coverage-map decision — a stored copy drifts, a derived view cannot. Every view
+in §5 is therefore computed, never stored.
+
+**Also adopted:**
+
+- **`kind:` labels as an axis orthogonal to `status:`.** `status:` says where a
+  task is; `kind:` says what sort of work it is. Seven values: `experiment`,
+  `gate`, `repair`, `defect`, `gap`, `decision`, `protocol`. `repair` and
+  `defect` are separate because #15 repairs files against gates that work while
+  #24 repairs gates that do not — conflating them hides which side of the trust
+  boundary is broken. `decision` is a kind rather than a status because
+  `status:blocked-needs-input` says "this is stopped" while `kind:decision` says
+  "this is a judgment, and stopping is correct".
+- **The rung reuses `TEST_VALIDATION_SPEC.md` §5 verbatim** rather than defining
+  a parallel scale.
+- **The emergent-requirement protocol.** #23, #24, and #25 were all discovered
+  mid-task and filed ad hoc. The rule that makes it affordable: an agent filing
+  an emergent issue does not have to solve it — the discovery is the deliverable.
+
+**What is deliberately excluded**, so it is not re-proposed: no second source of
+truth for task state; **no LLM in any gate or view** (DEC-021's §8 is binding —
+a non-deterministic gate is not a gate); no promoted-findings database; no
+burndown or velocity metric, because the work is not uniformly sized and such a
+metric would measure the estimator rather than the progress.
+
+**The cap, stated plainly.** This layer records *that* a judgment was made and
+*what it rested on*. It cannot make the judgment. `TEST_VALIDATION_SPEC.md` §7's
+Layer 4 is irreducible for the reason PleaNP gives: satisfaction is not internal
+to the system. The ledger shortens the human's queue and makes the traversal
+auditable; it does not shrink the judgment.
+
+**Consequences.**
+
+- The `kind:` labels exist in the repo (created by run `20260918-2332-e7c4`).
+- `docs/AGENT_HANDOFF.md` gains a **Program management** section stating the
+  three axes and the ledger's existence.
+- The spec's `Status` line flips from proposal to adopted, citing this DEC.
+- #29–#34 unblock in dependency order.
+- **A note on the filing itself, recorded because it is the argument for
+  `G-M1`.** Filing the six dependent issues produced the exact illegal
+  dual-status state `MULTI_AGENT_WORKFLOW.md` §1a says the sweep must repair —
+  two `status:` labels on one issue — and it was fixed within the same session.
+  That is a ninth label-hygiene violation, in the session that proposed the gate
+  to prevent them. The rule is easy to state and easy to violate by hand, which
+  is why §7 makes it a gate rather than a convention.
