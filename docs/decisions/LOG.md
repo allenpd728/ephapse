@@ -1295,3 +1295,69 @@ caught by running the positive control first.
 consistent enough to state as a working rule: **a family-wise cutoff over an
 unstandardized statistic is the recurring bug, and only the positive control
 catches it.**
+
+
+---
+
+## DEC-028 — A domain-label permutation null requires label-invariant selection; a concurrent duplicate of #3 was dropped rather than merged
+
+**Date:** 2026-09-19 · **Status:** adopted
+
+**Context.** A second session (run `20260919-0447-mzem`) worked #3 concurrently
+with the session that landed it (run `20260919-0229-to3m`, DEC-027), reached the
+same null conclusion independently, and — per `MULTI_AGENT_WORKFLOW.md` §5 —
+**dropped its own probe** rather than pushing a second copy. The landed #3
+design is stronger on the axes that matter (token-disjoint domains, a
+mechanically verified zero token-id intersection, clustering, a position
+control, and an excess-activation constructibility check), so there was nothing
+to merge. This entry records the one methodological residue that is not a
+duplicate, and the process event.
+
+**The finding: label-invariance is a precondition for a label-permutation
+null.** The dropped implementation permuted **domain labels** — it pooled the
+prose and code passages and reshuffled which items were called A vs B. In that
+design it selected its feature family (a selectivity band) from the *observed*
+per-domain firing rates, then evaluated the observed statistic against the
+permuted null. That is circular: features chosen for sitting at the band under
+the real labels have their permuted rates scatter, so the observed statistic is
+lifted above its own null mechanically. The run reported `T=0.0504` against a
+null mean of `0.0470` (sd `0.0007`), `p=0.0` — which reads as a significant
+positive and is entirely an artifact of the selection. Binarizing per-domain
+(rather than on the pooled corpus) compounds it, and deepens the problem
+because the transform itself then depends on the label assignment, so permuting
+labels does not permute the transform.
+
+**Why this is not a defect in the landed #3.** #3 permutes **pairing** — it
+holds the two domains fixed and reorders one side's rows. A pairing permutation
+preserves each side's marginal firing rates, so features selected on observed
+rates remain at the band under permutation and no inflation occurs. The landed
+result and DEC-027 are unaffected. The rule below is a constraint on a
+*different* design that a future probe might reasonably choose.
+
+**Rule adopted.** If a null is built by relabeling items (a domain-label
+permutation), then binarization and feature selection must be **label-invariant**:
+threshold once on the pooled corpus, and select the family on a pooled
+criterion that does not consult the labels. A pairing permutation does not carry
+this requirement. The failure is silent — it does not error, it manufactures a
+positive — which is the same class as DEC-016, DEC-019, and DEC-027: *a
+statistic that looks plausible and cannot be trusted until a positive control is
+run against it.*
+
+**Constructibility, independently converged.** The dropped session also
+re-derived DEC-019's constructibility precondition, and failed it twice before
+getting it right: selecting the planted signal's feature by largest raw
+activation on marker text picked a broadly-firing feature (id 21809, firing
+1.000 on the code domain at baseline) whose rate then moved for reasons
+unrelated to the injection; selecting by **excess** activation over baseline
+(`with marker` minus `without marker`) picked a signal-specific feature (id
+1684) whose rate rose monotonically as intended. The landed #3 control already
+implements the correct form (`top_feature_activation_elevation`), so this is
+recorded as convergence rather than as new work.
+
+**Process note.** This is the second instance of the shared-identity hazard
+DEC-024 recorded, and the first where the protocol's *drop-the-duplicate* branch
+was exercised rather than the adjudication branch. The collision was visible
+only because claims carried run-ids and the rebase surfaced it; resolution again
+required reading committed result files to determine that one implementation
+subsumed the other. The protocol worked as written.
+

@@ -255,6 +255,28 @@ interesting. The filter has to be specified before the run, or
   millions at q=0.1 with N_PERM=100. An **analytic** per-pair null (e.g.
   Poisson independence) has no floor and is the right choice for large
   families. Choose per family size, and state which is in use.
+- **A permutation null is only a null if the transform is label-invariant.**
+  This applies to a **domain-label** permutation (relabeling items as A vs B),
+  not to a pairing permutation. If the design relabels items, then binarization
+  and feature selection must not depend on the label assignment: thresholding
+  per-domain, or choosing the feature set from the *observed* per-domain rates,
+  silently invalidates the null — the selected features sit at the band under
+  the real labels while their permuted rates scatter, lifting the observed
+  statistic above its own null so the run *looks* like a positive. Threshold on
+  the pooled corpus and select on a pooled (label-blind) criterion. Measured
+  once: selecting on observed labels gave `T=0.0504` against a null mean of
+  `0.0470` with `p=0.0` — an artifact of the selection, not evidence (DEC-028).
+  The landed #3 probe permutes **pairing**, which preserves each side's
+  marginals, so its selection rule is unaffected; this is a trap for a future
+  label-permutation design, not a defect in #3.
+- **Constructibility requires a signal-*specific* feature.** Select the feature
+  the planted signal moves *relative to baseline* (`with marker` minus `without
+  marker`, embedded in neutral text), not the feature with the largest raw
+  activation on marker text — a broadly-firing feature wins the latter and its
+  rate then varies for reasons unrelated to the injection. Then assert the rate
+  rises monotonically with the injection rate. The landed #3 positive control
+  already does this (`top_feature_activation_elevation`); recorded here so the
+  reasoning is not lost (DEC-028).
 - **Correct for multiplicity — with the max-statistic permutation cutoff.**
   With 10^5 features and many prompt pairs, per-pair significance is
   meaningless. **Use the 95th percentile of the per-permutation maximum**
