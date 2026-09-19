@@ -58,4 +58,20 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git commit -m "chore(hub): status snapshot [skip ci]"
-          git push origin dev
+
+          # Multiple agents push to dev continuously, so a single push can be
+          # rejected as non-fast-forward. Rebase and retry, per the repo's own
+          # protocol (docs/MULTI_AGENT_WORKFLOW.md): "On push rejection
+          # (non-fast-forward): git pull --rebase origin dev ... push again."
+          # Never force-push -- the protocol forbids it because it would destroy
+          # a sibling's committed work.
+          for attempt in 1 2 3 4 5; do
+            if git push origin dev; then
+              echo "pushed on attempt $attempt"
+              exit 0
+            fi
+            echo "push rejected; rebasing onto origin/dev (attempt $attempt)"
+            git pull --rebase origin dev
+          done
+          echo "push still rejected after 5 attempts" >&2
+          exit 1
