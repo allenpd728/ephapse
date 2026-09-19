@@ -1,7 +1,9 @@
 # Evaluation of the external critique (2026-09-19)
 
 **Status:** reference. Input to DEC-034. The two adopted items are actioned by
-issues #37 and #38; everything else is recorded as not-adopted with reasons.
+issues **#37** (comparator baselines) and **#38** (gate-count reconciliation); the
+repositioning in §4 landed in `README.md` at commit `7474329`. Everything else is
+recorded as not-adopted with reasons.
 
 **Source.** An externally-authored, AI-generated audio critique of this
 project's narrative write-up, supplied as a transcript (`.srt`). Round-trip
