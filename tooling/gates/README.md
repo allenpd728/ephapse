@@ -126,30 +126,54 @@ tooling/gates/
 
 ## Gate inventory
 
-Five gates are wired so far (G-R1, G-E1, G-E2, G-E6, G-E7). Issues #11–#14, #16, #19, #20, and #22 add
-the rest; each names its gate ids in its Definition of Done.
 
 | Gate | Checks | Traces to | Status |
 |---|---|---|---|
-| **G-R1** | Experiment header completeness — six fields, or three for a file declaring itself an infrastructure file | `experiments/README.md`; spec §3 | **wired** |
+| **G-R1** | Experiment header completeness — six fields, or the documented three for an infrastructure file | `experiments/README.md`; spec §3 | **wired** |
+| **G-R2** | Experiment model id is an authorized target (fails closed) | DEC-014; spec §1 defect #1 | **wired** |
+| **G-R5** | Every `experiments/*.py` has a run-log row | spec §1 defect #2 | **wired** |
 | **G-E1** | Findings schema — parses, required keys present, no undeclared keys | `findings.jsonl` header | **wired** |
 | **G-E2** | `null_model`, `correction`, `n` non-empty — the evidence bar | issue #4 DoD | **wired** |
 | **G-E6** | Append-only — record count >= committed high-water mark | `findings.jsonl` header; spec §10 Q4 | **wired** |
 | **G-E7** | `issue` cites a closed-done issue; `run_id` matches format | workflow § Run-ids | **wired** (SKIPs without the issue cache) |
 
-Spec §3 lists the remaining 19; issues #11–#14, #16, #19, #20, #22 add them.
+Spec §3 lists the remaining 17; issues #12–#14, #16, #19, #20, #22 add them.
 Each must trace to a documented concern — the suite asserts `traces_to` is
 non-empty for every registered gate.
+
+### The shared model target
+
+`tooling/gates/target_model.txt` is the **single machine-readable source** for
+the authorized probed-model id(s). G-R2 reads it, and issue #12's pinning gate
+reads the same file. `docs/decisions/LOG.md` is prose and deriving a model id
+from it is brittle, so the gate never parses the log — a DEC that authorizes a
+new model adds a line to `target_model.txt` *and* records the DEC.
+
+### Findings worth keeping
+
+Three real defects surfaced while wiring these gates, each caught by running the
+gate rather than by review:
+
+- **The infrastructure pattern matched nothing.** `experiments/README.md` names
+  `sandbox-baseline-*` and `latency-*`, but every file is date-prefixed
+  (`2026-09-18-latency-vs-batch.py`), so a plain `startswith` never applied. G-R1
+  reported both infrastructure files as full-header violations. The pattern is
+  now matched against the filename with the date stripped.
+- **G-R2 did not fail closed.** It treated any non-empty `Model:` line as a
+  determination, so a header reading `(unstated)` passed silently — the exact
+  hole the fail-closed rule exists to close. A header now counts only if it
+  yields an id-shaped token.
+- **G-E6 caught real drift.** A sibling session appended a fourth record without
+  raising `findings.highwater`; the gate fired with the exact fix in its message.
 
 ### Two spec §10 questions resolved while building G-E1/E6
 
 **Q3 — is the gate or the header prose authoritative for the schema?** The gate,
 but with one deliberate deviation recorded here: **G-E1 does not reject unknown
-keys outright.** The three committed records carry `kind`, `injection`, `result`,
-and `note`, which the header prose never listed. Rejecting them would
-retroactively invalidate the project's only recorded evidence. Instead a fixed
-`REQUIRED` set must be present *and* every extra key must appear in
-`KNOWN_EXTENSIONS`, so an addition is explicit but real records survive. The
+keys outright.** The committed records carry `kind`, `injection`, `result`, and
+`note`, which the header prose never listed. Rejecting them would retroactively
+invalidate the project's only recorded evidence. Instead a fixed `REQUIRED` set
+must be present *and* every extra key must appear in `KNOWN_EXTENSIONS`. The
 required-key list is identical to the header's, so there is no divergence to
 reconcile; the extensions list is the single place the gate is more permissive
 than the prose.
@@ -159,6 +183,15 @@ a committed integer, `findings.highwater`, and requires the current record count
 to be `>=` it. Raising the mark is a separate reviewable commit. Its limitation
 is stated in the gate: deleting a line fires, but *editing* a line in place does
 not — count-based checking cannot see that without history.
+
+### The experiment gates are red on the current tree — on purpose
+
+`python3 tooling/gates/validate_experiments.py` exits **non-zero**, naming 13
+findings across 13 files: two loading `pythia-160m` against the DEC-014 target,
+seven lacking the full header, two absent from the run log. That is the expected
+state for issue #11 and the evidence the gates work. **Repairing the artifacts is
+#15, not this task.** A test asserts these gates stay red until #15, so if they
+ever go green the reason is surfaced rather than silently accepted.
 
 ## What these gates cannot do
 

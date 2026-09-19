@@ -1,0 +1,11 @@
+# Authorized target model ids, one per line. Comments and blank lines ignored.
+#
+# This is the single machine-readable source for the probed-model target. It is
+# read by the G-R2 gate and by the dependency-pinning work in issue #12, so a
+# change is made in exactly one place.
+#
+# A DEC that authorizes a different model adds a line here AND records the DEC;
+# the gate does not parse docs/decisions/LOG.md (prose is brittle to derive from).
+#
+# DEC-014: there is no Pythia-160M SAE release, so the target is the deduped 70M.
+pythia-70m-deduped

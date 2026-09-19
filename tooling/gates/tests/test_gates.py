@@ -316,3 +316,85 @@ def test_real_findings_file_passes_the_registered_findings_gates():
     assert V.check_append_only(real) == [], "G-E6 fired on the real findings.jsonl"
     status, findings = V.check_issue_and_runid(real)
     assert status in ("PASS", "SKIP"), f"G-E7 on real log: {status} {findings}"
+
+
+# -------------------------------------------------------------- G-R gates
+def test_infrastructure_exemption_matches_dated_filenames():
+    """The README's patterns must match the repo's `<date>-<slug>.py` names.
+
+    The naming convention date-prefixes every file, so a raw `startswith` on
+    `latency-*` never matched. Found by running G-R1 over the real tree.
+    """
+    import validate_experiments as V
+    assert V._is_infra("2026-09-18-latency-vs-batch.py", "")
+    assert V._is_infra("2026-09-18-sandbox-baseline-hooked.py", "")
+    assert not V._is_infra("2026-09-18-detector-positive-control.py", "")
+
+
+def test_infrastructure_exemption_via_explicit_declaration():
+    import validate_experiments as V
+    text = "*Infrastructure/baseline file: no hypothesis under test.*"
+    assert V._is_infra("2026-09-19-whatever.py", text)
+
+
+def test_g_r2_fails_closed_when_no_model_can_be_determined():
+    """Silence is not acceptance: an unidentifiable model is flagged."""
+    import validate_experiments as V
+    d = R.FIXTURES / "experiments_r2_no_model"
+    findings = V.gate_r2(d)
+    assert findings, "G-R2 did not fail closed on a file with no model id"
+    assert any("cannot determine" in f for f in findings)
+
+
+def test_g_r2_fires_on_a_superseded_model():
+    import validate_experiments as V
+    d = R.FIXTURES / "experiments_r2_superseded_model"
+    findings = V.gate_r2(d)
+    assert any("pythia-160m" in f for f in findings), findings
+
+
+def test_g_r1_fires_on_a_claimed_but_invalid_exemption():
+    """A hypothesis-test file claiming the exemption must not be excused.
+
+    Three fields would satisfy the reduced set, so this only fails if the file
+    is correctly judged NOT to be infrastructure — which is the point.
+    """
+    import validate_experiments as V
+    d = R.FIXTURES / "experiments_r1_invalid_exemption"
+    findings = V.gate_r1(d)
+    assert findings, "G-R1 excused a file that claimed the exemption"
+    assert any("full header" in f for f in findings), findings
+
+
+def test_g_r5_fires_on_an_unlogged_file():
+    import validate_experiments as V
+    d = R.FIXTURES / "experiments_r5_missing_log_row"
+    findings = V.gate_r5(d)
+    assert any("no row" in f for f in findings), findings
+
+
+def test_g_r5_is_silent_when_every_file_is_logged():
+    import validate_experiments as V
+    assert V.gate_r5(R.FIXTURES / "experiments_clean") == []
+
+
+def test_model_target_source_is_machine_readable():
+    """G-R2 and #12 share one target source; it must be parseable, not prose."""
+    import validate_experiments as V
+    targets = V.load_target_models()
+    assert targets, "no authorized target models parsed"
+    assert "pythia-70m-deduped" in targets
+
+
+def test_experiment_gates_fail_on_the_real_tree_at_this_issue():
+    """Issue #11's DoD: these gates MUST be red on the real tree until #15.
+
+    If this test ever passes, either the artifacts were repaired (#15) or a gate
+    stopped firing — both are events worth surfacing rather than silently
+    accepting.
+    """
+    import validate_experiments as V
+    total = (len(V.gate_r1(V.EXPERIMENTS)) + len(V.gate_r2(V.EXPERIMENTS))
+             + len(V.gate_r5(V.EXPERIMENTS)))
+    assert total > 0, ("G-R1/R2/R5 are all green on the real tree. At issue #11 "
+                       "that means a gate stopped firing. Re-check against #15.")
