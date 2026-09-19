@@ -492,3 +492,112 @@ def test_experiment_gates_fail_on_the_real_tree_at_this_issue():
              + len(V.gate_r5(V.EXPERIMENTS)))
     assert total > 0, ("G-R1/R2/R5 are all green on the real tree. At issue #11 "
                        "that means a gate stopped firing. Re-check against #15.")
+
+
+# -------------------------------------------------------- G-P2 / G-P4 gates
+PROMPT_SETS = R.FIXTURES / "prompt_sets"
+
+
+def _prompt_pair(name):
+    import check_prompt_disjointness as C
+    base = PROMPT_SETS / name
+    a, b = C.load_prompt_sets(base / "a.txt", base / "b.txt")
+    ids_a = set(json.loads((base / "ids_a.json").read_text()))
+    ids_b = set(json.loads((base / "ids_b.json").read_text()))
+    return C, a, b, ids_a, ids_b
+
+
+def test_g_p2_is_silent_on_the_disjoint_fixture():
+    C, a, b, ia, ib = _prompt_pair("disjoint")
+    r = C.check_disjointness(a, b, ia, ib)
+    assert r["findings"] == [], r["findings"]
+    assert r["token_ids"]["n_shared"] == 0
+
+
+def test_g_p2_fires_on_the_shared_token_fixture():
+    """The near miss: sets are otherwise disjoint, one token id leaks."""
+    C, a, b, ia, ib = _prompt_pair("shared_token")
+    r = C.check_disjointness(a, b, ia, ib)
+    assert r["findings"], "G-P2 did not fire on a shared token id"
+    assert any("G-P2" in f for f in r["findings"]), r["findings"]
+    assert r["token_ids"]["n_shared"] == 1, r["token_ids"]
+
+
+def test_g_p4_fires_on_a_prompt_present_in_both_sets():
+    C, a, b, ia, ib = _prompt_pair("shared_prompt")
+    r = C.check_disjointness(a, b, ia, ib)
+    assert any("G-P4" in f for f in r["findings"]), r["findings"]
+
+
+def test_g_p2_reports_contents_not_just_a_count():
+    """The issue's DoD requires the intersection *contents*, not only its size."""
+    C, a, b, ia, ib = _prompt_pair("shared_token")
+    r = C.check_disjointness(a, b, ia, ib)
+    assert r["token_ids"]["shared_ids"] == [42256], r["token_ids"]
+
+
+def test_g_p2_is_right_in_both_directions_on_strings_vs_ids():
+    """The whole reason the check is on ids.
+
+    `unhappy`/`happy` are not substrings of each other yet share id 42256, so an
+    id test catches what a string test cannot. `seven` IS a substring of
+    `seventeen` and they share no id, so the id test stays silent where a naive
+    substring test would fire. Both fixtures are drawn from the real tokenizer;
+    `token_ids_for` is the only path that downloads, and it is used here rather
+    than on the gate path.
+    """
+    import check_prompt_disjointness as C
+    unhappy, happy = C.token_ids_for(["unhappy"]), C.token_ids_for(["happy"])
+    assert unhappy & happy, "expected a shared subword id for unhappy/happy"
+
+    seven, seventeen = C.token_ids_for(["seven"]), C.token_ids_for(["seventeen"])
+    assert not (seven & seventeen), "expected no shared id for seven/seventeen"
+    assert "seven" in "seventeen", "the substring relation must hold for the point"
+
+    r = C.check_disjointness(["seven"], ["seventeen"], seven, seventeen)
+    assert r["findings"] == [], r["findings"]
+
+
+def test_g_p2_library_path_is_a_pure_function():
+    """Tier-0 property: pre-computed ids mean no network, no model, no download.
+
+    This is what makes the gate registerable in run_all.py. The check must be a
+    pure function of its arguments whenever both id sets are supplied.
+    """
+    C, a, b, ia, ib = _prompt_pair("disjoint")
+    r = C.check_disjointness(a, b, ia, ib)
+    assert r["ok"]
+
+
+def test_g_p2_reports_missing_ids_rather_than_passing_silently():
+    """With no id sets the gate must not claim a pass — it cannot know.
+
+    A silent pass here would be the 'check that cannot fail' failure mode: a
+    caller that forgot the ids would read a green result.
+    """
+    C, a, b, _ia, _ib = _prompt_pair("disjoint")
+    r = C.check_disjointness(a, b, None, None)
+    assert r["ok"] is False
+    assert r["token_ids"] is None
+    assert "tokenizer" in r["reason"]
+
+
+def test_g_p2_allows_a_documented_token_exception():
+    """A configured exception must be honoured, and the count surfaced."""
+    C, a, b, ia, ib = _prompt_pair("shared_token")
+    r = C.check_disjointness(a, b, ia, ib, allow_token_ids={42256})
+    assert r["findings"] == [], r["findings"]
+    assert r["token_ids"]["n_allowed_exceptions"] == 1
+
+
+def test_check_prefixed_gate_modules_are_discovered():
+    """The runner must load `check_*.py` gates, not only `validate_*.py`.
+
+    Spec §6 names gate modules under both prefixes. Globbing one of them
+    silently omitted every `check_*` gate — `--gate G-P2` reported "no gate
+    registered" while the module sat right there. Regression guard for that.
+    """
+    ids = {g.id for g in R.REGISTRY}
+    assert "G-P2" in ids, (
+        "G-P2 not registered — run_all._load_gate_modules is not discovering "
+        "check_*.py modules")

@@ -237,8 +237,25 @@ def report(results: list[GateResult]) -> str:
 
 
 def _load_gate_modules() -> None:
-    """Import every validate_*.py beside this file so they self-register."""
-    for mod in sorted(HERE.glob("validate_*.py")):
+    """Import every gate module beside this file so they self-register.
+
+    Spec §6 names gate modules under *two* prefixes — `validate_*.py` for the
+    artifact checks and `check_*.py` for the cross-reference / tokenizer /
+    code-inspection ones (`check_prompt_disjointness.py`,
+    `check_docs_coherence.py`, `check_experiment_code.py`). Globbing only
+    `validate_*` silently omitted every `check_*` gate: it registered nothing,
+    so `run_all.py --gate G-P2` reported "no gate registered" and the module's
+    own tests could not exercise the harness contract. Found by wiring G-P2
+    (issue #14); it would have hit #20 and #22 the same way.
+
+    Both patterns are matched, and a module is imported once even if it somehow
+    matches twice.
+    """
+    seen: set[Path] = set()
+    for mod in sorted(list(HERE.glob("validate_*.py")) + list(HERE.glob("check_*.py"))):
+        if mod in seen:
+            continue
+        seen.add(mod)
         spec = importlib.util.spec_from_file_location(mod.stem, mod)
         m = importlib.util.module_from_spec(spec)
         # Make `from run_all import register, Gate` work inside the module.

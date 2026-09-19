@@ -137,6 +137,8 @@ tooling/gates/
 | **G-E2** | `null_model`, `correction`, `n` non-empty — the evidence bar | issue #4 DoD | **wired** |
 | **G-E6** | Append-only — record count >= committed high-water mark | `findings.jsonl` header; spec §10 Q4 | **wired** |
 | **G-E7** | `issue` cites a closed-done issue; `run_id` matches format | workflow § Run-ids | **wired** (SKIPs without the issue cache) |
+| **G-P2** | Two prompt sets share zero tokenizer ids; intersection size *and contents* reported | DEC-011; spec §3 | **wired** |
+| **G-P4** | No prompt string appears in both sets | spec §3 | **wired** (same module) |
 
 Spec §3 lists the remaining 17; issues #12–#14, #16, #19, #20, #22 add them.
 Each must trace to a documented concern — the suite asserts `traces_to` is
