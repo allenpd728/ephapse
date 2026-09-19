@@ -216,9 +216,14 @@ interesting. The filter has to be specified before the run, or
   candidate pairs at `NPMI > 0.8` and `semantic similarity < 0.2`. The
   second clause is what excludes pairs whose features are similar to each
   other — the naive confound.
-- **Correct for multiplicity.** With 10^5 features and many prompt pairs,
-  per-pair significance is meaningless. Use BH-FDR or a permutation null
-  over the whole feature × pair matrix, and record N and the correction.
+- **Correct for multiplicity — with the max-statistic permutation cutoff.**
+  With 10^5 features and many prompt pairs, per-pair significance is
+  meaningless. **Use the 95th percentile of the per-permutation maximum NPMI**
+  (family-wise control). **Do not use BH-FDR unless `N_PERM >= 1e4`**: with
+  N_PERM=100 over m=6.3e4 pairs the smallest achievable p is 0.01 while BH
+  needs 1.6e-6, so *nothing can pass and the zero is an artifact* (DEC-016 —
+  this was found by running, and the broken version reported a
+  plausible-looking "no significant pairs" that meant nothing).
   Anchor for scale: one study finds only ~25% of highly active features in
   a layer encode genuine task-relevant information (arXiv:2511.11711).
 - **Cluster before counting.** Feature splitting means one coherent

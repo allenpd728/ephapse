@@ -450,3 +450,87 @@ features but spans 0.275x–4.7x. That spread is expected, because
 figure is over 8 prompts — **neither bounds the other.** The endpoint is a
 sanity check on feature *identity* only; `maxActApprox` must not be used as a
 reference value for anything quantitative.
+
+---
+
+## DEC-016 — The detector's BH-FDR layer was structurally impossible; the max-statistic test is the criterion
+
+**Date:** 2026-09-18 · **Status:** adopted (corrects the method notes and
+issue #5's specification)
+
+**Decision:** the co-activation detector's family-wise control is the
+**max-statistic permutation cutoff** (95th percentile of the per-permutation
+maximum NPMI). The Benjamini-Hochberg FDR layer is **removed as a criterion**
+and must not be used unless `N_PERM >= 1e4`.
+
+**Rationale — found by running, not by review.** The issue-#5 positive control
+(commit pending, run `20260918-2329-zbmn`) used N_PERM=100 permutations over
+m=62,500 feature pairs at q=0.10. With 100 permutations the *smallest
+achievable* p-value is 1/100 = 0.01, while BH's most permissive threshold is
+q/m = 1.6e-6. **The gap is 6250x, so no pair could ever pass, regardless of how
+strong the signal is.** The reported `fdr=0` was therefore structural, not
+evidence — and a reader could easily have recorded "no significant pairs
+found" as a finding about the model when it was a fact about the arithmetic.
+
+Permutation p-values cannot resolve a family of 6e4 at q=0.1 with 1e2
+permutations: the resolution and the required significance are 3.8 orders of
+magnitude apart. Fixing it by raising N_PERM to 1e4 costs 100x the permutation
+loop; the max-statistic cutoff achieves valid family-wise control at the
+current cost and is what the positive control uses.
+
+**This is the second time in two issues that a plausible-looking spec was
+wrong in a way only execution exposed.** Issue #2 found a model target with no
+SAE; this found a multiplicity correction that could not fire. Both had been
+written into the method notes from an authoritative-sounding source
+(PRIOR_ART §2's "compare against a threshold with correction") rather than
+checked against the arithmetic of the actual run.
+
+**Consequence for the method notes:** the handoff doc's instruction to
+"correct for multiplicity (BH-FDR or a permutation null) over the whole
+feature x pair matrix" was ambiguous between two things that are not
+interchangeable at this scale. It now specifies the max-statistic permutation
+cutoff as the default and records the BH constraint explicitly.
+
+---
+
+## DEC-017 — The detector positive control passes; scope of the claim is narrow
+
+**Date:** 2026-09-18 · **Status:** adopted
+
+**Decision:** issue #5's positive control **passes** on the max-statistic test,
+and `findings.jsonl` now holds its first record. The scope of what this
+establishes is recorded precisely, because the temptation to overclaim is
+high.
+
+**Result (run `20260918-2329-zbmn`):**
+
+- Negative control (no injection): 0 pairs above the 95th-percentile cutoff.
+- Injection sweep: best NPMI exceeds the cutoff at **every** rate — 0.8485 vs
+  0.5614 at 1%, rising monotonically to 0.9717 vs 0.5740 at 20%.
+- The detector recovers an injected cross-domain pair present in as few as
+  **13 of 1310 passages**.
+
+**What this establishes.** The detector's *mechanics* are correct: it finds a
+planted cross-domain correlation, degrades gracefully rather than
+all-or-nothing, and produces no false positives on an uninjected corpus.
+
+**What it does NOT establish — recorded so it is not misread later.** The
+planted signal is a **surface-token effect**. A bag-of-bigrams model would
+detect it by construction, so this says nothing about whether the detector
+finds *semantic* structure. The genuine cross-domain question remains #6's
+(paraphrase invariance), which is now the gate that matters. **A pass here must
+not be cited as evidence that co-activation detection works on real
+cross-domain structure.**
+
+**Incidental value:** because the signal is surface-level and known, this run
+also gives a clean read on **feature absorption** (PRIOR_ART §4) — the SAE did
+represent the planted co-firing signal at 1% prevalence, so absorption did not
+erase it at this scale. That is a small positive for the absorption concern.
+
+**Process note:** three designs were wrong before this one ran — independent
+RNG draws on the two sides (nothing coupled, no signal to find), one-sided
+injection (a token only in domain A cannot induce a cross-domain
+co-activation, so the null would have been a benchmark bug), and an unbounded
+pair search (~1e8 pairs x 100 permutations). Each was caught by inspecting the
+design before or during execution. The first would have produced a false
+negative that looked like a real result.

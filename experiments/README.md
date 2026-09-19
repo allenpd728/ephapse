@@ -33,6 +33,7 @@ results land in `docs/reference/SANDBOX_BASELINE.md` rather than
 | 2026-09-18 | `2026-09-18-sandbox-baseline-hooked.py` | #1 | Peak RSS for a hooked run (`run_with_cache`) vs bare forward pass; cache size per prompt |
 | 2026-09-18 | `2026-09-18-latency-vs-batch.py` | #1 | Amortized latency across batch sizes; resolves the 207 ms (batch 1) vs 21 ms (batch 64) discrepancy |
 | 2026-09-18 | `2026-09-18-toolchain-neuronpedia-crosscheck.py` | #2 | End-to-end TransformerLens + SAELens, cross-checked against Neuronpedia's hosted copy of the same feature |
+| 2026-09-18 | `2026-09-18-detector-positive-control.py` | #5 | Injected-correlation positive control: detector recovery vs injection rate, permutation null, negative control. **PASSES** on the max-statistic test; BH-FDR layer found broken (DEC-016) |
 
 Note: the first two are the pre-existing exceptions to the naming convention
 above (they omit the `null`/`correction` headers deliberately). Future files
