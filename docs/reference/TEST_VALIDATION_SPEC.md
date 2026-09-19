@@ -283,34 +283,55 @@ that is a defect for the agent to fix, not a judgment call.
 
 ## 9. Task map
 
-Decomposed into issues (#8–#18), sized to one agent run each, with native
+Decomposed into 14 issues (#8–#21), sized to one agent run each, with native
 GitHub blocked-by relationships forming the lineage. Only #8 is unblocked.
 
-| Task | Issue | Gate(s) | Blocked by |
-|---|---|---|---|
-| T1 — Adopt this spec (decision-log entry + doc set) | #8 | — | — |
-| T2 — Tier-0 gate scaffolding: `tooling/gates/README.md` + `tests/` fixtures + runner | #9 | all | #8 |
-| T3 — `validate_findings.py` + fixtures | #10 | G-E1–G-E8 | #9 |
-| T4 — `validate_experiments.py` + fixtures | #11 | G-R1, G-R2, G-R5 | #9 |
-| T5 — `validate_deps.py` + `check_docs_coherence.py` + fixtures | #12 | G-R3, G-R4 | #9 |
-| T6 — CI wiring for the tier-0 set | #13 | all tier 0 | #10, #11, #12 |
-| T7 — `check_prompt_disjointness.py` + fixture | #14 | G-P2, G-P4 | #8, #9 |
-| T8 — Repair the existing artifacts so the gates pass | #15 | **defects #1–#2** | #10, #11, #12 |
-| T9 — Experiment-header rule made checkable and single-sourced | #16 | G-R1 | #11 |
-| T10 — Tier-1 detector-validation harness contract (scoping only) | #17 | G-D3, G-D4 | #8 |
-| T11 — Prior-art alignment record (template + first use) | #18 | §4 | #8 |
+Each task's Definition of Done names **one observable check** — per the
+protocol's "one task = one signal", which the first draft of this decomposition
+violated by listing four to eight items per issue. For gate tasks the single
+signal is a command over that gate's fixtures, plus the requirement that
+removing a fixture turns it red. That mutation half is not decoration: Maith
+recorded that its own first exit-code verification *was* vacuous because a
+string anchor silently missed.
 
-T8 is the honest admission that the gates will fail on the current tree on
-first run. That is the intended behaviour and the reason to build them: the
-tree has four known defects, and a gate that goes green on it would be
-revealing nothing.
+| Issue | Task | Gate(s) | Blocked by |
+|---|---|---|---|
+| #8 | Adopt this spec (decision-log entry + handoff pointer) | — | — |
+| #9 | Tier-0 gate scaffolding: `run_all.py`, fixture tree, gate reference | all | #8 |
+| #10 | `validate_findings.py` — schema and evidence | G-E1, E2, E6, E7 | #9 |
+| #11 | `validate_experiments.py` — headers, target model, run log | G-R1, R2, R5 | #9 |
+| #12 | `validate_deps.py` — dependency pinning | G-R3 | #9 |
+| #13 | CI wiring for the tier-0 set | all tier 0 | #10, #11, #12 |
+| #14 | `check_prompt_disjointness.py` | G-P2, P4 | #8, #9 |
+| #15 | Repair the experiment artifacts so the gates pass | defects #1–#2 | #10, #11, #12 |
+| #16 | Make the header rule checkable and single-sourced | G-R1 | #11 |
+| #17 | Tier-1 detector-validation harness contract (scoping only) | G-D3, D4 | #8 |
+| #18 | Prior-art alignment record (template + first use) | §4 | #8 |
+| #19 | `validate_findings.py` — claim-consistency rules | G-E3, E4, E5, E8 | #10 |
+| #20 | `check_docs_coherence.py` | G-R4 | #9 |
+| #21 | Reconcile `requirements.txt` with the pinning gate | G-R3 | #12 |
+
+**Three splits, each because the bundled task had more than one signal.**
+This is the substantive change from the first filing, and it is worth recording
+because the same instinct will recur:
+
+- **#10 / #19** — schema validity ("is this well-formed") and claim consistency
+  ("does the claim match the evidence") are different kinds of check. The
+  second carries the false-positive risk: G-E5 must reject a mathematical
+  claim while passing a record that correctly *disclaims* one.
+- **#12 / #20** — dependency pinning is a one-file check; docs coherence has to
+  distinguish a wrong current value from a decision-log entry that correctly
+  records a superseded one. Shipping the second behind the first would have
+  hidden its difficulty.
+- **#15 / #21** — repairing experiment files and settling the `numpy` pin
+  exception are different artifacts and different decisions.
 
 **Relationship to the existing methodology lineage (#3–#7).** These tasks do
 not block the experiments and the experiments do not block them, with two
-touchpoints worth stating: T7 (#14) automates the control that #6 requires, and
-T10 (#17) specifies the artifact that #5 must produce. Neither dependency is
-created as a hard block, because #5 and #6 can proceed with the control run
-manually — the gates make it recorded and repeatable, not possible.
+touchpoints: #14 automates the control #6 requires, and #17 specifies the
+artifact #5 must produce. Neither is a hard block, because #5 and #6 can
+proceed with the control run manually — the gates make it recorded and
+repeatable, not possible.
 
 ---
 
