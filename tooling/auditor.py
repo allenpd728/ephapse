@@ -126,9 +126,19 @@ def head_sha(root: Path) -> str:
 
 
 def commits_between(root: Path, old: str, new: str) -> list[dict]:
-    """Commits in (old, new]. Empty old -> last 200, since there is no range yet."""
-    rng = f"{old}..{new}" if old else "-200"
-    out = git(["log", rng, "--pretty=format:%H%x1f%an%x1f%ad%x1f%s", "--date=short"], root)
+    """Commits in (old, new].
+
+    With no checkpoint (first run) the range is deliberately bounded to the last
+    ~24h rather than "the last 200 commits": the digest's job is "what changed
+    since the last run", and a first run dumping 200 commits of history buries
+    the finding list a reader actually needs. The date bound degrades cleanly --
+    if the repo had no commits yesterday, the digest says so honestly.
+    """
+    if old:
+        rng = [f"{old}..{new}"]
+    else:
+        rng = [new, "--since=24 hours ago"]
+    out = git(["log"] + rng + ["--pretty=format:%H%x1f%an%x1f%ad%x1f%s", "--date=short"], root)
     commits = []
     for line in out.splitlines():
         parts = line.split("\x1f")

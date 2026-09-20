@@ -212,6 +212,22 @@ def test_commits_between_no_change_is_empty(tmp_path):
     assert aud.commits_between(root, sha, sha) == []
 
 
+def test_first_run_range_is_time_bounded_not_unbounded(tmp_path):
+    """With no checkpoint the digest must not dump all history into the table."""
+    root = init_repo(tmp_path)
+    for i in range(5):
+        (root / f"f{i}.txt").write_text("x")
+        subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+        subprocess.run(["git", "commit", "-qm", f"c{i}"], cwd=root, check=True)
+    got = aud.commits_between(root, "", aud.head_sha(root))
+    # All five are within 24h in a test repo, so all appear -- but the call must
+    # be a --since query, never an unbounded `-200` dump. Pin the argument shape.
+    assert len(got) >= 1
+    src = AUD.read_text()
+    assert '"--since=24 hours ago"' in src
+    assert '"-200"' not in src
+
+
 def test_head_sha_is_40_hex(tmp_path):
     root = init_repo(tmp_path)
     sha = aud.head_sha(root)
