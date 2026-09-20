@@ -1,0 +1,69 @@
+name: auditor
+
+# Daily repo health & drift audit. Read-only over the tree; the only writes are
+# GitHub issues/comments/labels and one appended line in this repo's own
+# status_log.jsonl. See docs/AUDITOR.md for the contract.
+#
+# Nothing here is actionable by agents: every finding lands under `on-hold`
+# until the human moves it into the real task pipeline.
+
+on:
+  schedule:
+    # Daily at 09:17 UTC. An off-the-hour minute is deliberate -- GitHub runs
+    # scheduled jobs late under load, and :00 is the busiest slot.
+    - cron: "17 9 * * *"
+  workflow_dispatch: {}
+
+# issues: write  -- open proposals and the digest, apply labels, comment.
+# contents: write -- append the status-log line and advance the checkpoint.
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  # One audit at a time. Two concurrent runs would race on the checkpoint and
+  # could double-post the digest.
+  group: auditor
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0        # git blame needs history for the TODO-age check
+
+      - name: Run the audit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 tooling/auditor.py --repo ${{ github.repository }} --token-env GITHUB_TOKEN
+
+      - name: Commit the status entry and checkpoint
+        run: |
+          set -e
+          # Stage first, then test the index: `git diff --quiet -- <path>` ignores
+          # untracked files, so on a first run it would report "no change" and the
+          # newly created checkpoint would be silently discarded.
+          git add -- status_log.jsonl status/auditor_state.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "no change; nothing to commit"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(auditor): status entry + checkpoint [skip ci]"
+          # Same rebase-and-retry as the status sweep: agents push to dev
+          # continuously, so a single push can be rejected as non-fast-forward.
+          for attempt in 1 2 3 4 5; do
+            if git push origin dev; then
+              echo "pushed on attempt $attempt"
+              exit 0
+            fi
+            echo "push rejected; rebasing onto origin/dev (attempt $attempt)"
+            git pull --rebase origin dev
+          done
+          echo "push still rejected after 5 attempts" >&2
+          exit 1
