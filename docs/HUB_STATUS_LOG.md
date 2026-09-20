@@ -61,6 +61,16 @@ One JSON object per line; append-only; never rewritten. See HuB's
   - **Candidate generator** — Cross-domain co-activation as a hypothesis source. Currently a clean null at 70M (`docs/ROADMAP.md` rungs 0-2).
   - **Claim tooling** — `tooling/claims/` — the git-ref compare-and-swap claim lock (#27).
 
+  **How to arrive at a level for this repo.** The level is not a vibe — it is read off a
+  structure this repo already maintains:
+
+  Derive levels from the **rung ladder in `docs/reference/TEST_VALIDATION_SPEC.md` Section 5
+  (Observed -> Recorded -> Surface-controlled -> Causal per-feature -> Causal aggregate ->
+  Handed off)**, which is already adapted from PleaNP explicitly. Map rung 1 (Recorded) to
+  level 4 and rung 5 (Handed off) to level 7. Respect the documented ceilings: the spec states
+  rung 3 is not reachable at pythia-70m and rung 5 is not reachable by an agent, so nothing
+  here may be rated as though those were met.
+
   Ephapse distinguishes *instrument-validated* from *phenomenon-present* (`docs/reference/PROGRAM_MANAGEMENT_SPEC.md` §3.2). That distinction is exactly what TRL should capture here: the validation layer can be highly ready while the candidate generator's *scientific* result is still a null. Rate the capability, not the finding.
 
   **Do not name a component after an internal task or issue.** Name the capability you would
