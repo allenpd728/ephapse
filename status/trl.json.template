@@ -1,0 +1,9 @@
+{
+  "_comment": "Copy to status/trl.json, replace null with integers 0-9, and commit. See HuB/PM_STATUS_FRAMEWORK.md for what each level means. Leave a component null to keep it off the dashboard.",
+  "components": {
+    "Validation layer": null,
+    "Detector / probe harness": null,
+    "Candidate generator": null,
+    "Claim tooling": null
+  }
+}
