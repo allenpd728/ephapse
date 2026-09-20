@@ -1,0 +1,14 @@
+{
+  "components": {
+    "Validation layer": 4,
+    "Detector / probe harness": 6,
+    "Candidate generator": 2,
+    "Claim tooling": 5
+  },
+  "_rationale": {
+    "Validation layer": "TEST_VALIDATION_SPEC section 5 rung 1 (Recorded) = passes all tier-0 gates; run_all.py reports 11/11 PASS with planted fixtures proving each can fail. Gate count is 38 specified / 7-11 wired, so not level 5 (the full ladder is not yet wired).",
+    "Detector / probe harness": "README: the detector recovered the injected positive control and the general cross-domain probe ran at 70M with zero shared tokenizer ids -- it ran end-to-end at the intended scale, which is this repo's currently attainable ceiling (rung 3 is documented as unreachable at 70M) = level 6.",
+    "Candidate generator": "Cross-domain co-activation is specified and probed, but the result is a clean null and no candidate has been handed off; README says no co-activation event has been human-reviewed -- level 2.",
+    "Claim tooling": "tooling/claims/ ships a git-ref CAS lock with a race test (test_claim_cas.sh) and an audit tool with fixtures, both asserting the failure modes = level 5."
+  }
+}
