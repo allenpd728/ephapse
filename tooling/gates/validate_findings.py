@@ -65,7 +65,14 @@ REQUIRED = (
 
 # Extensions the committed records actually use. An extra key not listed here
 # fails G-E1 — the point is to make additions explicit, not to freeze the schema.
-KNOWN_EXTENSIONS = ("kind", "injection", "result", "note")
+#
+# `input_disjointness` was added when CI first ran this suite (issue #13): the
+# real log's issue-3 record carries it as the G-P2 evidence (the shared-tokenizer
+# id count), so G-E1 was firing on the repo's own committed record. Nothing had
+# ever run the suite, so the drift was invisible. Adding it here is the sanctioned
+# path — the gate's message names this list precisely so an addition is a
+# reviewable edit rather than a silent schema change.
+KNOWN_EXTENSIONS = ("kind", "injection", "result", "note", "input_disjointness")
 
 # G-E2: the evidence bar from issue #4 and the header. Non-empty means: present,
 # not None, not "", not an empty list/dict.

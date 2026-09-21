@@ -178,11 +178,25 @@ def test_trl_invalid_json_is_ignored():
 
 # ---- snapshot + append semantics ----------------------------------------
 
-def test_snapshot_shape_has_timestamp_flow_notes():
-    snap = hub.build_snapshot([issue(1, ["status:available"])], [], [], Path("."), NOW)
+def test_snapshot_shape_has_timestamp_flow_notes(tmp_path):
+    # `tmp_path`, not `Path(".")`: build_trl reads status/trl.json relative to
+    # the repo root passed in, so passing the cwd made this test's outcome depend
+    # on where it was invoked from -- it passed from /tmp and failed from the repo
+    # root, where trl.json is present and adds a "trl" key. A test whose result
+    # depends on cwd is not a test.
+    snap = hub.build_snapshot([issue(1, ["status:available"])], [], [], tmp_path, NOW)
     assert snap["timestamp"].endswith("Z")
     assert "flow" in snap and "notes" in snap
     assert "trl" not in snap
+
+
+def test_snapshot_includes_trl_when_the_file_is_present(tmp_path):
+    """The other half of the shape contract: trl IS emitted when committed."""
+    (tmp_path / "status").mkdir()
+    (tmp_path / "status" / "trl.json").write_text(
+        json.dumps({"components": {"Validation layer": 4}}))
+    snap = hub.build_snapshot([issue(1, ["status:available"])], [], [], tmp_path, NOW)
+    assert snap.get("trl") == {"Validation layer": 4}
 
 
 def test_append_only_never_rewrites(tmp_path):

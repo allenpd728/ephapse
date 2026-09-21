@@ -77,6 +77,58 @@ python3 tooling/gates/tests/test_gates.py     # the harness's own tests
 Exit codes: `0` when every gate is `PASS`; `1` when any gate is `FAIL` or
 `BROKEN`. That is the contract CI consumes.
 
+## CI (issue #13)
+
+`.github/workflows/ci.yml` runs on every push and pull request to `dev`. It is
+the point at which the validation layer stops depending on an agent remembering
+to run it.
+
+| Job | What it runs | Why |
+|---|---|---|
+| `gates` | `run_all.py`, then removes a failing fixture and requires `BROKEN` | Proves the fixture rule is still live, not just asserted in prose |
+| `tests` | `pytest tooling/gates/tests/`, the auditor suite, the hub-sweep suite, a foreign-cwd re-run, and a mutation check | Proves the checks can fail — a suite that cannot go red is not a test |
+| `summary` | States the limit of a green run | So a green check cannot be read as "validated" |
+
+**What does not run here, and why.** No torch, no model, no GPU, no secrets, and
+`requirements.txt` is deliberately *not* installed — installing the ML stack
+would break the tier-0 guarantee that this suite is cheap and deterministic
+(issue #13's method constraint). `pytest` is the one package the workflow
+installs, because `tooling/gates/tests/` is a pytest suite.
+
+One test is **skipped** in CI: `test_g_p2_is_right_in_both_directions_on_strings_vs_ids`
+downloads the real tokenizer, which is tier 1. It is marked with
+`pytest.importorskip` so it skips visibly (`-rs` reports it) rather than failing
+the job or silently vanishing. Spec §10 Q2 proposes the fix — commit the token-id
+sets as evidence and re-verify only when they change — which would bring it into
+tier 0. Until then it is an unenforced check, recorded rather than hidden.
+
+**Network needs.** G-E7 and G-M1/G-M2 read the committed issue-state cache
+(`tests/fixture_issue_state.json`); they do not fetch, so no job needs network.
+G-E6 reads the committed `findings.highwater` mark rather than history, which is
+why `fetch-depth: 1` suffices (spec §10 Q4).
+
+**A green run here is necessary, not sufficient.** It means the artifacts are
+internally consistent, every gate can be shown to fire, and the code-level tests
+pass. It does **not** mean any detector measures what it claims — that is tier 1,
+and beyond tier 1 it is the human's.
+
+### What wiring CI immediately caught
+
+Adding the workflow ran the suite for the first time, and three defects fell out
+that no review had seen:
+
+- **`findings.jsonl` record 5 carried an undeclared key** (`input_disjointness`),
+  so G-E1 was firing on the repo's own committed evidence. Fixed by adding the
+  key to `KNOWN_EXTENSIONS` — the addition the gate's own message asks for.
+- **`findings.highwater` was stale** (5 records, mark 4). G-E6 named its remedy;
+  the mark is now 5.
+- **`test_hub_sweep.py` was cwd-dependent** — it passed from `/tmp` and failed
+  from the repo root, because it passed `Path(".")` where a `tmp_path` belonged.
+  It only ever "passed" because it had never been run from the repo root.
+
+Each is the same shape: a plausible artifact whose correctness was never checked.
+That is the case for the workflow, made by the workflow.
+
 ## Statuses
 
 | Status | Meaning |

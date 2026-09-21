@@ -114,7 +114,6 @@ WRITE_TRIGGERS = ("push", "pull_request_target", "workflow_run", "issue_comment"
 # Top-level `permissions:` -- column 0 only. A step-scoped `permissions:` does not
 # satisfy this: it is the job-level default that decides what the token may do.
 TOP_LEVEL_PERMISSIONS_RE = re.compile(r"^permissions\s*:", re.M)
-TRIGGER_RE = re.compile(r"^\s*(?:-\s*)?([a-z_]+)\s*:", re.M)
 # Untrusted, attacker-influenced expressions. `github.repository` and
 # `secrets.*` are deliberately absent: they are not attacker-controlled, and
 # flagging them would make this check noise.

@@ -393,7 +393,7 @@ def test_docs_root_relative_ref_resolves(tmp_path):
 
 
 def test_cross_repo_citation_is_not_reported(tmp_path):
-    """`Maith \`EXPERIMENT_MEASUREMENT.md\`` names a sibling repo's file."""
+    """Maith `EXPERIMENT_MEASUREMENT.md` names a sibling repo's file."""
     root = init_repo(tmp_path)
     (root / "docs").mkdir()
     (root / "docs" / "x.md").write_text("| Maith `EXPERIMENT_MEASUREMENT.md` | ref |\n")
