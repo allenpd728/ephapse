@@ -21,3 +21,4 @@ kind:gap
 kind:decision
 kind:protocol
 kind:spec
+kind:hygiene

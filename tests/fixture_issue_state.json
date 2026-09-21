@@ -1,13 +1,267 @@
 {
   "_comment": "Committed cache of GitHub issue state for G-E7 and G-M1/G-M2. Tier 0 must not touch the network, so the gates read this file. Regenerate with `python3 tooling/program/issue_state.py refresh` (reads labels AND blocked_by via GraphQL), then review the diff as part of the change.",
   "_generated": "refresh",
+  "60": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "kind:protocol",
+      "portfolio-ops",
+      "status:available"
+    ],
+    "blocked_by": []
+  },
+  "59": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "kind:repair",
+      "portfolio-ops",
+      "status:available"
+    ],
+    "blocked_by": []
+  },
+  "58": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "kind:repair",
+      "portfolio-ops",
+      "status:available"
+    ],
+    "blocked_by": []
+  },
+  "57": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "documentation",
+      "kind:repair",
+      "status:available"
+    ],
+    "blocked_by": []
+  },
+  "56": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "documentation",
+      "kind:repair",
+      "status:available"
+    ],
+    "blocked_by": []
+  },
+  "55": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "infrastructure",
+      "kind:gate",
+      "portfolio-ops",
+      "status:available"
+    ],
+    "blocked_by": []
+  },
+  "54": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "kind:repair",
+      "portfolio-ops",
+      "status:available"
+    ],
+    "blocked_by": []
+  },
+  "53": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "kind:repair",
+      "portfolio-ops",
+      "status:available"
+    ],
+    "blocked_by": []
+  },
+  "52": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "kind:repair",
+      "portfolio-ops",
+      "security",
+      "status:available"
+    ],
+    "blocked_by": []
+  },
+  "51": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "kind:repair",
+      "needs-triage",
+      "portfolio-ops",
+      "status:available"
+    ],
+    "blocked_by": []
+  },
+  "50": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "infrastructure",
+      "kind:repair",
+      "portfolio-ops",
+      "priority:high",
+      "status:available"
+    ],
+    "blocked_by": []
+  },
+  "49": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "kind:repair",
+      "portfolio-ops",
+      "security",
+      "status:available"
+    ],
+    "blocked_by": []
+  },
+  "48": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "kind:hygiene",
+      "portfolio-ops",
+      "security",
+      "status:blocked-needs-input"
+    ],
+    "blocked_by": []
+  },
+  "47": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "kind:hygiene",
+      "portfolio-ops",
+      "status:blocked-needs-input"
+    ],
+    "blocked_by": []
+  },
+  "46": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "kind:hygiene",
+      "portfolio-ops",
+      "status:blocked-needs-input"
+    ],
+    "blocked_by": []
+  },
+  "45": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "kind:protocol",
+      "on-hold",
+      "status:blocked-needs-input"
+    ],
+    "blocked_by": []
+  },
+  "44": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "auditor:proposed",
+      "kind:repair",
+      "on-hold",
+      "status:blocked-needs-input"
+    ],
+    "blocked_by": []
+  },
+  "43": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "auditor:proposed",
+      "kind:repair",
+      "on-hold",
+      "status:blocked-needs-input"
+    ],
+    "blocked_by": []
+  },
+  "42": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "auditor:proposed",
+      "kind:repair",
+      "on-hold",
+      "status:blocked-needs-input"
+    ],
+    "blocked_by": []
+  },
+  "41": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "auditor:proposed",
+      "kind:repair",
+      "on-hold",
+      "status:blocked-needs-input"
+    ],
+    "blocked_by": []
+  },
+  "40": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "kind:spec",
+      "methodology",
+      "status:blocked-needs-input"
+    ],
+    "blocked_by": [
+      39
+    ]
+  },
+  "39": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "kind:experiment",
+      "methodology",
+      "status:claimed"
+    ],
+    "blocked_by": []
+  },
+  "38": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "infrastructure",
+      "kind:repair",
+      "status:available"
+    ],
+    "blocked_by": []
+  },
+  "37": {
+    "state": "OPEN",
+    "done": false,
+    "labels": [
+      "infrastructure",
+      "kind:gate",
+      "status:available"
+    ],
+    "blocked_by": []
+  },
   "36": {
     "state": "OPEN",
     "done": false,
     "labels": [
       "infrastructure",
       "kind:defect",
-      "needs-review"
+      "needs-review",
+      "status:blocked-needs-input"
     ],
     "blocked_by": []
   },
@@ -73,12 +327,12 @@
     ]
   },
   "30": {
-    "state": "OPEN",
-    "done": false,
+    "state": "CLOSED",
+    "done": true,
     "labels": [
       "infrastructure",
       "kind:gate",
-      "status:claimed"
+      "status:done"
     ],
     "blocked_by": [
       28
@@ -90,7 +344,7 @@
     "labels": [
       "infrastructure",
       "kind:repair",
-      "status:available"
+      "status:claimed"
     ],
     "blocked_by": [
       28
@@ -132,7 +386,9 @@
     "state": "OPEN",
     "done": false,
     "labels": [
-      "infrastructure"
+      "infrastructure",
+      "kind:defect",
+      "status:claimed"
     ],
     "blocked_by": []
   },
@@ -141,7 +397,9 @@
     "done": false,
     "labels": [
       "infrastructure",
-      "needs-review"
+      "kind:defect",
+      "needs-review",
+      "status:available"
     ],
     "blocked_by": []
   },
@@ -149,8 +407,10 @@
     "state": "OPEN",
     "done": false,
     "labels": [
+      "kind:gap",
       "methodology",
-      "needs-review"
+      "needs-review",
+      "status:blocked-needs-input"
     ],
     "blocked_by": [
       22
@@ -161,6 +421,7 @@
     "done": false,
     "labels": [
       "infrastructure",
+      "kind:gate",
       "status:available"
     ],
     "blocked_by": [
@@ -171,8 +432,9 @@
     "state": "OPEN",
     "done": false,
     "labels": [
+      "kind:decision",
       "needs-review",
-      "status:available"
+      "status:blocked-needs-input"
     ],
     "blocked_by": [
       12
@@ -183,6 +445,7 @@
     "done": false,
     "labels": [
       "infrastructure",
+      "kind:gate",
       "status:available"
     ],
     "blocked_by": [
@@ -194,6 +457,7 @@
     "done": false,
     "labels": [
       "infrastructure",
+      "kind:gate",
       "status:available"
     ],
     "blocked_by": [
@@ -204,8 +468,10 @@
     "state": "OPEN",
     "done": false,
     "labels": [
+      "kind:decision",
       "methodology",
-      "needs-review"
+      "needs-review",
+      "status:blocked-needs-input"
     ],
     "blocked_by": [
       8
@@ -215,8 +481,10 @@
     "state": "OPEN",
     "done": false,
     "labels": [
+      "kind:decision",
       "methodology",
-      "needs-review"
+      "needs-review",
+      "status:blocked-needs-input"
     ],
     "blocked_by": [
       8
@@ -227,6 +495,7 @@
     "done": false,
     "labels": [
       "documentation",
+      "kind:gate",
       "status:available"
     ],
     "blocked_by": [
@@ -238,7 +507,9 @@
     "done": false,
     "labels": [
       "infrastructure",
-      "needs-review"
+      "kind:repair",
+      "needs-review",
+      "status:blocked-needs-input"
     ],
     "blocked_by": [
       10,
@@ -248,11 +519,11 @@
     ]
   },
   "14": {
-    "state": "OPEN",
-    "done": false,
+    "state": "CLOSED",
+    "done": true,
     "labels": [
       "infrastructure",
-      "status:claimed"
+      "status:done"
     ],
     "blocked_by": [
       8,
@@ -263,7 +534,9 @@
     "state": "OPEN",
     "done": false,
     "labels": [
-      "infrastructure"
+      "infrastructure",
+      "kind:gate",
+      "status:available"
     ],
     "blocked_by": [
       10,

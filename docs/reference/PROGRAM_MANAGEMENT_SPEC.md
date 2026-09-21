@@ -99,6 +99,7 @@ compose.
 | `kind:decision` | Blocked on a human judgment, no agent work available | #18 (prior-art alignment record) |
 | `kind:protocol` | Changes how work is done, not what is produced | this spec's adoption |
 | `kind:spec` | Produces a specification or contract a later task must satisfy — design **constrained**, must be written down precisely | #40 (pre-register the rung-3 statistic) |
+| `kind:hygiene` | Repo hygiene: license, metadata, community files — files that exist for readers, not for the pipeline | #46 (create `main`), #47 (LICENSE) |
 
 **`gap` versus `spec` is the distinction to get right** (DEC-035). A `gap` is work
 whose design is unsettled, so the task invites exploration. A `spec` is work whose

@@ -146,9 +146,9 @@ second among the rest — it unblocks #32 and #33.
 | Test suite | **67 passed, 1 failed** |
 | The failure | `test_real_findings_file_passes_the_registered_findings_gates` → **#25** (pre-existing, owned by that issue) |
 | **CI** | **Not wired.** No `.github/workflows/`. Gates run only when a session invokes them manually → **#13** |
-| Label hygiene | **8 open issues carry no `status:` label** (#13, #15, #17, #18, #23, #24, #25, #36) |
-| `kind:` coverage | Present on #29–#40; the eight above still need it → #29 |
-| Open issues | **22**, of which **11 are claimable** |
+| Label hygiene | **G-M1 passes: 0 findings** — the #29 backfill (run `20260921-0217-a7k4`) closed the 21 findings the cache then reported |
+| `kind:` coverage | Every open issue carries exactly one `kind:`; `kind:hygiene` added to the vocabulary by DEC-037 |
+| Open issues | **42**, of which **22 are claimable** (`status:available`) |
 
 **The gate-count discrepancy is real and has its own issue (#38).** Four documents
 say 37, `PROGRAM_MANAGEMENT_SPEC.md` says 38, and the registry says 11 wired. The

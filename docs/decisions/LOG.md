@@ -2012,3 +2012,43 @@ adds one value and removes the duplication; it does not loosen the check.
 - **Not applied retroactively:** the eleven issues carrying no kind are #29's
   backfill, and #17/#23 are left as they are (#23 is a correct gap; #17's
   relabel belongs with #29's sweep, not here).
+
+---
+
+## DEC-037 — `kind:hygiene` joins the vocabulary; the drift #46-#48 exposed
+
+**Date:** 2026-09-21 · **Status:** adopted (#29 sweep)
+
+**Decision:** the `kind:` vocabulary gains an eighth value, **`kind:hygiene`** —
+"repo hygiene: license, metadata, community files". It is added to
+`tooling/program/kind_vocabulary.txt` (the single machine-readable source per
+DEC-035) and to the section 3.1 table in `PROGRAM_MANAGEMENT_SPEC.md`. Issues
+#46, #47, and #48 are relabeled to it.
+
+**Why this needed a DEC rather than a relabel.** The same rule DEC-035 set
+governs: the vocabulary is closed, and adding a value is a vocabulary change,
+not a filing choice. The #29 backfill (run `20260921-0217-a7k4`) hit this
+directly — `tooling/program/issue_state.py set-kind` refused `kind:hygiene` for
+#46-#48 with *"kind 'kind:hygiene' is outside the vocabulary"*, because the
+label existed on GitHub and in the vocabulary the audit sweep issued but was
+never written into the single source.
+
+**What this exposed.** `kind:hygiene` is not a new invention: it is an existing
+GitHub label with a description ("Repo hygiene: license, metadata, community
+files") and was already applied to three open issues. The vocabulary file, the
+spec table, and the live label set had diverged — which is precisely the
+multi-copy drift DEC-035 removed for the *code* copies but did not close for the
+*issue* state. The setter's refusal is the check working: it declined to write a
+label it could not validate, rather than creating a silent second vocabulary.
+
+**What this does not change.** The vocabulary remains closed, and G-M1 keeps
+rejecting an unknown kind. This adds one value that was already in use; it does
+not loosen the check.
+
+**Consequences.**
+
+- `tooling/program/kind_vocabulary.txt` and the section 3.1 table both carry
+  `kind:hygiene`; the two agree, as DEC-035 requires.
+- #46-#48 carry `kind:hygiene`.
+- A future vocabulary addition still needs a DEC; this entry is the second
+  precedent, after DEC-035.
