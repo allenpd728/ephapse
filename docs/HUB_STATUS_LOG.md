@@ -50,7 +50,7 @@ One JSON object per line; append-only; never rewritten. See HuB's
 
   **To publish:** copy `status/trl.json.template` to `status/trl.json`, replace the `null`s
   with integers 0–9, and commit on this repo's tracked branch. It appears on the dashboard
-  after the next sweep (up to 30 min, plus ~5 min CDN lag). Existing characters in the log are
+  after the next sweep (nominally every 30 min, but GitHub throttles scheduled runs: observed ~7 runs/24h, median gap 2.3-2.7h, worst 6.3h; plus ~5 min CDN lag). Existing characters in the log are
   never rewritten; only new snapshots carry the values.
 
   **Candidate components for ephapse** — drawn from this repo's own docs, not invented.
