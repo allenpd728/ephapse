@@ -53,7 +53,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO = "allenpd728/ephapse"
+REPO = "philipdallen/ephapse"
 ROOT = Path(__file__).resolve().parent.parent.parent
 CACHE = ROOT / "tests" / "fixture_issue_state.json"
 

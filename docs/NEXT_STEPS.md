@@ -9,7 +9,7 @@ not to do.
 Every number here was measured, not inferred. Counts drift — issues were filed
 during earlier analyses, and a sibling session landed DEC-034 and #37/#38 while
 this document was being revised — so re-measure before acting on a count.
-`gh issue list --repo allenpd728/ephapse --state open --json number,labels` is
+`gh issue list --repo philipdallen/ephapse --state open --json number,labels` is
 the cheap check; `python3 tooling/program/issue_state.py audit` covers labels and
 dependencies.
 

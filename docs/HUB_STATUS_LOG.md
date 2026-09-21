@@ -1,7 +1,7 @@
 # HuB status log (`status_log.jsonl`)
 
 This repo publishes one append-only status snapshot per sweep. The HuB
-dashboard (https://allenpd728.github.io/HuB/) fetches
+dashboard (https://philipdallen.github.io/HuB/) fetches
 `status_log.jsonl` from this repo's `dev` branch and renders it. This repo is
 the writer; HuB only reads.
 
@@ -13,8 +13,8 @@ drift from the tracker the way a hand-maintained table does. Nothing in it is
 hardcoded.
 
 ```bash
-python3 tooling/hub_sweep.py --repo allenpd728/ephapse --dry-run   # print, write nothing
-python3 tooling/hub_sweep.py --repo allenpd728/ephapse             # append one snapshot
+python3 tooling/hub_sweep.py --repo philipdallen/ephapse --dry-run   # print, write nothing
+python3 tooling/hub_sweep.py --repo philipdallen/ephapse             # append one snapshot
 ```
 
 It is normally run by the `hub_sweep` GitHub Actions workflow on a schedule and
@@ -43,7 +43,7 @@ One JSON object per line; append-only; never rewritten. See HuB's
   a bug to work around.
 
   What each level means is defined once, for all repos, in HuB's
-  [`PM_STATUS_FRAMEWORK.md`](https://github.com/allenpd728/HuB/blob/main/PM_STATUS_FRAMEWORK.md)
+  [`PM_STATUS_FRAMEWORK.md`](https://github.com/philipdallen/HuB/blob/main/PM_STATUS_FRAMEWORK.md)
   §"What TRL means here". Read it before setting a number — in particular: rate the weakest
   real capability, a component can move *down*, and TRL measures readiness of the *piece*, not
   confidence in the research hypothesis.

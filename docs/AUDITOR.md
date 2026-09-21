@@ -149,9 +149,9 @@ appends **one** line:
 ## Running it by hand
 
 ```bash
-python3 tooling/auditor.py --repo allenpd728/<repo> --dry-run   # print findings, write nothing
-python3 tooling/auditor.py --repo allenpd728/<repo>             # do a real run
-python3 tooling/auditor.py --repo allenpd728/<repo> --force     # ignore the checkpoint
+python3 tooling/auditor.py --repo philipdallen/<repo> --dry-run   # print findings, write nothing
+python3 tooling/auditor.py --repo philipdallen/<repo>             # do a real run
+python3 tooling/auditor.py --repo philipdallen/<repo> --force     # ignore the checkpoint
 ```
 
 Tests are offline and stdlib-only:

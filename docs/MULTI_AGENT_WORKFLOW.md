@@ -27,7 +27,7 @@ re-fetch check in §Claiming has no teeth.
 ## Credentials — which token goes where
 
 Two token-shaped credentials are available in a session. Both belong to the
-same account (`allenpd728`), so neither changes *who* a push is attributed to;
+same account (`philipdallen`), so neither changes *who* a push is attributed to;
 the difference is **lifetime**.
 
 | Credential | Kind | Use it for | Notes |
@@ -40,7 +40,7 @@ the difference is **lifetime**.
 `gh` reports a 401. Never write any token into the remote URL.**
 
 Why this is written down: the clone URL as provisioned embeds a token
-(`https://<token>@github.com/allenpd728/ephapse.git`). With no
+(`https://<token>@github.com/philipdallen/ephapse.git`). With no
 `credential.helper` configured, git falls through to an interactive password
 prompt — and an agent session has no one to answer it, so the command **hangs
 rather than failing**, silently stranding committed work. Two separate tokens
@@ -53,7 +53,7 @@ the session token too.
 out of the URL and re-reads the live value from the environment on each use):
 
 ```bash
-git remote set-url origin https://github.com/allenpd728/ephapse.git
+git remote set-url origin https://github.com/philipdallen/ephapse.git
 git config credential.helper \
   '!f() { echo "username=x-access-token"; echo "password=${GITHUB_TOKEN}"; }; f'
 ```
@@ -68,10 +68,10 @@ than stopping:
 ```bash
 # git: push with the durable token in the URL for this one command
 GIT_TERMINAL_PROMPT=0 git push \
-  "https://x-access-token:${ALL_REPOs_GH_TOKEN}@github.com/allenpd728/ephapse.git" HEAD:dev
+  "https://x-access-token:${ALL_REPOs_GH_TOKEN}@github.com/philipdallen/ephapse.git" HEAD:dev
 
 # gh: GH_TOKEN takes precedence over GITHUB_TOKEN
-GH_TOKEN="$ALL_REPOs_GH_TOKEN" gh issue view <n> --repo allenpd728/ephapse
+GH_TOKEN="$ALL_REPOs_GH_TOKEN" gh issue view <n> --repo philipdallen/ephapse
 ```
 
 Then report the expiry, because a session that hit it once will hit it again.
@@ -86,7 +86,7 @@ A push that hangs on a password prompt is the failure mode to design out — it
 silently strands committed work on the local branch, which is exactly what
 "never stop on local" forbids (§1c, §5).
 
-**Testing a credential: do not trust `git ls-remote`.** `allenpd728/ephapse` is
+**Testing a credential: do not trust `git ls-remote`.** `philipdallen/ephapse` is
 **public**, so `git ls-remote` succeeds anonymously and *cannot fail* — it
 reports "OK" for a token that is already dead. A check that cannot fail is not
 a check (the repo's own rule). Test authentication with an authenticated API
@@ -95,7 +95,7 @@ call instead:
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' \
   -H "Authorization: Bearer $TOKEN" \
-  https://api.github.com/repos/allenpd728/ephapse   # 200 = valid, 401 = stale
+  https://api.github.com/repos/philipdallen/ephapse   # 200 = valid, 401 = stale
 ```
 
 ## Task states (labels)

@@ -93,7 +93,7 @@ script, not a gate: it needs a scratch remote and is too slow for CI.
 ## Rejected approach, recorded so it is not re-proposed
 
 **Distinct PATs do not help.** Measured: `GITHUB_TOKEN` and `ALL_REPOs_GH_TOKEN`
-both resolve to login `allenpd728`, id `26507447`. Separate tokens on one account
+both resolve to login `philipdallen`, id `26507447`. Separate tokens on one account
 change no API semantics — every comment, label change, and commit is authored by
 the same user. Distinct *accounts* would improve attribution but still provide no
 conditional write, so they would not prevent the race either. This is why the fix

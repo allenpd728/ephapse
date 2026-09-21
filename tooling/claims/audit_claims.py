@@ -339,7 +339,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--cache", type=Path, default=None,
                     help="pre-fetched issues JSON (offline)")
     ap.add_argument("--fetch", action="store_true", help="read live from the API")
-    ap.add_argument("--repo", default="allenpd728/ephapse")
+    ap.add_argument("--repo", default="philipdallen/ephapse")
     ap.add_argument("--run-id", default=None,
                     help="my run-id, to state whether I hold each claim")
     args = ap.parse_args(argv)

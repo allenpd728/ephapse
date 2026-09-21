@@ -26,9 +26,9 @@ docs/MULTI_AGENT_WORKFLOW.md §"Sweep stale claims"): a claim is stale when its
 newest claim comment is older than `CLAIM_STALE_AFTER` with no activity since.
 
 Usage:
-    python3 tooling/hub_sweep.py --repo allenpd728/Maith
-    python3 tooling/hub_sweep.py --repo allenpd728/Maith --dry-run
-    python3 tooling/hub_sweep.py --repo allenpd728/Maith --file /tmp/out.jsonl
+    python3 tooling/hub_sweep.py --repo philipdallen/Maith
+    python3 tooling/hub_sweep.py --repo philipdallen/Maith --dry-run
+    python3 tooling/hub_sweep.py --repo philipdallen/Maith --file /tmp/out.jsonl
 
 Exit codes: 0 wrote (or dry-run printed) a snapshot; 1 a real error.
 """
@@ -314,7 +314,7 @@ def append(path: Path, snapshot: dict) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Append a status snapshot for HuB.")
     parser.add_argument("--repo", required=True,
-                        help="owner/name, e.g. allenpd728/Maith")
+                        help="owner/name, e.g. philipdallen/Maith")
     parser.add_argument("--file", default=None,
                         help=f"log path (default: repo root / {LOG_NAME})")
     parser.add_argument("--token-env", default="GITHUB_TOKEN",

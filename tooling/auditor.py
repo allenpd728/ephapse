@@ -21,9 +21,9 @@ GitHub writes only begin once every check has completed. That gives the
 spec for the common failure mode (a check crashing mid-run).
 
 Usage:
-    python3 tooling/auditor.py --repo allenpd728/Maith --dry-run
-    python3 tooling/auditor.py --repo allenpd728/Maith
-    python3 tooling/auditor.py --repo allenpd728/Maith --force   # ignore checkpoint
+    python3 tooling/auditor.py --repo philipdallen/Maith --dry-run
+    python3 tooling/auditor.py --repo philipdallen/Maith
+    python3 tooling/auditor.py --repo philipdallen/Maith --force   # ignore checkpoint
 
 Exit codes: 0 = ran or skipped cleanly; 1 = real error (checkpoint not advanced).
 """
@@ -307,7 +307,7 @@ def check_gate_health(root: Path) -> list[Finding]:
 
 # A reference introduced by another repo's name is a cross-repo citation
 # ("Maith `EXPERIMENT_MEASUREMENT.md`"), not a path this repo ever owned.
-SIBLING_REPOS = ("Maith", "PleaNP", "ephapse", "Ephapse", "muse", "HuB",
+SIBLING_REPOS = ("Maith", "PleaNP", "ephapse", "Ephapse", "muse", "rubato", "HuB",
                  "mathlib", "Mathlib", "upstream", "sibling")
 
 

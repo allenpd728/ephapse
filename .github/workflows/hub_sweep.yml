@@ -1,7 +1,7 @@
 name: hub_sweep
 
 # Appends one status snapshot to status_log.jsonl for the HuB dashboard
-# (https://allenpd728.github.io/HuB/). See docs/HUB_STATUS_LOG.md.
+# (https://philipdallen.github.io/HuB/). See docs/HUB_STATUS_LOG.md.
 #
 # This repo is the writer; HuB only reads. Nothing here writes to any other
 # repo — the log is this repo's own file, on this repo's own branch, so there
