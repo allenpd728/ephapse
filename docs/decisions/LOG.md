@@ -2052,3 +2052,52 @@ not loosen the check.
 - #46-#48 carry `kind:hygiene`.
 - A future vocabulary addition still needs a DEC; this entry is the second
   precedent, after DEC-035.
+
+---
+
+## DEC-038 — `flow.blocked` is scoped to human-blocking work; definitions move to a contract
+
+**Date:** 2026-09-21 · **Status:** adopted
+
+**Decision:** the `flow.blocked` field published to the HuB dashboard no longer
+counts every issue labelled `status:blocked-needs-input`. It excludes `on-hold`
+and `auditor:*` — the audit queue — which are now published separately as
+`flow.janitorial`. Field definitions become owned by a versioned contract in the
+private `portfolio-ops` repo (`METRIC_CONTRACT.md` v1), and this repo's
+`hub_sweep.py` defers to it.
+
+**What forced it.** At 2026-09-21T04:28 five issues (#41–#45, four of them
+`[auditor:doc-count-drift]` bookkeeping, all `on-hold`) were relabelled
+`status:blocked-needs-input`. The 07:47 sweep then published
+`blocked_ratio: 0.4146` — above the `index.html` crit threshold of `0.40`, so a
+public rose flag — where the previous sweep had read `0.0714`. Nothing about the
+program had changed. The metric was honest about the labels and wrong about the
+program, and a janitorial relabel was enough to move it.
+
+**Why a contract rather than a patch.** This is the failure DEC-035 and DEC-037
+both circled: a definition that lived only in code, with no single owner and no
+stated change process, so nothing distinguished "the program got worse" from
+"someone retagged the audit queue". `PM_STATUS_FRAMEWORK.md` defines `trl`
+rigorously and left `flow` largely undefined; that asymmetry is what allowed it.
+The contract fixes a single definition per published field, names who may change
+it, and makes a definition change a two-part act (contract bump plus a DEC), never
+a code edit alone.
+
+**The second defect this exposed.** The sweep was already publishing
+`needs_review` (7 in this repo) and `index.html` never rendered it, while the
+page's `?? 0` fallbacks turned any unmeasured field into a published `0` —
+directly against the sweep's own rule that an absent field is a true statement and
+a zero is often false. Both are fixed in the same change.
+
+**Consequences.**
+
+- `flow.blocked` reads 12 for this repo, not 17; `blocked_ratio` 0.2927, not
+  0.4146. `flow.janitorial` carries the 5.
+- `status_log.jsonl` is append-only, so this appears as a visible discontinuity in
+  the trend chart, marked at the definition change. No historical line was
+  rewritten and none may be.
+- A future change to a published field's meaning needs a contract version bump and
+  an entry here.
+- The metric remains imperfect in the same direction it always was: `open_total`
+  stays inclusive, so a repo with many audit issues can *understate* its blocked
+  ratio rather than overstate it. That is the deliberate direction of the error.
