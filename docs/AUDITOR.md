@@ -10,6 +10,10 @@ action on its own.** Every finding is a proposal held for review.
   no token cost per run, nothing to hallucinate. Every finding is a mechanical
   fact about the tree. This is a deliberate choice: the checks below are all
   decidable by inspection, and a deterministic run is safe to re-trigger.
+  (The one network call it makes — the OSV.dev advisory lookup — is a single
+  read-only `POST` to a public API. It sends package names and versions from
+  `requirements.txt` and nothing else, and if it cannot run, that is *reported*
+  rather than silently skipped.)
 - **Not a fixer.** It never edits code, merges, closes, or resolves anything.
 - **Not a second tracker.** It opens proposals and a digest; it does not move
   work through the pipeline.
@@ -49,6 +53,49 @@ exits without creating anything** — no issue, no comment, no status line.
   count is often genuinely tiered.
 - **`status-log-contract`** — this repo's own `status_log.jsonl` must stay
   parseable for the dashboard that reads it.
+- **`stale-owner-ref`** — references to a *retired* account/repo slug surviving
+  outside the frozen record. The project's GitHub account has been renamed, and a
+  clone URL, `--repo` example, or prose sentence still naming the previous slug is
+  a live contradiction that tells a reader or an agent to use an address that no
+  longer resolves. The retired slug list lives in `RETIRED_OWNER_SLUGS` at the top
+  of `tooling/auditor.py` — it is not repeated here, because this file is itself
+  scanned (see below). Frozen logs (`docs/decisions/`, `docs/history/`) are
+  excluded by design: they record the slug as it was at the time, and rewriting
+  them would make them false. Only slugs *known* to have been retired are listed,
+  because flagging "any slug that is not the current owner" would fire on the
+  third-party projects these docs legitimately cite.
+
+### Security
+
+- **`committed-secret`** — credential-shaped strings in files git tracks.
+  High-confidence shapes only (private-key blocks, AWS access-key ids, and the
+  vendor-prefixed token formats `ghp_`/`github_pat_`/`xox`/`AIza`/`sk-`/`hf_`). A
+  scanner that fires on prose, or on the example keys vendored into a lockfile, is
+  a scanner a human learns to skip. The matched value is **never** reproduced in
+  the issue: these issues are public, and echoing a live credential would complete
+  the leak the check exists to catch. The finding says rotate first, because
+  deleting the line does not remove it from history.
+- **`workflow-hardening`** — GitHub Actions workflows that are under-hardened,
+  by three mechanical rules:
+  - **no top-level `permissions:`** — the job runs with the repository's *default*
+    token scope, so every step (including one executing a third-party action)
+    inherits whatever that is. A step-scoped `permissions:` does not satisfy this;
+    it is the job-level default that decides what the token may do.
+  - **untrusted interpolation into `run:`** — a PR title, branch name, or workflow
+    input substituted directly into a shell command is code execution. Only `run:`
+    blocks are inspected: `${{ ... }}` in an `env:` or `with:` value is the
+    *remedy*, so flagging it would punish the correct pattern and bury the real
+    finding.
+  - **`checkout` of a PR head ref** — the `pull_request_target` anti-pattern, where
+    a privileged workflow executes the contributor's code with the base repo's
+    credentials.
+- **`dependency-advisory`** — known advisories against `requirements.txt` pins,
+  via the public [OSV.dev](https://osv.dev) batch API. Chosen over the GitHub
+  advisory APIs because those are entitlement-gated (they return `403` for these
+  repos), while OSV needs no auth and no GitHub Advanced Security. Three outcomes:
+  advisories found → one finding; queried and clean → silent; **query unavailable
+  → a reported Catch-all finding**, because an unavailable check and a clean repo
+  must not look the same.
 
 ### Detailed level — bugs and hygiene
 
@@ -69,7 +116,10 @@ exits without creating anything** — no issue, no comment, no status line.
 
 Anything that fits none of the above, plus a `check-crashed` finding when a check
 itself raises. A crashed check is reported rather than swallowed, because a check
-that silently stops running looks identical to a clean repo.
+that silently stops running looks identical to a clean repo. The same rule covers
+the advisory lookup: if OSV.dev is unreachable, that is a Catch-all finding, not
+an empty result. A check that *cannot provide an answer* and a check whose answer
+is *"nothing wrong"* are different states, and the audit refuses to conflate them.
 
 ## The `on-hold` states, and how to approve a proposal
 
@@ -111,10 +161,10 @@ the finding body, re-wording a finding does not create a second issue.
 ## Daily digest
 
 One issue per day, titled `Auditor digest — YYYY-MM-DD`, labeled `on-hold`. It
-contains the commit range covered, findings bucketed by the three categories
-above, and links to every issue opened or commented on in that run. If a digest
-for the day already exists, the new run comments on it rather than opening a
-second.
+contains the commit range covered, findings bucketed by category (Architecture &
+drift, Security, Bugs & hygiene, Catch-all), and links to every issue opened or
+commented on in that run. If a digest for the day already exists, the new run
+comments on it rather than opening a second.
 
 ## What it writes to `status_log.jsonl`
 
@@ -150,9 +200,18 @@ appends **one** line:
 
 ```bash
 python3 tooling/auditor.py --repo philipdallen/<repo> --dry-run   # print findings, write nothing
+python3 tooling/auditor.py --repo philipdallen/<repo> --json      # machine-readable, write nothing
 python3 tooling/auditor.py --repo philipdallen/<repo>             # do a real run
 python3 tooling/auditor.py --repo philipdallen/<repo> --force     # ignore the checkpoint
 ```
+
+`--json` emits the same findings as a structured object on stdout
+(`{sha, audited_at, commits, finding_count, findings[]}`, each finding carrying
+its stable `signature`). Like `--dry-run` it is strictly read-only — no issues,
+no labels, no status line, and no checkpoint advance — so it is always safe to
+call from a tool, a test, or an agent. It exists so the audit output can be
+*consumed* rather than only read: a wrapper can diff one run against the next
+without parsing the human-facing digest.
 
 Tests are offline and stdlib-only:
 
@@ -184,3 +243,41 @@ Recorded rather than decided silently:
   reliably needs an LLM's judgement about whether an existing issue is *stale or
   wrong*. It is implemented so that adding such a check is a one-line registry
   change, and left honestly unused rather than filled with a guess.
+
+### Interpretations specific to the security and consistency checks
+
+- **"Security review" means the free, entitlement-independent layer.** Two classes
+  of tooling were available and only one was usable here. GitHub's own code
+  scanning, secret scanning, and Dependabot *alert* APIs are gated behind GitHub
+  Advanced Security and returned `403` for these repos, so relying on them would
+  have produced a check that silently never ran. The checks instead do the work
+  they can do deterministically and locally (workflow hardening, credential
+  patterns) and use a *public* advisory source (OSV.dev) for the one question that
+  genuinely needs an external database.
+- **Static analysis tooling (CodeQL, Semgrep) was deliberately not adopted.** It is
+  a real capability, but it is heavy, needs per-repo workflow changes, and its
+  output is a second finding stream to triage. That is a separate decision from
+  this component, and the honest place to make it is on its own merits rather than
+  folded into a daily audit. The same reasoning applies to AI/LLM PR reviewers:
+  they are the right tool for the subjective layer this design explicitly declines
+  to fake, and they should be adopted as their own component if wanted, not
+  smuggled in as a "check".
+- **`RETIRED_OWNER_SLUGS` is a hardcoded list, not a derived one.** The check can
+  only know a slug *was* an address by being told. Deriving it ("flag anything that
+  is not the current owner") was rejected because it fires on every third-party
+  project these docs legitimately cite. When an account or repo is next renamed,
+  add the old slug here — that is a one-line change, and the alternative is a check
+  that trades precision for the illusion of automation.
+- **The secret scan is a backstop, not a substitute for the platform feature.**
+  It reads tracked files only, skips files over 2 MB and known lockfiles, and does
+  not walk commit history the way a purpose-built tool does. Its value is that it
+  runs with no entitlement; its limit is recorded here so nobody reads a clean
+  result as "no secret has ever been committed".
+- **The dependency check sends only names and versions.** It does not upload code
+  or the lockfile, and it fails *loudly* (a Catch-all finding) rather than quietly
+  when the API is unreachable. If a policy decision is ever made that no outbound
+  request is acceptable from the auditor, `check_dependency_advisories` is one
+  registry line to remove and the rest of the audit is unaffected.
+- **The OSV query is dependency-injected (`query=osv_query`)** purely so the tests
+  can exercise all three branches — advisories, clean, unavailable — without
+  network access. The production default is the real API.
