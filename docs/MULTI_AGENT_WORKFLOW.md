@@ -158,6 +158,51 @@ too, because the loss mode is identical.
    and would otherwise wake on agent output and spend an entire run deciding to
    do nothing. Omitting it costs a run.
 
+## Writing for the human reviewer
+
+Most issues are resolved without the human reading anything, but every so often
+one stops and waits for a person. When that happens, write for someone who has
+not read the thread. Two conventions make the human's queue scannable without
+anyone spending an agent run to summarise it.
+
+**1. `NEEDS:` — open every `status:blocked-needs-input` comment with it.**
+
+The comment's **first line** must be a single self-contained statement of the one
+thing a human must decide or provide:
+
+```
+NEEDS: choose whether the detector statistic is re-derived per-rung or once
+globally — DEC-030 implies per-rung but the ledger records a single value.
+```
+
+Rules for that line:
+
+- One decision or one piece of information. Not two.
+- Self-contained: it must make sense to a reader who has read nothing else.
+  A pointer ("see above", "as discussed") is not a `NEEDS:` line.
+- Say what you already know and where the ambiguity is, so the human can answer
+  in one message rather than asking a clarifying question.
+
+This is what makes the whole blocker queue readable in one command — see
+`needs-audit.sh` in this repo's tooling, or the recipe in
+`automations/HUMAN_REVIEW.md`. A blocked comment without a `NEEDS:` line is
+considered incomplete.
+
+**2. "Not in my lane" — one line on your final comment, when you saw something.**
+
+When a run finishes, if while working it noticed something outside its own task
+that it did **not** act on, append one line:
+
+```
+Not in my lane: ephapse #21 needs a dependency decision; PleaNP #96 looks like
+a duplicate of #77.
+```
+
+Only if true — never manufacture items to fill it. This costs nothing beyond a
+line on a comment already being written, and it makes the human's periodic scan
+surface cross-cutting problems that no single task owns. It is **not** a sweep:
+do not go looking for things to report, and never let it extend a run.
+
 **One task = one signal.** Every task's Definition of Done names a single
 observable check that turns green only when the task is genuinely finished.
 That check **must be demonstrably able to fail** — a check that cannot fail
