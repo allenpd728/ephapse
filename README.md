@@ -110,6 +110,42 @@ vocabulary that cannot tell them apart at a glance will keep costing the
 rediscovery — which is what DEC-023 and DEC-024 record
 (`docs/reference/PROGRAM_MANAGEMENT_SPEC.md` §3.2).
 
+## The guardrail: classifying a negative before it propagates
+
+The two-tier layer is a **validation gate that sits between a measurement and
+the decision it feeds**. Its job is not to judge whether a result is
+interesting — it is to stop a number from travelling any further until a
+machine has said *which kind of negative it is*.
+
+Concretely, every measurement that comes out of this pipeline is placed in one
+of two categories before anyone acts on it:
+
+- **`instrument-failed`** — the measuring pipeline itself is broken. The
+  number does not mean what it appears to mean, and must not be trusted. This
+  is an internal fault to be fixed, not evidence about the world.
+- **`phenomenon-null`** — the measuring pipeline is known to be working, and
+  the answer is genuinely *no*. The thing being looked for is simply not
+  there at this scale.
+
+In a plain log both read "no significant result", and that is exactly the
+failure the gate exists to prevent: acting on the first as though it were the
+second is how a broken instrument gets quietly recorded as a scientific fact,
+and acting on the second as though it were the first is how a real negative
+gets dismissed as a bug.
+
+**Why this is what makes a negative result actionable.** A `phenomenon-null`
+is only usable — as a published finding, as a reason to change direction, as
+evidence in a larger argument — if it is backed by a demonstrated sensitivity
+floor: a check showing that if the phenomenon *had* been present, the pipeline
+would have seen it. The gate produces that backing mechanically. So a negative
+that passes the gate is a real answer that a human can act on, while one that
+fails it is a to-do item for the pipeline. The distinction is what turns "we
+found nothing" from a dead end into a decision.
+
+This is a pre-production discipline borrowed from operations, not a statement
+about research epistemology: classify the output before it propagates, so the
+downstream consumer never has to guess what "no result" meant.
+
 ## What this project is not
 
 - **Not a fork or extension of Maith.** Different substrate, different
