@@ -598,8 +598,25 @@ def test_g_p2_is_right_in_both_directions_on_strings_vs_ids():
     substring test would fire. Both fixtures are drawn from the real tokenizer;
     `token_ids_for` is the only path that downloads, and it is used here rather
     than on the gate path.
+
+    **Tier 1, not tier 0.** This is the one test in the suite that downloads a
+    tokenizer, so it cannot run in the tier-0 CI job (issue #13's method
+    constraint: no torch, no model, no network). `importorskip` makes that
+    explicit and skips cleanly rather than failing the job.
+
+    Recorded as a known gap rather than hidden: this test is therefore NOT
+    enforced in CI. Spec §10 Q2 raises the fix — commit the token-id sets as
+    evidence and re-verify only when they change — which would make it tier 0.
+    That is a design decision for a follow-up, not something to fake here.
     """
-    import check_prompt_disjointness as C
+    C = pytest.importorskip(
+        "check_prompt_disjointness",
+        reason="tier-1 test: needs the transformers tokenizer (no network in tier 0)",
+    )
+    pytest.importorskip(
+        "transformers",
+        reason="tier-1 test: the real tokenizer is a download; tier 0 forbids network",
+    )
     unhappy, happy = C.token_ids_for(["unhappy"]), C.token_ids_for(["happy"])
     assert unhappy & happy, "expected a shared subword id for unhappy/happy"
 

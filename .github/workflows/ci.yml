@@ -1,0 +1,219 @@
+name: CI
+
+# Tier-0 validation on `dev`. Wires the gate suite and the stdlib test suites
+# into GitHub Actions so the validation layer stops depending on an agent
+# remembering to run it (issue #13).
+#
+# WHY THIS FILE EXISTS
+#
+# Before it, every check in this repo was run by an agent, on its honour. The
+# gate harness (`tooling/gates/run_all.py`) already enforced that each *gate*
+# ships a fixture proving it can fail -- but nothing enforced that the harness
+# itself ever ran. A green gate suite that only runs when someone remembers is
+# the same class of artifact the gates exist to catch: plausible, and unverified.
+# The same was true of `tooling/tests/`: 74 auditor tests and a hub_sweep suite
+# that no CI ever executed, so a broken check would have reported "no findings"
+# and been indistinguishable from a clean repo.
+#
+# TIER 0 ONLY
+#
+# No torch, no model, no GPU, no secrets. `requirements.txt` is deliberately NOT
+# installed: every job below is stdlib-only, and installing the ML stack would
+# break the tier-0 guarantee that this suite is cheap and deterministic. Anything
+# needing a model is tier 1 and does not belong here.
+#
+# A GREEN RUN HERE IS NECESSARY, NOT SUFFICIENT
+#
+# It means the artifacts are internally consistent, the gates can be shown to
+# fire, and the code-level tests pass. It does not mean a detector measures what
+# it claims -- that is tier 1, and beyond tier 1 it is the human's. Treating a
+# green tier-0 run as "validated" is itself the integrity hole the gates exist to
+# close (docs/reference/TEST_VALIDATION_SPEC.md §3, §4).
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+  workflow_dispatch: {}
+
+# Least privilege: every job only reads the checkout. Declared explicitly rather
+# than left to the default, so the token's reach is a reviewable line rather than
+# an inherited default that changes when GitHub changes it.
+permissions:
+  contents: read
+
+concurrency:
+  # Supersede an in-flight run for the same ref: this suite is read-only and
+  # cheap, and queueing runs behind each other only delays the signal.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    name: Tier-0 gates (fixtures prove each can fail)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # G-E6 (append-only) reads a committed high-water mark rather than
+          # history, so a shallow clone is sufficient and no `fetch-depth: 0`
+          # is needed. Recorded here because spec §10 Q4 asks which was chosen.
+          fetch-depth: 1
+
+      # The runner proves, per gate, that it is silent on the clean fixture AND
+      # fires on its failing fixture. A gate that cannot be shown to fire is
+      # reported BROKEN and fails this step -- so this step failing is itself a
+      # useful signal, not just "something is wrong".
+      - name: Run the gate suite
+        run: |
+          set -e
+          python3 tooling/gates/run_all.py
+
+      # Deleting a failing fixture must turn its gate BROKEN. This is the
+      # harness's own load-bearing property (spec §4): if the runner cannot
+      # detect a missing fixture, its PASS means nothing. Checked in CI rather
+      # than trusted, because it is exactly the assertion that was vacuous the
+      # first time it was written by hand in Maith.
+      - name: Prove the fixture rule still detects a removed fixture
+        run: |
+          set -e
+          FIXTURE=tooling/gates/tests/fixtures/requirements/unpinned.txt
+          cp "$FIXTURE" /tmp/unpinned.bak
+          # Restore on every exit path, so this step is idempotent and safe to
+          # reorder: the gate suite must still find its fixture afterwards.
+          trap 'cp /tmp/unpinned.bak "$FIXTURE"' EXIT
+          rm "$FIXTURE"
+          if python3 tooling/gates/run_all.py --gate G-R3 > /tmp/broken.log 2>&1; then
+            echo "::error::G-R3 still passed with its failing fixture removed —"
+            echo "the fixture rule is vacuous and a PASS means nothing"
+            cat /tmp/broken.log
+            exit 1
+          fi
+          grep -q BROKEN /tmp/broken.log || {
+            echo "::error::G-R3 failed for the wrong reason (not BROKEN):"
+            cat /tmp/broken.log
+            exit 1
+          }
+          echo "fixture rule verified: removing the failing fixture turns G-R3 BROKEN"
+
+  tests:
+    name: Stdlib test suites
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # pytest is the ONE dependency this workflow installs. It is the only
+      # non-stdlib package the tier-0 suite needs: `tooling/gates/tests/` is a
+      # pytest suite. `requirements.txt` is still deliberately not installed --
+      # torch would break the tier-0 guarantee (issue #13's method constraint).
+      - name: Install pytest (the only dependency)
+        run: python3 -m pip install --quiet pytest
+
+      # The harness's own tests. These are the load-bearing ones: they assert
+      # that every gate fires on its failing fixture, that BROKEN is reachable
+      # in all three of its ways, and that the real tree's state is what the
+      # docs claim. `-rs` reports which tests skipped, so a tier-1 test cannot
+      # silently vanish from the run.
+      - name: Gate harness tests
+        run: python3 -m pytest tooling/gates/tests/ -q -rs
+
+      # Both suites are offline and stdlib-only, and both print PASS/FAIL per
+      # test and exit non-zero on any failure.
+      - name: Auditor tests (74)
+        run: python3 tooling/tests/test_auditor.py
+
+      - name: Hub-sweep tests
+        run: python3 tooling/tests/test_hub_sweep.py
+
+      # A test that only passes from the repo root is not a test: the outcome
+      # would depend on the caller's cwd rather than on the code. This bit
+      # `test_hub_sweep.py`, which passed from /tmp and failed from the repo
+      # root because it passed `Path(".")` where a tmp_path belonged. Running
+      # the suites from a foreign cwd pins that class of bug shut.
+      - name: Both suites are cwd-independent
+        run: |
+          set -e
+          cd /tmp
+          python3 "$GITHUB_WORKSPACE/tooling/tests/test_auditor.py"
+          python3 "$GITHUB_WORKSPACE/tooling/tests/test_hub_sweep.py"
+
+      # The auditor's own tests must be able to fail, and for the RIGHT reason.
+      # If a check were silently broken, this suite would pass and the daily
+      # audit would report a clean repo -- the failure mode this job exists to
+      # make impossible.
+      - name: Auditor tests can fail (mutation check)
+        run: |
+          set -e
+          # Blind one check's detection predicate in a copy of the tree, and
+          # require the suite to notice. Never mutates the checkout in place.
+          #
+          # `mktemp -d`, not a fixed path: `cp -r "$GITHUB_WORKSPACE" /tmp/mutated`
+          # nests inside the directory when it already exists, so a re-run would
+          # silently read a stale already-mutated copy and report "could not
+          # locate the pattern to mutate" -- a failure unrelated to what this step
+          # tests. A fresh directory each time makes the step idempotent.
+          MUT=$(mktemp -d)
+          trap 'rm -rf "$MUT"' EXIT
+          cp -r "$GITHUB_WORKSPACE"/. "$MUT"/
+          cd "$MUT"
+          python3 - <<'PY'
+          import ast, pathlib, sys
+          p = pathlib.Path("tooling/auditor.py")
+          src = p.read_text()
+          # Blind the committed-artifact scanner's extension list while staying
+          # valid Python. The scanner remains wired and still runs; it just
+          # silently finds nothing -- the "plausible artifact from an unchecked
+          # process" shape. `test_tracked_artifact_detected` plants a committed
+          # `.DS_Store`, so an empty pattern list is exactly the condition it
+          # exists to catch.
+          #
+          # The mutation must parse. The first version of this check produced a
+          # syntax error, so the suite exited non-zero for a reason unrelated to
+          # detection and the check would have "passed" while proving nothing --
+          # the same vacuity the gate fixture rule exists to catch. Hence the
+          # explicit ast.parse guard below.
+          old = 'patterns = (".DS_Store", "Thumbs.db", ".pyc", ".pyo", ".orig", ".rej", ".swp")'
+          if old not in src:
+              sys.exit("could not locate the artifact pattern list to mutate")
+          mutated = src.replace(old, "patterns = ()", 1)
+          if mutated == src:
+              sys.exit("mutation was a no-op")
+          ast.parse(mutated)   # a mutation that cannot import proves nothing
+          p.write_text(mutated)
+          PY
+          if python3 tooling/tests/test_auditor.py > /tmp/mutated.log 2>&1; then
+            echo "::error::the auditor suite passed with the artifact scanner blinded —"
+            echo "the tests do not actually constrain the checks they describe"
+            tail -20 /tmp/mutated.log
+            exit 1
+          fi
+          # ...and it must fail on the tests that constrain the mutated pattern,
+          # not on an unrelated error. A non-zero exit is not by itself evidence.
+          grep -q "test_tracked_artifact_detected" /tmp/mutated.log || {
+            echo "::error::the suite failed, but not on the test that constrains"
+            echo "the mutated check — the mutation did not isolate what it claims to"
+            tail -20 /tmp/mutated.log
+            exit 1
+          }
+          echo "auditor suite correctly failed on the blinded-artifact-scanner tests"
+
+  # Maith's formulation, adopted verbatim: a tier-0 pass is not "gate passed".
+  # This job exists so the summary cannot be read as more than it is.
+  summary:
+    name: State the limit of a green run
+    runs-on: ubuntu-latest
+    needs: [gates, tests]
+    steps:
+      - run: |
+          cat <<'EOF'
+          Tier-0 validation passed.
+
+          This means: the artifacts are internally consistent, every gate can be
+          shown to fire on its failing fixture, and the code-level test suites pass.
+
+          This does NOT mean: that any detector measures what it claims. That is
+          tier 1 (requires the probed model) and, beyond tier 1, the human's.
+
+          A green run here is necessary, not sufficient.
+          EOF
