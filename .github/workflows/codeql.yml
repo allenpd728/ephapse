@@ -1,0 +1,48 @@
+name: CodeQL
+
+# Static analysis. Until this existed, the portfolio's SAST reading was 0 on every
+# repo not because the code was clean but because no scanner was configured — an
+# absent measurement, not a passing one.
+#
+# Free for public repositories. Python is the only scanned language; the Lean
+# proofs in Maith and PleaNP are out of CodeQL's scope and are covered by their
+# own toolchains.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Off-the-hour to avoid the top-of-hour scheduling rush.
+    - cron: "41 4 * * 1"
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze Python
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+          # security-and-quality, not just security-extended: it adds the
+          # maintainability queries, which is the point for a portfolio repo.
+          queries: security-and-quality
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"
