@@ -28,17 +28,18 @@ it publicly; note it in your run output so it can be routed.
 
 ## Branches
 
-`dev` is the working branch and the GitHub default — every commit lands here, and this is
-the branch visitors and all tooling read. There is no `main`.
+There is one branch: **`main`**, the working branch and the GitHub default. Every commit
+lands here, and it is the branch visitors and all tooling read. (It was named `dev`; the
+owner renamed it to `main` on 2026-09-22 so the portfolio converges on one convention.)
 
-If a `main` is ever created it is a **milestone marker**, per the portfolio branch policy
-(`portfolio-ops` `OPERATING_CADENCE.md` §5): promoted from `dev` deliberately at a
-milestone, then left to sit still. It is not a working branch, and creating one is an
-owner decision — a `main` that immediately sits stale is worse than no `main`.
+A second branch would be a **milestone marker**, per the portfolio branch policy
+(`portfolio-ops` `OPERATING_CADENCE.md` §5): promoted deliberately at a milestone, then
+left to sit. There is none today, and creating one is an owner decision.
 
-**Edit workflows on `dev`.** A `schedule:` trigger fires only from the default branch,
-which is `dev` here, so a workflow on any other branch will not run.
-
+**Edit workflows on `main`.** A `schedule:` trigger fires only from the default branch, so
+a workflow on any other branch will not run. This is also why the workflows carry
+`ref: main` and `git push origin main` — when the branch was renamed, those references had
+to move with it or the sweep would fail to check out.
 
 ## Project overview
 
@@ -49,8 +50,8 @@ generator* for mathematical hypotheses.
 
 - **Substrate:** model weights and activations (not Lean terms).
 - **Toolchain:** Python / PyTorch — TransformerLens, SAELens, Neuronpedia.
-- **Single active branch:** `dev`, which is also the GitHub default. See the Branches note
-  below before creating any other branch.
+- **Single active branch:** `main` — working branch and GitHub default (renamed from `dev`).
+  See the Branches note above before creating any other branch.
 - **Status:** proof-of-concept. The detector is validated against an injected positive
   control; a probe found a weak bridging signal; the general cross-domain probe returned
   a **clean null** at 70M. No co-activation event has been human-reviewed.
