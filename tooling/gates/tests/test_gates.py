@@ -1042,3 +1042,51 @@ def test_g_m1_fires_on_an_out_of_vocabulary_kind():
     status, findings = V.check_label_cardinality(tmp)
     assert status == "FAIL", f"expected FAIL, got {status}"
     assert any("not a known kind" in f for f in findings), findings
+
+
+# --------------------------------------------------- G-R4 docs coherence (#20)
+import check_docs_coherence as D  # noqa: E402
+
+_DOC_FIX = R.FIXTURES / "docs_coherence"
+
+
+def test_docs_coherence_g_r4_is_registered_and_declares_both_fixtures():
+    gate = next(g for g in R.REGISTRY if g.id == "G-R4")
+    assert gate.clean_fixture == "docs_coherence/coherent"
+    assert gate.failing_fixture == "docs_coherence/contradictory_current"
+
+
+def test_docs_coherence_g_r4_is_silent_on_the_coherent_fixture():
+    assert D.gate_r4(_DOC_FIX / "coherent") == []
+
+
+def test_docs_coherence_g_r4_fires_on_the_contradictory_current_fixture():
+    findings = D.gate_r4(_DOC_FIX / "contradictory_current")
+    assert findings, "the failing fixture must produce a finding"
+    assert any("target-model-id" in f for f in findings), findings
+    assert any("no-pythia-160m-sae" in f for f in findings), findings
+
+
+def test_docs_coherence_g_r4_passes_a_corrected_history_entry():
+    """The false-positive guard: a DEC entry that *records* a withdrawn value.
+
+    DEC-010/014/015 all document superseded claims. A gate that fires on the
+    history of a correction is unusable — this is the design difficulty the
+    issue names, not an edge case.
+    """
+    findings = D.gate_r4(_DOC_FIX / "corrected_history")
+    assert findings == [], f"corrected history must pass: {findings}"
+
+
+def test_docs_coherence_g_r4_requires_both_a_160m_reference_and_a_positive_existence_claim():
+    """A legitimate mention of 160M (measurement, or a negated release) is silent."""
+    assert D._no_160m_sae_findings("Baseline: Pythia-160M peak RSS 2.68 GB") == []
+    assert D._no_160m_sae_findings("There is no Pythia-160M SAE release.") == []
+    fires = D._no_160m_sae_findings("Use the pythia-160m-sae release for all runs.")
+    assert fires, "a positive existence claim about a 160M SAE must fire"
+
+
+def test_docs_coherence_g_r4_real_tree_is_coherent():
+    """The gate over the four obliged docs — the sweep Step 1b automates."""
+    assert D.main() == 0, "the real docs contradict a settled fact"
+
