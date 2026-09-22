@@ -76,6 +76,40 @@ machinery is proposed by this framing. The layer's 38 specified gates and their
 fixtures already exist; the change is that they are described as an output rather
 than as scaffolding.
 
+## How a task moves through the pipeline
+
+The lifecycle in one picture. It is the same for every task: a run takes the
+claim lock, produces an artifact, and the artifact must survive the validation
+layer before a human sees it. The two failure branches are not edge cases —
+distinguishing them is the whole point of the layer.
+
+```mermaid
+flowchart TD
+    A[Task: status:available] --> B[Agent run takes claim lock]
+    B --> C[Artifact produced: code, finding, doc]
+    C --> D{Gates 1..N}
+    D -->|gate cannot fire| E[instrument-failed<br/>apparatus broken - do not trust the number]
+    D -->|all gates pass| F[Verdict recorded]
+    F --> G{What did the measurement find?}
+    G -->|nothing, apparatus known good| H[phenomenon-null<br/>real measurement - the answer is no]
+    G -->|something, at its rung| I[phenomenon-present<br/>candidate, not a discovery]
+    E --> J[Human review]
+    H --> J
+    I --> J
+    J --> K{Accept?}
+    K -->|yes| L[status:done on dev]
+    K -->|no| M[Rejection: follow-up task filed]
+    M --> A
+```
+
+Read the two middle branches together. `instrument-failed` and
+`phenomenon-null` both read "no significant result" in a log and mean opposite
+things: the first says the pipeline is broken and the number should not be
+trusted, the second says the pipeline works and the answer is genuinely no. A
+vocabulary that cannot tell them apart at a glance will keep costing the
+rediscovery — which is what DEC-023 and DEC-024 record
+(`docs/reference/PROGRAM_MANAGEMENT_SPEC.md` §3.2).
+
 ## What this project is not
 
 - **Not a fork or extension of Maith.** Different substrate, different
