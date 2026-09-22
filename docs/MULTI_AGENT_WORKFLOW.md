@@ -220,6 +220,39 @@ lineages. A task becomes `available` only when **every** issue blocking it
 is `status:done`. Within a lineage, only one task is ever available at a
 time.
 
+## Emergent requirements
+
+Discovery-during-work is the normal case in an exploratory program, not an
+exception. `#23`, `#24`, and `#25` were all discovered mid-task, filed ad hoc
+with no shared shape, and only `#23` was labelled as what it was. This section
+makes that path first-class. It transcribes
+`docs/reference/PROGRAM_MANAGEMENT_SPEC.md` §6.
+
+**When an agent discovers something outside its claimed task's scope:**
+
+1. **Do not fix it in the claimed task.** Scope creep inside a claim is what
+   makes a done comment unverifiable. `#24` found holes in `#11`'s work *after*
+   `#11` closed; fixing them inside `#11` would have made `#11`'s evidence
+   unreviewable.
+2. **File it before closing the claimed task**, search-then-file — file, then
+   search again for a twin with a lower number and close yours if one exists
+   (§2a, unchanged).
+3. **Give it a `kind:` label per spec §3.1.** A hole in shipped work is
+   `kind:defect`, not `kind:gate`. A newly-needed capability is `kind:gap`.
+4. **Record it in the claimed task's ledger entry** under `emergent`.
+5. **State the blocking relationship honestly.** If the discovery blocks the
+   claimed task, or another live task, say so and use a native dependency link.
+   If it does not, say that too. `#24` is the worked example of both halves: it
+   does **not** block `#11` (which had already closed and whose work it
+   corrects), but it **does** block `#15`, because `#15` cannot honestly repair
+   the artifact tree while the gate it repairs against has two false-negative
+   holes. A discovery's blocking edge is often to a *later* task, not to the one
+   that surfaced it — which is precisely why it must be written down.
+
+**The rule that makes this affordable:** an agent filing an emergent issue does
+**not** have to solve it. The discovery is the deliverable. A filed-and-labelled
+issue with a reproduction is a complete contribution.
+
 ## Claiming protocol
 
 The claim lock applies to **any issue an agent is actively working**.
