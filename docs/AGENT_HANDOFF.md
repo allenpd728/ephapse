@@ -479,7 +479,7 @@ this repo for the full protocol. Summary:
   `status:available`. **Ephapse-specific caveat:** NDIF queue waits and
   cold model downloads can legitimately exceed this. If you're blocked on
   a remote queue, post a heartbeat comment rather than losing the claim.
-- Single active branch: **`dev`**. State it in the README on day one —
+- Single active branch: **`main`** (renamed from `dev`, 2026-09-22). State it in the README on day one —
   Maith's DEC-036 adopted this after parallel branches sprawled.
 - Every experiment (not just every code change) gets an issue and a
   logged result, positive or negative — mirrors Maith's ledger discipline
