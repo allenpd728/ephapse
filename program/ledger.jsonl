@@ -1,0 +1,28 @@
+# Program ledger — append-only, one JSON object per line.
+# Schema: docs/reference/PROGRAM_MANAGEMENT_SPEC.md section 4 (issue #31).
+# Written by program/ledger.py, which enforces the section 4 rules on append.
+#
+# Keys (exactly these, every record):
+#   id         string        sequential "P-001", "P-002", ... stable, orderable, unique
+#   ts         string        UTC ISO8601, when the record was written
+#   issue      integer       the GitHub issue this records the outcome of
+#   run_id     string        the agent run that produced it (<YYYYMMDD-HHMM>-<4 alnum>)
+#   kind       string        spec section 3.1 value, without the "kind:" prefix
+#   outcome    string|null   spec section 3.2 value; null while in flight
+#   rung       integer|null  spec section 3.3 value if the outcome is a claim; else null
+#   results    list[string]  repo-relative paths to result artifacts this outcome rests on
+#   decisions  list[string]  "DEC-0NN" ids this outcome produced or rests on
+#   findings   list[integer] 1-based line numbers in findings.jsonl, if any
+#   blocks     list[integer] issue numbers this outcome unblocks or redirects
+#   emergent   list[integer] issue numbers this work created (spec section 6 path)
+#   note       string        short prose; not a place for conclusions
+#
+# Deliberately absent: issue titles, statuses, assignees, priority — all already
+# in GitHub, and copying them creates the drift the coverage-map decision warns
+# against (spec section 4).
+#
+# outcome is the INTERPRETATION of a result; verdict in findings.jsonl is its
+# LABEL. A `flagged` verdict can be either instrument-validated (the #5 control)
+# or phenomenon-present (a real finding) — they are not the same field
+# (spec section 10 Q3).
+{"blocks": [32, 33], "decisions": ["DEC-035"], "emergent": [], "findings": [], "id": "P-001", "issue": 31, "kind": "protocol", "note": "Ledger tooling + README landed. Outcome left null: section 3.2 classes are for experiments, so this protocol task's outcome is unclassified until the section 9 task F (#33) backfill.", "outcome": null, "results": ["program/ledger.jsonl", "program/README.md"], "rung": null, "run_id": "20260922-0431-eph3", "ts": "2026-09-22T04:52:00Z"}
