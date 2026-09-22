@@ -118,9 +118,45 @@ Each issue contains:
 - **Context** — links to spec sections, prior art, or related tasks
 - **Blocked by** — native GitHub issue-blocking relationships forming the lineage
 
-Sizing rule: one task = completable in one agent run (well under an hour).
-If a task can't be done in one run, decompose it before it becomes
-`available`.
+Sizing rule: one task = completable in **one agent run**. Note what a run now
+means: scheduled OpenHands automation runs are hard-capped at **30 minutes
+wall-clock**, and a run killed at the cap loses everything not already pushed.
+Recon, cloning, and gates consume a large share of that, so **size a task for 20
+minutes of work or less**. If a task can't be done in one run, decompose it
+before it becomes `available`.
+
+**Planning and research are legitimate tasks, not overhead.** When an issue is
+too large or too uncertain to implement in a single run, the right decomposition
+is usually a research or planning issue *first* — an investigation whose
+Definition of Done is a written finding, a decision record, or a freshly filed
+set of smaller issues. A 20-minute run that produces a well-scoped plan for the
+next five issues is a good outcome, not a wasted run. Prefer a short, honest
+research task over a half-finished implementation.
+
+## Automated runs (bounded, 30-minute cap)
+
+Some `status:available` work is picked up by a scheduled automation rather than
+an attended agent. Those runs are hard-capped at **30 minutes** — the platform
+rejects any longer timeout — and a run killed at the cap loses everything not
+already pushed to GitHub. Three rules follow. Attended agents should follow them
+too, because the loss mode is identical.
+
+1. **Push constantly.** Commit and push each coherent step the moment it exists.
+   Unpushed work dies with the sandbox; a pushed partial commit is a resumable
+   checkpoint. Do not accumulate local edits and push once at the end.
+2. **Checkpoint rather than overrun.** If a run cannot finish, push what is
+   complete, then post a comment beginning `<!-- oh-agent -->` `CHECKPOINT`
+   naming the run-id, the pushed SHAs, what is done, what remains, and the next
+   concrete step. Release the claim (restore `status:available`) so the next run
+   can pick it up immediately. A run that claims an issue whose last comment is a
+   `CHECKPOINT` should **continue that work, not re-derive it**. Never use
+   `status:blocked-needs-input` for mere time exhaustion — that label means a
+   human decision is required.
+3. **Mark every agent comment with `<!-- oh-agent -->`.** Claim comments,
+   progress notes, checkpoints, and closing comments alike. This is a
+   machine-readable marker, not decoration: an automation watches issue comments
+   and would otherwise wake on agent output and spend an entire run deciding to
+   do nothing. Omitting it costs a run.
 
 **One task = one signal.** Every task's Definition of Done names a single
 observable check that turns green only when the task is genuinely finished.
