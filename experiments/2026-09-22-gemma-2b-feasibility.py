@@ -21,6 +21,11 @@ import traceback
 import torch
 
 MODEL = os.environ.get("EPHAPSE_GEMMA_MODEL", "google/gemma-2-2b")
+# Gated-repo fallback. The official checkpoint requires an HF login this sandbox
+# has no token for; this mirror is the same architecture, so load/RSS/latency and
+# the residual-stream geometry are measurable with it. Recon error from the mirror
+# is architecture-comparable but not bit-identical to the official checkpoint.
+MIRROR = os.environ.get("EPHAPSE_GEMMA_MIRROR", "unsloth/gemma-2-2b")
 SAE_RELEASE = "gemma-scope-2b-pt-res-canonical"
 SAE_ID = "layer_12/width_16k/canonical"
 N_BATCH = 64
@@ -54,8 +59,13 @@ def env_report():
     print(f"  peak RSS at start    : {rss_gb():.2f} GB")
 
 
-def model_stage():
-    """Load gemma-2-2b on CPU and time a forward pass. Returns (model, tok) or (None, None)."""
+def load_model():
+    """Load gemma-2-2b on CPU. Returns a wrapper dict, or None on failure.
+
+    Tries TransformerLens first (the repo standard, exact SAE hook parity). The
+    official checkpoint is gated and this sandbox has no HF token, so the fallback
+    runs the architecture-identical public mirror through plain `transformers`.
+    """
     print()
     print(f"=== 1. model load: {MODEL} ===")
     print(f"  peak RSS before load : {rss_gb():.2f} GB")
@@ -66,30 +76,79 @@ def model_stage():
         model = HookedTransformer.from_pretrained(MODEL, device="cpu")
         load_s = time.time() - t0
         n_params = sum(p.numel() for p in model.parameters())
+        print("  PATH: transformer_lens (exact SAE hook parity)")
         print(f"  LOADED  wall={load_s:.1f}s  params={n_params/1e9:.3f}B")
         print(f"  cfg: n_layers={model.cfg.n_layers} d_model={model.cfg.d_model} "
               f"d_vocab={model.cfg.d_vocab}")
         print(f"  peak RSS after load  : {rss_gb():.2f} GB")
-        return model, load_s
+        return {"kind": "tl", "model": model, "tok": model.tokenizer, "load_s": load_s}
+    except Exception as e:
+        print(f"  transformer_lens path failed after {time.time() - t0:.1f}s: "
+              f"{type(e).__name__}: {str(e)[:160]}")
+
+    print(f"  --- fallback: plain transformers on mirror {MIRROR} ---")
+    t0 = time.time()
+    try:
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+
+        tok = AutoTokenizer.from_pretrained(MIRROR)
+        model = AutoModelForCausalLM.from_pretrained(MIRROR, dtype=torch.float32)
+        model.eval()
+        load_s = time.time() - t0
+        cfg = model.config
+        n_params = sum(p.numel() for p in model.parameters())
+        print("  PATH: transformers (mirror — architecture-identical, not official weights)")
+        print(f"  LOADED  wall={load_s:.1f}s  params={n_params/1e9:.3f}B")
+        print(f"  cfg: n_layers={cfg.num_hidden_layers} d_model={cfg.hidden_size} "
+              f"d_vocab={cfg.vocab_size}")
+        print(f"  peak RSS after load  : {rss_gb():.2f} GB")
+        return {"kind": "hf", "model": model, "tok": tok, "load_s": load_s,
+                "n_layers": cfg.num_hidden_layers}
     except Exception as e:
         print(f"  LOAD FAILED after {time.time() - t0:.1f}s")
         print(f"  exception: {type(e).__name__}: {str(e)[:400]}")
-        return None, None
+        return None
 
 
-def forward_stage(model):
+def _forward(modelw, prompts):
+    if modelw["kind"] == "tl":
+        return modelw["model"](prompts)
+    enc = modelw["tok"](prompts, return_tensors="pt", padding=True)
+    return modelw["model"](**enc).logits
+
+
+def _resid_post(modelw, prompts, layer):
+    """Residual-stream activations after block `layer`, flat to [n_tokens, d_in]."""
+    if modelw["kind"] == "tl":
+        hook = f"blocks.{layer}.hook_resid_post"
+        with torch.no_grad():
+            _, cache = modelw["model"].run_with_cache(
+                prompts, names_filter=lambda n: n == hook, return_type=None
+            )
+        t = cache[hook]
+        return t.reshape(-1, t.shape[-1])
+    enc = modelw["tok"](prompts, return_tensors="pt", padding=True)
+    with torch.no_grad():
+        out = modelw["model"](**enc, output_hidden_states=True)
+    # HF hidden_states[0] is the embedding output; hidden_states[i] is the output
+    # of block i-1, so hook_resid_post of block `layer` is hidden_states[layer+1].
+    t = out.hidden_states[layer + 1]
+    return t.reshape(-1, t.shape[-1])
+
+
+def forward_stage(modelw):
     print()
     print("=== 2. forward pass ===")
-    model.eval()
+    modelw["model"].eval()
     prompt = PROMPTS[0]
 
     # warm-up, then median of 5 single-prompt passes
     with torch.no_grad():
-        model(prompt)
+        _forward(modelw, [prompt])
         times = []
         for _ in range(5):
             t0 = time.time()
-            model(prompt)
+            _forward(modelw, [prompt])
             times.append(time.time() - t0)
     times.sort()
     single_ms = times[len(times) // 2] * 1000
@@ -98,7 +157,7 @@ def forward_stage(model):
     batch = [PROMPTS[i % len(PROMPTS)] for i in range(N_BATCH)]
     with torch.no_grad():
         t0 = time.time()
-        model(batch)
+        _forward(modelw, batch)
         batch_s = time.time() - t0
     print(f"  batch {N_BATCH} (median-length prompts)        : {batch_s:.2f}s "
           f"({batch_s / N_BATCH * 1000:.0f} ms/prompt)")
@@ -106,7 +165,7 @@ def forward_stage(model):
     print(f"  peak RSS after forward: {rss_gb():.2f} GB")
 
 
-def sae_stage(model=None):
+def sae_stage(modelw=None):
     """Load a Gemma Scope residual SAE, encode, and measure reconstruction error."""
     print()
     print(f"=== 3. SAE load: {SAE_RELEASE} / {SAE_ID} ===")
@@ -131,14 +190,10 @@ def sae_stage(model=None):
     print()
     print("=== 4. reconstruction error (resid_post vs decode(encode)) ===")
     torch.manual_seed(0)
-    if model is not None:
-        with torch.no_grad():
-            _, cache = model.run_with_cache(
-                PROMPTS[:N_RECON],
-                names_filter=lambda n: n == hook,
-                return_type=None,
-            )
-        resid = cache[hook].reshape(-1, sae.cfg.d_in)
+    if modelw is not None:
+        layer = int(SAE_ID.split("_")[1].split("/")[0])
+        resid = _resid_post(modelw, PROMPTS[:N_RECON], layer)
+        print(f"  activations sourced from the model's residual stream (block {layer})")
     else:
         # model unavailable: use the SAE's own input dimension with random activations,
         # so the encode/decode path is still exercised (recon error is not comparable
@@ -162,13 +217,13 @@ def sae_stage(model=None):
 
 def main():
     env_report()
-    model, _ = model_stage()
-    if model is not None:
-        forward_stage(model)
+    modelw = load_model()
+    if modelw is not None:
+        forward_stage(modelw)
     else:
         print()
         print("=== 2. forward pass: SKIPPED (model did not load) ===")
-    sae_stage(model)
+    sae_stage(modelw)
     print()
     print(f"FINAL peak RSS: {rss_gb():.2f} GB")
 
