@@ -10,9 +10,9 @@ starts with the lesson already applied rather than relearning it.
 > double-claim, strand dependents, and lose work at rebase. The branch
 > sprawl *was* the symptom. This file is the fix.
 
-> **System of record:** the issue queue plus `git log origin/dev`. Status
+> **System of record:** the issue queue plus `git log origin/main`. Status
 > tables in docs are caches updated by sweeps and may lag — check the queue
-> and `dev` history before concluding work is undone.
+> and `main` history before concluding work is undone.
 
 ## Run-ids
 
@@ -58,7 +58,7 @@ git config credential.helper \
   '!f() { echo "username=x-access-token"; echo "password=${GITHUB_TOKEN}"; }; f'
 ```
 
-Then a plain `git push origin dev` / `git pull --rebase origin dev` works, and
+Then a plain `git push origin main` / `git pull --rebase origin main` works, and
 `gh issue …` / `gh pr …` work because the CLI already reads `$GITHUB_TOKEN`.
 
 **If you get a 401** (`Invalid username or token`, or `Bad credentials` from
@@ -68,7 +68,7 @@ than stopping:
 ```bash
 # git: push with the durable token in the URL for this one command
 GIT_TERMINAL_PROMPT=0 git push \
-  "https://x-access-token:${ALL_REPOs_GH_TOKEN}@github.com/philipdallen/ephapse.git" HEAD:dev
+  "https://x-access-token:${ALL_REPOs_GH_TOKEN}@github.com/philipdallen/ephapse.git" HEAD:main
 
 # gh: GH_TOKEN takes precedence over GITHUB_TOKEN
 GH_TOKEN="$ALL_REPOs_GH_TOKEN" gh issue view <n> --repo philipdallen/ephapse
@@ -79,7 +79,7 @@ Then report the expiry, because a session that hit it once will hit it again.
 **Non-interactive guard.** Never let a git command block on a prompt:
 
 ```bash
-GIT_TERMINAL_PROMPT=0 git push origin dev   # exits non-zero instead of hanging
+GIT_TERMINAL_PROMPT=0 git push origin main   # exits non-zero instead of hanging
 ```
 
 A push that hangs on a password prompt is the failure mode to design out — it
@@ -104,7 +104,7 @@ curl -s -o /dev/null -w '%{http_code}\n' \
 |---|---|
 | `status:available` | Ready to be claimed. All blockers are `done`. |
 | `status:claimed` | An agent has claimed it. Claim comment is the heartbeat. |
-| `status:done` | Work committed to `dev`. The human reviews on `dev` at leisure; anything needing changes spawns a follow-up task. |
+| `status:done` | Work committed to `main`. The human reviews on `main` at leisure; anything needing changes spawns a follow-up task. |
 | `status:blocked-needs-input` | Agent could not start or finish; needs human input. |
 | `priority:high` | Jumps the work queue (default order is lowest issue number). |
 | `needs-review` | Requires human or integrity review before acceptance. |
@@ -312,12 +312,12 @@ close + unblock dependents) before claiming the next.
 1c. **A sweep is not finished until it is pushed.** Any sweep that changed
    the tracker or the tree — reclaimed a claim (1), repaired a label (1a),
    or fixed a doc (1b) — **must end with the change committed and pushed to
-   `origin/dev`**, and the sweep's results comment must name the commit it
+   `origin/main`**, and the sweep's results comment must name the commit it
    pushed. A sweep that stops at the local tree has not happened: the next
    session sees the unchanged remote and repeats the same work, and if the
    sweep only changed labels it leaves the tree and the tracker inconsistent.
 
-   This is the same rule as §5 (work commits directly to `dev`) applied to
+   This is the same rule as §5 (work commits directly to `main`) applied to
    sweeps. It applies with two caveats:
 
    - **Tracker-only sweeps** (label changes, reclaim comments) push nothing
@@ -329,13 +329,13 @@ close + unblock dependents) before claiming the next.
      rather than leaving the absence of a comment ambiguous.
 
    Concretely: if `git status` is dirty when the sweep ends, the sweep is
-   unfinished. Commit, `git pull --rebase origin dev`, push, and only then
+   unfinished. Commit, `git pull --rebase origin main`, push, and only then
    write the sweep comment. See §Credentials for the push setup — and never
    leave work sitting on the local branch behind a credentials prompt.
 
 2. **Pick work.** Any `status:available` issue the agent can start. Default
    order: lowest issue number first; `priority:high` jumps the queue.
-   Before concluding any work item is undone, check `git log origin/dev`
+   Before concluding any work item is undone, check `git log origin/main`
    and the issue queue — docs tables lag.
 
 2a. **Filing is not atomic — search, file, search again.** Before filing a
@@ -406,20 +406,20 @@ close + unblock dependents) before claiming the next.
    tiebreak): `python3 tooling/claims/claim.py release <issue> <run-id>`. It
    refuses to release a claim held by another run-id.
 
-5. **Do the work; prove the done.** Commit directly to `dev` (no PR —
-   review happens retrospectively on `dev`). Swap `status:claimed` →
+5. **Do the work; prove the done.** Commit directly to `main` (no PR —
+   review happens retrospectively on `main`). Swap `status:claimed` →
    `status:done` and close the issue with a comment linking the commits.
    **Tasks with known-answer criteria close only when the done comment
    includes the exact command and its output** — a done claim without
    evidence is how full maps ship empty and nobody notices.
 
    **Done means pushed, not committed.** A task is not done while its
-   commits exist only on the local branch; the reviewer reads `dev` on the
+   commits exist only on the local branch; the reviewer reads `main` on the
    remote. Before writing the done comment, confirm the remote actually has
    the commit:
 
    ```bash
-   git push origin dev && git status --porcelain    # must print nothing
+   git push origin main && git status --porcelain    # must print nothing
    ```
 
    A `git push` that hangs on a password prompt has failed even though it
@@ -427,14 +427,14 @@ close + unblock dependents) before claiming the next.
    `GIT_TERMINAL_PROMPT=0` so a credential problem errors out instead of
    silently stranding the work.
 
-   **Concurrent-work rules** (agents run in parallel against `dev`):
+   **Concurrent-work rules** (agents run in parallel against `main`):
    - Pull before you start, and again before you push.
-   - On push rejection (non-fast-forward): `git pull --rebase origin dev`,
+   - On push rejection (non-fast-forward): `git pull --rebase origin main`,
      resolve conflicts, push again.
    - **Rebase revealed a sibling landed the same work?** Compare the two
      implementations: if yours adds nothing, drop it; if yours genuinely
      extends it, merge the two in the rebase. Never push a second copy.
-   - **Never force-push to `dev`** — it can destroy a sibling's committed
+   - **Never force-push to `main`** — it can destroy a sibling's committed
      work.
    - A rebase conflict you cannot resolve confidently is a blocker — file it.
 
