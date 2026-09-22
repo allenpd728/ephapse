@@ -93,7 +93,8 @@ def test_every_gate_satisfies_the_two_part_contract():
 
 
 # ------------------------------------------------------------------ G-E gates
-FINDINGS_GATES = ("G-E1", "G-E2", "G-E6", "G-E7")
+FINDINGS_GATES = ("G-E1", "G-E2", "G-E6", "G-E7",
+                  "G-E3", "G-E4", "G-E5", "G-E8")
 
 
 @pytest.mark.parametrize("gate_id", FINDINGS_GATES)
@@ -145,6 +146,71 @@ def test_g_e7_runid_violation_is_fail_not_skip(monkeypatch, tmp_path):
     status, findings = V.check_issue_and_runid(bad)
     assert status == "FAIL", f"expected FAIL, got {status}"
     assert any("run_id" in f for f in findings)
+
+
+# ------------------------------------------------ claim-consistency G-E3..E8
+CC_CLEAN = R.FIXTURES / "findings" / "claim_consistency_clean.jsonl"
+
+
+def _cc_records():
+    return [json.loads(l) for l in CC_CLEAN.read_text().splitlines()
+            if l.strip() and not l.startswith("#")]
+
+
+def test_claim_consistency_clean_fixture_is_silent():
+    """The clean case holds one legitimate flagged causal record and one null
+    carrying the absorption caveat; none of G-E3/E4/E5/E8 may fire.
+
+    This is the false-positive guard: a rule that rejects the clean case is
+    worse than no rule, because it would force the log to drop real findings.
+    """
+    import validate_findings as V
+    for fn in (V.check_causal_consistency, V.check_paraphrase_consistency,
+               V.check_no_conclusions, V.check_absorption_caveat):
+        assert fn(CC_CLEAN) == [], f"{fn.__name__} fired on the clean fixture"
+
+
+def test_claim_consistency_clean_fixture_is_actually_flagged_and_null():
+    """Guard the guard: the clean case must exercise both branches, or the
+    silence above proves nothing."""
+    verdicts = {r["verdict"] for r in _cc_records()}
+    assert verdicts == {"flagged", "null"}, verdicts
+    assert any(r["causal_claim"] is True for r in _cc_records())
+    assert any(r["paraphrase_survived"] is True for r in _cc_records())
+
+
+def test_claim_consistency_g_e5_passes_a_disclaimed_claim():
+    """A record that says 'this is not a mathematical result' / 'no theorem is
+    claimed' must pass — the disclaimer is the rule working, not a violation."""
+    import validate_findings as V
+    assert V.check_no_conclusions(CC_CLEAN) == []
+
+
+@pytest.mark.parametrize("fixture,fn,needle", [
+    ("g_e3_causal_no_intervention.jsonl", "check_causal_consistency", "intervention"),
+    ("g_e4_survived_no_controls.jsonl", "check_paraphrase_consistency", "paraphrase_controls"),
+    ("g_e5_asserts_theorem.jsonl", "check_no_conclusions", "mathematical-claim language"),
+    ("g_e8_null_no_absorption.jsonl", "check_absorption_caveat", "absorption"),
+])
+def test_claim_consistency_gate_fires_on_its_fixture(fixture, fn, needle):
+    """One failing fixture per rule; deleting any one turns this red.
+
+    Selected by `-k claim_consistency`, which is issue #19's Definition of Done.
+    """
+    import validate_findings as V
+    findings = getattr(V, fn)(R.FIXTURES / "findings" / fixture)
+    assert findings, f"{fn} did not fire on {fixture}"
+    assert any(needle in f for f in findings), findings
+
+
+def test_real_findings_file_passes_the_claim_consistency_gates():
+    """The repo's own findings.jsonl must satisfy G-E3/E4/E5/E8 as well."""
+    import validate_findings as V
+    real = REPO / "findings.jsonl"
+    assert V.check_causal_consistency(real) == [], "G-E3 fired on real log"
+    assert V.check_paraphrase_consistency(real) == [], "G-E4 fired on real log"
+    assert V.check_no_conclusions(real) == [], "G-E5 fired on real log"
+    assert V.check_absorption_caveat(real) == [], "G-E8 fired on real log"
 
 
 def test_g_e1_accepts_declared_extension_keys():

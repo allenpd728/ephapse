@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 """G-E1, G-E2, G-E6, G-E7 — findings.jsonl schema and evidence gates (issue #10).
+G-E3, G-E4, G-E5, G-E8 — claim-consistency gates (issue #19).
 
-The checks that decide whether a record is *well-formed evidence at all*. The
-claim-consistency rules (G-E3/E4/E5/E8) are separate — issue #19 adds them here.
+The schema checks decide whether a record is *well-formed evidence at all*. The
+claim-consistency rules decide whether a record's **claim matches its evidence**;
+unlike schema checks they can reject a legitimate record by false positive, so
+each ships with a negative-direction fixture and a clean `flagged` record that
+must pass. See spec §3, §5. Both false-positive resolutions (G-E5 must pass a
+record that *disclaims* a claim; G-E8 must fire only on a null that attributes
+itself to a detector limit) are documented at the checks below.
 
 | ID   | Check |
 |------|-------|
@@ -10,6 +16,10 @@ claim-consistency rules (G-E3/E4/E5/E8) are separate — issue #19 adds them her
 | G-E2 | `null_model`, `correction`, `n` non-empty — issue #4's evidence bar, mechanically |
 | G-E6 | Append-only — line count >= a committed high-water mark |
 | G-E7 | `issue` names a real closed-done issue; `run_id` matches the format |
+| G-E3 | Causal consistency — `causal_claim: true` requires a complete `intervention` |
+| G-E4 | Paraphrase consistency — `paraphrase_survived: true` requires >=1 control |
+| G-E5 | No conclusions — no mathematical-claim language anywhere in the record |
+| G-E8 | Absorption caveat — a `null` attributing itself to a detector limit must caveat it |
 
 Two spec §10 questions had to be resolved to build this; both resolutions are
 recorded in the module and in the done comment:
@@ -264,6 +274,154 @@ register(Gate(
     description="Record count is >= the committed high-water mark.",
 ))
 
+# ------------------------------------------------------- G-E3 claim consistency
+def check_causal_consistency(path: Path) -> list[str]:
+    """G-E3: `causal_claim: true` requires a complete `intervention` record.
+
+    The schema reserves `causal_claim` for "load-bearing in BOTH domains, above
+    the interference control" (findings header; DEC-013). A record that asserts
+    it without carrying the intervention that establishes it is asserting a
+    claim its evidence does not support — exactly what this gate exists to stop.
+    The three required pieces are the two RAVEL scores (`cause`, `isolate`) and
+    the interference-control result that bounds them.
+    """
+    findings: list[str] = []
+    records, _ = _read_records(path)
+    for i, rec in enumerate(records, 1):
+        if rec.get("causal_claim") is not True:
+            continue
+        iv = rec.get("intervention")
+        if not isinstance(iv, dict):
+            shown = "null" if iv is None else type(iv).__name__
+            findings.append(f"G-E3 record {i}: causal_claim is true but "
+                            f"`intervention` is {shown}, not an object — a "
+                            f"causal claim requires an intervention result")
+            continue
+        for key in ("cause", "isolate"):
+            if key not in iv:
+                findings.append(f"G-E3 record {i}: intervention is missing "
+                                f"`{key}` — a causal claim needs both the cause "
+                                f"and the isolate score (DEC-013)")
+            elif _empty(iv[key]):
+                findings.append(f"G-E3 record {i}: intervention `{key}` is empty "
+                                f"— a causal claim needs both the cause and the "
+                                f"isolate score (DEC-013)")
+        control = iv.get("interference_control")
+        if _empty(control):
+            findings.append(f"G-E3 record {i}: intervention has no "
+                            f"`interference_control` result — a causal claim "
+                            f"must be bounded by the interference control")
+    return findings
+
+
+# ------------------------------------------------------- G-E4 claim consistency
+def check_paraphrase_consistency(path: Path) -> list[str]:
+    """G-E4: `paraphrase_survived: true` requires >=1 listed control.
+
+    The schema sets `paraphrase_survived` true "only if the overlap survived
+    them" — the controls named in `paraphrase_controls` (DEC-011). Surviving no
+    controls is a vacuous survival, so the pair must not be asserted.
+    """
+    findings: list[str] = []
+    records, _ = _read_records(path)
+    for i, rec in enumerate(records, 1):
+        if rec.get("paraphrase_survived") is not True:
+            continue
+        if _empty(rec.get("paraphrase_controls")):
+            findings.append(f"G-E4 record {i}: paraphrase_survived is true but "
+                            f"`paraphrase_controls` lists no control — "
+                            f"surviving zero controls is a vacuous survival "
+                            f"(DEC-011)")
+    return findings
+
+
+# ------------------------------------------------------- G-E5 claim consistency
+# Assertive mathematical-claim language. Scoped to words that only appear in a
+# mathematical-claim register, so ordinary experiment prose is untouched.
+MATH_CLAIM_RE = re.compile(
+    r"\b(?:theorems?|lemmas?|corollaries|corollary|conjectures?|propositions?"
+    r"|proofs?|q\.?e\.?d\.?"
+    r"|proves?|proved|proven"
+    r"|mathematical(?:ly)?\s+(?:result|claim|theorem|truth|conclusion|fact|proof)"
+    r"|mathematically\s+(?:interesting|true|correct|proven|significant))\b",
+    re.IGNORECASE,
+)
+
+# A negation within this many characters *before* a match marks it as a
+# disclaimer, not a claim: "no theorem is claimed", "not a mathematical
+# result", "nothing here proves ...". This window is the whole difference
+# between G-E5 rejecting a legitimate record and rejecting a real claim, so it
+# is deliberately generous. The clean fixture exercises it in both directions.
+NEGATION_RE = re.compile(
+    r"\b(?:no|not|never|without|neither|nor|cannot|can't|isn't|aren't|doesn't"
+    r"|don't|didn't|nothing|none|disclaim\w*|does not|is not|are not)\b|n't\b",
+    re.IGNORECASE,
+)
+NEGATION_WINDOW = 48
+
+
+def check_no_conclusions(path: Path) -> list[str]:
+    """G-E5: no mathematical-claim language anywhere in the record.
+
+    The README rule — "nothing here is a new mathematical result" — mechanised.
+    The genuine false-positive risk is that a record which correctly *disclaims*
+    a claim ("this is not a mathematical result") must pass, so a match is only
+    a violation when it is not preceded, within NEGATION_WINDOW characters, by a
+    negation. The check scans the serialised record, so it covers `note`,
+    `result`, and every other string field rather than trusting a single field.
+    """
+    findings: list[str] = []
+    records, _ = _read_records(path)
+    for i, rec in enumerate(records, 1):
+        text = json.dumps(rec, ensure_ascii=False)
+        for m in MATH_CLAIM_RE.finditer(text):
+            if NEGATION_RE.search(text[max(0, m.start() - NEGATION_WINDOW):m.start()]):
+                continue
+            findings.append(f"G-E5 record {i}: mathematical-claim language "
+                            f"{m.group(0)!r} — findings are observations, not "
+                            f"mathematical results (README; workflow § Gates)")
+            break                     # one violation per record is enough
+    return findings
+
+
+# ------------------------------------------------------- G-E8 claim consistency
+# A null that attributes itself to a representational/SAE limit rather than an
+# absence of structure. Scoped to the absorption family (PRIOR_ART §4) rather
+# than any "the method is imperfect" aside, because the absorption caveat is the
+# specific disclaimer PRIOR_ART §4 requires and the one a reader would otherwise
+# mistake for a clean negative.
+DETECTOR_LIMIT_RE = re.compile(
+    r"\b(?:representational|representation)\s+limits?\b"
+    r"|\brather than (?:an )?absence\b"
+    r"|\bSAE\b[^.\n]{0,80}?\b(?:cannot|can't|unable|miss(?:es|ed)?|fail(?:s|ed)?)\b",
+    re.IGNORECASE,
+)
+ABSORPTION_CAVEAT_RE = re.compile(r"\babsor\w*", re.IGNORECASE)
+
+
+def check_absorption_caveat(path: Path) -> list[str]:
+    """G-E8: a `null` citing a detector limit must carry the absorption caveat.
+
+    If a null attributes itself to SAE representational limits, it must say so
+    explicitly — "a null may reflect SAE representational limits rather than
+    absence of structure (PRIOR_ART §4)". Without the caveat the null reads as a
+    clean negative when it is inconclusive.
+    """
+    findings: list[str] = []
+    records, _ = _read_records(path)
+    for i, rec in enumerate(records, 1):
+        if str(rec.get("verdict", "")).lower() != "null":
+            continue
+        text = json.dumps(rec, ensure_ascii=False)
+        if DETECTOR_LIMIT_RE.search(text) and not ABSORPTION_CAVEAT_RE.search(text):
+            findings.append(f"G-E8 record {i}: verdict is 'null' and the record "
+                            f"cites a representational/detector limit, but does "
+                            f"not state the feature-absorption caveat "
+                            f"(PRIOR_ART §4) — the null is otherwise read as a "
+                            f"clean negative")
+    return findings
+
+
 def _unused_check(path: Path) -> list[str]:   # pragma: no cover - never called
     """Placeholder: G-E7 uses the check_status form, which returns an explicit
     status so it can SKIP when issue state is unavailable. The Gate dataclass
@@ -280,4 +438,48 @@ register(Gate(
     traces_to="docs/MULTI_AGENT_WORKFLOW.md; spec §3",
     description="`issue` is a closed-done issue; `run_id` matches the format. "
                 "SKIPs when issue state is unavailable.",
+))
+
+# ------------------------------------------------- claim-consistency (issue #19)
+# These four carry the false-positive risk, so each clean fixture is a
+# legitimate record and each failing fixture a one-field perturbation of it.
+_CLEAN_CC = "findings/claim_consistency_clean.jsonl"
+
+register(Gate(
+    id="G-E3", name="causal claim consistency", tier=0,
+    check=check_causal_consistency,
+    clean_fixture=_CLEAN_CC,
+    failing_fixture="findings/g_e3_causal_no_intervention.jsonl",
+    traces_to="DEC-013; findings.jsonl header; spec §3",
+    description="causal_claim true requires an intervention object with cause, "
+                "isolate, and an interference-control result.",
+))
+
+register(Gate(
+    id="G-E4", name="paraphrase claim consistency", tier=0,
+    check=check_paraphrase_consistency,
+    clean_fixture=_CLEAN_CC,
+    failing_fixture="findings/g_e4_survived_no_controls.jsonl",
+    traces_to="DEC-011; findings.jsonl header; spec §3",
+    description="paraphrase_survived true requires >=1 listed control.",
+))
+
+register(Gate(
+    id="G-E5", name="no mathematical conclusions", tier=0,
+    check=check_no_conclusions,
+    clean_fixture=_CLEAN_CC,
+    failing_fixture="findings/g_e5_asserts_theorem.jsonl",
+    traces_to="README § What counts as a result; workflow § Gates; spec §3",
+    description="No mathematical-claim language; a match preceded by a negation "
+                "(a disclaimer) passes.",
+))
+
+register(Gate(
+    id="G-E8", name="absorption caveat on attributed nulls", tier=0,
+    check=check_absorption_caveat,
+    clean_fixture=_CLEAN_CC,
+    failing_fixture="findings/g_e8_null_no_absorption.jsonl",
+    traces_to="PRIOR_ART §4; issue #4; spec §3",
+    description="A null citing a representational/detector limit must state the "
+                "feature-absorption caveat.",
 ))
