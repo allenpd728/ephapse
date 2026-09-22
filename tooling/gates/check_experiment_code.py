@@ -113,6 +113,10 @@ def _npmi_ceiling(p_x: float, p_y: float, rate: float) -> float:
     import math
     if p_x <= 0.0 or p_y <= 0.0:
         return 0.0
+    if p_x >= 1.0 or p_y >= 1.0:
+        # Catch-all: the joint is pinned to the other marginal regardless of
+        # rate, so no injection can raise the statistic off its ceiling.
+        return 0.0
     joint = min(p_x, p_y, rate, 1.0)
     if joint <= 0.0 or joint >= 1.0:
         return 0.0
