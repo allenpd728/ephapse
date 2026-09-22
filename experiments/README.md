@@ -100,3 +100,4 @@ NP_SAE      = "3-res-sm"
 
 Decoder directions come from local `sae.W_dec`. Neuronpedia does **not**
 serve vectors (DEC-015).
+| 2026-09-22 | `2026-09-22-comparator-baselines.py` | #37 | DEC-034 comparators on the #6 corpus: SAE bridge statistic beside difference-in-means and linear-probe AUROC, on matched / shuffled-null / paraphrase arms. SAE stays the primary reading; comparators are a sensitivity check |
