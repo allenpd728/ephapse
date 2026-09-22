@@ -210,8 +210,9 @@ is the adopted authority, implemented by `tooling/gates/`:
 
 - **Tier 0** — no model load, no torch, no network: schema, text, and
   cross-reference checks over `findings.jsonl`, experiment headers, and docs,
-  plus the `G-C` experiment-code gates. Runs in CI. **29 of the 37 gates** (per
-  the spec's gate inventory).
+  plus the `G-C` experiment-code gates. Runs in CI. **29 of the 38 gates** (per
+  the spec's gate inventory; `tooling/gates/gate_inventory.py` derives the
+  count mechanically — do not hand-copy it).
 - **Tier 1** — requires loading the probed model: the detector-validity gates
   (positive control, control-can-fail, null calibration, constructibility,
   paraphrase survival, causal load-bearing, interference control).

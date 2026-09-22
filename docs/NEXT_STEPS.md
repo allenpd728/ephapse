@@ -150,12 +150,14 @@ second among the rest — it unblocks #32 and #33.
 | `kind:` coverage | Every open issue carries exactly one `kind:`; `kind:hygiene` added to the vocabulary by DEC-037 |
 | Open issues | **42**, of which **22 are claimable** (`status:available`) |
 
-**The gate-count discrepancy is real and has its own issue (#38).** Four documents
-say 37, `PROGRAM_MANAGEMENT_SPEC.md` says 38, and the registry says 11 wired. The
-spec contains 38 distinct gate ids; "37" is stale in the README, the handoff, and
-the validation spec itself. This is exactly the docs-coherence drift **G-R4**
-exists to catch, occurring in the window before G-R4 is wired (#20). It is cited
-here rather than fixed, because #38 owns it.
+**The gate-count discrepancy is resolved (#38, DEC-039).** Four documents said
+37, `PROGRAM_MANAGEMENT_SPEC.md` said 38, and the registry says 11 wired. The
+spec's § 3 inventory enumerates **38** distinct ids (**29** tier-0 capable,
+**9** tier-1), so "37" was the stale figure — a hand-count that drifted one
+behind the table, and the tier-1 prose was also one low. All are corrected, and
+`tooling/gates/gate_inventory.py` now derives the specified counts from the table
+so the number cannot drift again. This was exactly the docs-coherence drift
+**G-R4** exists to catch, occurring in the window before G-R4 is wired (#20).
 
 **Two tooling facts a session needs:**
 
