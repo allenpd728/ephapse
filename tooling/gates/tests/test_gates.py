@@ -1136,26 +1136,26 @@ _FIX_CODE = R.FIXTURES / "fixture_code"
 
 
 @pytest.mark.parametrize("gate_id", CODE_GATES)
-def test_code_gate_passes_with_its_fixtures(gate_id):
+def test_experiment_code_gate_passes_with_its_fixtures(gate_id):
     gate = next(g for g in R.REGISTRY if g.id == gate_id)
     res = R.run_gate(gate)
     assert res.status == "PASS", f"{gate_id}: {res.status} — {res.detail}"
 
 
 @pytest.mark.parametrize("gate_id", CODE_GATES)
-def test_code_gate_registered_and_tier_0(gate_id):
+def test_experiment_code_gate_registered_and_tier_0(gate_id):
     gate = next((g for g in R.REGISTRY if g.id == gate_id), None)
     assert gate is not None, f"{gate_id} not registered"
     assert gate.tier == 0, f"{gate_id} is not Tier-0"
 
 
-def test_g_c1_fires_on_catchall_marginal():
+def test_experiment_code_g_c1_fires_on_catchall_marginal():
     from check_experiment_code import check_g_c1
     findings = check_g_c1(_FIX_CODE / "g_c1_catchall_marginal.py")
     assert any("catch-all" in f for f in findings), findings
 
 
-def test_g_c1_ceiling_is_below_threshold_for_the_real_marginal():
+def test_experiment_code_g_c1_ceiling_is_below_threshold():
     """The DEC-019 failure-2 arithmetic, asserted directly.
 
     Equal marginals admit NPMI=1.0, so the ceiling only bites when a marginal
@@ -1167,37 +1167,37 @@ def test_g_c1_ceiling_is_below_threshold_for_the_real_marginal():
     assert _npmi_ceiling(0.001, 0.9, 0.20) < 0.8
 
 
-def test_g_c2_fires_on_control_that_never_fires():
+def test_experiment_code_g_c2_fires_on_control_that_never_fires():
     from check_experiment_code import check_g_c2
     findings = check_g_c2(_FIX_CODE / "g_c2_control_never_fires.py")
     assert any("both groups" in f or "planted signal" in f for f in findings), findings
 
 
-def test_g_c3_fires_on_inverted_survival():
+def test_experiment_code_g_c3_fires_on_inverted_survival():
     from check_experiment_code import check_g_c3
     findings = check_g_c3(_FIX_CODE / "g_c3_inverted_survival.py")
     assert any("gammaincc" in f for f in findings), findings
 
 
-def test_g_c3_clean_survival_call_is_bound_and_silent():
+def test_experiment_code_g_c3_clean_survival_call_is_bound():
     from check_experiment_code import check_g_c3
     assert check_g_c3(_FIX_CODE / "clean_experiment.py") == []
 
 
-def test_g_c4_fires_on_isolate_vacuity():
+def test_experiment_code_g_c4_fires_on_isolate_vacuity():
     from check_experiment_code import check_g_c4
     findings = check_g_c4(_FIX_CODE / "g_c4_isolate_vacuity.py")
     assert any("isolate" in f for f in findings), findings
 
 
-def test_g_c5_fires_on_incomparable_params():
+def test_experiment_code_g_c5_fires_on_incomparable_params():
     from check_experiment_code import check_g_c5
     findings = check_g_c5(_FIX_CODE / "g_c5_incomparable_params.py")
     assert any("comparability" in f for f in findings), findings
 
 
 @pytest.mark.parametrize("gate_id", CODE_GATES)
-def test_code_gate_fails_closed_without_a_declaration(gate_id, tmp_path):
+def test_experiment_code_gate_fails_closed_without_a_declaration(gate_id, tmp_path):
     """Absent a GATE-DECL block the gate must FLAG, never pass silently.
 
     G-C3 is the exception: with no survival/CDF call in the file there is no
@@ -1214,7 +1214,7 @@ def test_code_gate_fails_closed_without_a_declaration(gate_id, tmp_path):
     assert fn(bare), f"{gate_id} passed a file with no declaration"
 
 
-def test_g_c3_fails_closed_on_an_unbound_call(tmp_path):
+def test_experiment_code_g_c3_fails_closed_on_an_unbound_call(tmp_path):
     from check_experiment_code import check_g_c3
     bare = tmp_path / "bare_call.py"
     bare.write_text("from scipy import stats\nstats.poisson.sf(1, 1.0)\n",
