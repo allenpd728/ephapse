@@ -1065,6 +1065,20 @@ def test_docs_coherence_g_r4_fires_on_the_contradictory_current_fixture():
     assert findings, "the failing fixture must produce a finding"
     assert any("target-model-id" in f for f in findings), findings
     assert any("no-pythia-160m-sae" in f for f in findings), findings
+    assert any("branch-policy" in f for f in findings), findings
+
+
+def test_docs_coherence_g_r4_branch_policy_fires_only_on_an_active_branch_claim():
+    """DEC-001: `main` may be *named*, but not as the active/integration branch.
+
+    The real docs say "`main` is the reviewed branch" — correct, and silent.
+    """
+    assert D._branch_policy_findings("Development happens on `dev`.") == []
+    assert D._branch_policy_findings("`main` is the reviewed branch.") == []
+    assert D._branch_policy_findings(
+        "DEC-001 recorded that the only branch used to be `main`.") == []
+    fires = D._branch_policy_findings("The single active branch is `main`.")
+    assert fires, "naming main as the active branch must fire"
 
 
 def test_docs_coherence_g_r4_passes_a_corrected_history_entry():

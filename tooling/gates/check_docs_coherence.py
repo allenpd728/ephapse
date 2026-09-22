@@ -193,6 +193,32 @@ def _no_160m_sae_findings(line: str) -> list[str]:
     return ["claims a Pythia-160M SAE release, which does not exist (DEC-014)"]
 
 
+# DEC-001 settles the branch policy: a single active integration branch, `dev`.
+# Only a line that asserts *another* branch is the integration/active branch
+# contradicts it; naming `main` as the reviewed branch (the real docs do) is
+# correct and must stay silent.
+_BRANCH_ROLE_RE = re.compile(
+    r"\b(single|only|sole|active|integration|primary|main|default|working)\b"
+    r"[^.{}]{0,40}?\bbranch\b"
+    r"[^.{}]{0,40}?\b(?:is|are|=|:)\s*`?([\w./-]+)`?",
+    re.IGNORECASE,
+)
+_NON_DEV_BRANCH = re.compile(r"^(main|master)$", re.IGNORECASE)
+
+
+def _branch_policy_findings(line: str) -> list[str]:
+    m = _BRANCH_ROLE_RE.search(line)
+    if not m:
+        return []
+    value = m.group(2).rstrip(".,;:")
+    if not _NON_DEV_BRANCH.match(value):
+        return []
+    if CUE_RE.search(line):
+        return []
+    return [f"names `{value}` as the active/integration branch; DEC-001 settles "
+            f"a single `dev` branch"]
+
+
 def facts() -> list[Fact]:
     authorized = authoritative_models()
     return [
@@ -205,6 +231,11 @@ def facts() -> list[Fact]:
             id="no-pythia-160m-sae",
             authoritative="tooling/gates/target_model.txt comment; DEC-014",
             check_line=_no_160m_sae_findings,
+        ),
+        Fact(
+            id="branch-policy",
+            authoritative="DEC-001; README.md § 'Single active branch'",
+            check_line=_branch_policy_findings,
         ),
     ]
 
