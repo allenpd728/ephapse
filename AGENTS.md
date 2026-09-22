@@ -26,6 +26,20 @@ work — lint sweeps, stale references, mechanical hygiene — is deliberately t
 privately in `portfolio-ops`, not filed here. If you find mechanical work, do not file
 it publicly; note it in your run output so it can be routed.
 
+## Branches
+
+`dev` is the working branch and the GitHub default — every commit lands here, and this is
+the branch visitors and all tooling read. There is no `main`.
+
+If a `main` is ever created it is a **milestone marker**, per the portfolio branch policy
+(`portfolio-ops` `OPERATING_CADENCE.md` §5): promoted from `dev` deliberately at a
+milestone, then left to sit still. It is not a working branch, and creating one is an
+owner decision — a `main` that immediately sits stale is worse than no `main`.
+
+**Edit workflows on `dev`.** A `schedule:` trigger fires only from the default branch,
+which is `dev` here, so a workflow on any other branch will not run.
+
+
 ## Project overview
 
 Ephapse probes open-weight model internals — activations, sparse-autoencoder features,
@@ -35,8 +49,8 @@ generator* for mathematical hypotheses.
 
 - **Substrate:** model weights and activations (not Lean terms).
 - **Toolchain:** Python / PyTorch — TransformerLens, SAELens, Neuronpedia.
-- **Single active branch:** `dev`. There is **no `main`** and none should be created
-  without an owner decision (see `portfolio-ops`).
+- **Single active branch:** `dev`, which is also the GitHub default. See the Branches note
+  below before creating any other branch.
 - **Status:** proof-of-concept. The detector is validated against an injected positive
   control; a probe found a weak bridging signal; the general cross-domain probe returned
   a **clean null** at 70M. No co-activation event has been human-reviewed.
