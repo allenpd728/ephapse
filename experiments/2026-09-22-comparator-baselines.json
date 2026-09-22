@@ -1,0 +1,65 @@
+{
+  "kind": "comparator_baselines",
+  "n": 200,
+  "positive_class": "greater-than relation family (templates 0,3,6)",
+  "geometry": "raw hook basis (blocks.3.hook_resid_post), cosine not used",
+  "arms": [
+    {
+      "arm": "matched",
+      "sae": {
+        "label": "matched",
+        "n_selected": 63,
+        "best": 0.035,
+        "cutoff": 0.015,
+        "survivors": 6
+      },
+      "difference_in_means": 0.7561,
+      "linear_probe": 0.5854,
+      "bridge": {
+        "best": 0.5,
+        "cutoff": 0.485,
+        "survivors": 1
+      }
+    },
+    {
+      "arm": "shuffled_null",
+      "sae": {
+        "label": "shuffled",
+        "n_selected": 63,
+        "best": 0.01,
+        "cutoff": 0.02,
+        "survivors": 0
+      },
+      "difference_in_means": 0.5687,
+      "linear_probe": 0.5996,
+      "bridge": {
+        "best": 0.48,
+        "cutoff": 0.485,
+        "survivors": 0
+      }
+    },
+    {
+      "arm": "paraphrase",
+      "sae": {
+        "label": "paraphrase",
+        "n_selected": 87,
+        "best": 0.05,
+        "cutoff": 0.015,
+        "survivors": 17
+      },
+      "difference_in_means": 0.4069,
+      "linear_probe": 0.4481,
+      "bridge": {
+        "best": 0.23,
+        "cutoff": 0.33,
+        "survivors": 0
+      }
+    }
+  ],
+  "sel_band": [
+    0.05,
+    0.6
+  ],
+  "per_feature_pct": 95,
+  "n_perm": 200
+}

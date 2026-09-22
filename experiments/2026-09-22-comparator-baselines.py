@@ -104,7 +104,26 @@ def sae_arm(bin_a, bin_b, n, rng, label):
             "survivors": int((matched > cutoff).sum())}
 
 
-def supervised_arm(acts_train, labels_train, acts_test, labels_test):
+def direction_bridge(dim, acts_a, acts_b, perm, rng, n_perm=N_PERM):
+    """The SAE bridge statistic, applied to a comparator direction.
+
+    The supervised comparator yields one direction, so it has one feature. Put
+    it on the same footing as the SAE by binarising its projection at the arm-A
+    median and reporting the same matched/permuted bridge, so all three
+    substrates carry a *bridge* number as well as their native one.
+    """
+    proj_a, proj_b = acts_a @ dim, acts_b @ dim
+    thr = np.median(proj_a)
+    ba, bb = proj_a > thr, proj_b > thr
+    matched = float((ba & bb[perm]).mean())
+    perm_max = np.array([(ba & bb[rng.permutation(len(ba))]).mean()
+                         for _ in range(n_perm)])
+    return {"best": matched, "cutoff": float(np.percentile(perm_max, 95)),
+            "survivors": int(matched > np.percentile(perm_max, 95))}
+
+
+def supervised_arm(acts_train, labels_train, acts_test, labels_test,
+                   perm, rng):
     """Fit both comparators on the verbal arm, score AUROC on the test arm."""
     import comparators as C
     pos, neg = acts_train[labels_train == 1], acts_train[labels_train == 0]
@@ -115,6 +134,7 @@ def supervised_arm(acts_train, labels_train, acts_test, labels_test):
         "difference_in_means": round(C.auroc(acts_test @ dim, labels_test), 4),
         "linear_probe": round(
             C.auroc(C.probe_scores(acts_test, w, b, (mu, sd)), labels_test), 4),
+        "bridge": direction_bridge(dim, acts_train, acts_test, perm, rng),
     }
 
 
@@ -156,20 +176,21 @@ def main():
     print("\n=== arm 1: MATCHED (verbal -> symbolic, same relation) ===")
     a1 = sae_arm(bv, bs, n, rng, "matched")
     print("  SAE:", a1)
-    m1 = supervised_arm(rv, labels, rs, labels)
+    ident = np.arange(n)
+    m1 = supervised_arm(rv, labels, rs, labels, ident, rng)
     print("  comparators:", m1)
 
     print("=== arm 2: SHUFFLED NULL (different relation) ===")
     a2 = sae_arm(bv, bs[shuf], n, rng, "shuffled")
     print("  SAE:", a2)
-    m2 = supervised_arm(rv, labels, rs[shuf], labels)
+    m2 = supervised_arm(rv, labels, rs[shuf], labels, ident, rng)
     print("  comparators:", m2)
 
     print("=== arm 3: PARAPHRASE (verbal -> paraphrase, same relation) ===")
     bp = per_feature_binarize(fp)
     a3 = sae_arm(bv, bp, n, rng, "paraphrase")
     print("  SAE:", a3)
-    m3 = supervised_arm(rv, labels, rp, labels)
+    m3 = supervised_arm(rv, labels, rp, labels, ident, rng)
     print("  comparators:", m3)
 
     record = {
