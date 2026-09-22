@@ -112,8 +112,9 @@ rediscovery — which is what DEC-023 and DEC-024 record
 
 ## The guardrail: classifying a negative before it propagates
 
-The two-tier layer is a **validation gate that sits between a measurement and
-the decision it feeds**. Its job is not to judge whether a result is
+This project runs a **validation gate** between every measurement and the
+decision that measurement feeds: an automatic check that has to pass before
+any human acts on a number. Its job is not to judge whether a result is
 interesting — it is to stop a number from travelling any further until a
 machine has said *which kind of negative it is*.
 
