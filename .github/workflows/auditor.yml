@@ -32,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: dev
+          ref: main
           fetch-depth: 0        # git blame needs history for the TODO-age check
 
       - name: Run the audit
@@ -58,12 +58,12 @@ jobs:
           # Same rebase-and-retry as the status sweep: agents push to dev
           # continuously, so a single push can be rejected as non-fast-forward.
           for attempt in 1 2 3 4 5; do
-            if git push origin dev; then
+            if git push origin main; then
               echo "pushed on attempt $attempt"
               exit 0
             fi
-            echo "push rejected; rebasing onto origin/dev (attempt $attempt)"
-            git pull --rebase origin dev
+            echo "push rejected; rebasing onto origin/main (attempt $attempt)"
+            git pull --rebase origin main
           done
           echo "push still rejected after 5 attempts" >&2
           exit 1

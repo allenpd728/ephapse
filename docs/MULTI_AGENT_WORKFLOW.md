@@ -10,9 +10,9 @@ starts with the lesson already applied rather than relearning it.
 > double-claim, strand dependents, and lose work at rebase. The branch
 > sprawl *was* the symptom. This file is the fix.
 
-> **System of record:** the issue queue plus `git log origin/dev`. Status
+> **System of record:** the issue queue plus `git log origin/main`. Status
 > tables in docs are caches updated by sweeps and may lag — check the queue
-> and `dev` history before concluding work is undone.
+> and `main` history before concluding work is undone.
 
 ## Run-ids
 
@@ -58,7 +58,7 @@ git config credential.helper \
   '!f() { echo "username=x-access-token"; echo "password=${GITHUB_TOKEN}"; }; f'
 ```
 
-Then a plain `git push origin dev` / `git pull --rebase origin dev` works, and
+Then a plain `git push origin main` / `git pull --rebase origin main` works, and
 `gh issue …` / `gh pr …` work because the CLI already reads `$GITHUB_TOKEN`.
 
 **If you get a 401** (`Invalid username or token`, or `Bad credentials` from
@@ -68,7 +68,7 @@ than stopping:
 ```bash
 # git: push with the durable token in the URL for this one command
 GIT_TERMINAL_PROMPT=0 git push \
-  "https://x-access-token:${ALL_REPOs_GH_TOKEN}@github.com/philipdallen/ephapse.git" HEAD:dev
+  "https://x-access-token:${ALL_REPOs_GH_TOKEN}@github.com/philipdallen/ephapse.git" HEAD:main
 
 # gh: GH_TOKEN takes precedence over GITHUB_TOKEN
 GH_TOKEN="$ALL_REPOs_GH_TOKEN" gh issue view <n> --repo philipdallen/ephapse
@@ -79,7 +79,7 @@ Then report the expiry, because a session that hit it once will hit it again.
 **Non-interactive guard.** Never let a git command block on a prompt:
 
 ```bash
-GIT_TERMINAL_PROMPT=0 git push origin dev   # exits non-zero instead of hanging
+GIT_TERMINAL_PROMPT=0 git push origin main   # exits non-zero instead of hanging
 ```
 
 A push that hangs on a password prompt is the failure mode to design out — it
@@ -104,7 +104,7 @@ curl -s -o /dev/null -w '%{http_code}\n' \
 |---|---|
 | `status:available` | Ready to be claimed. All blockers are `done`. |
 | `status:claimed` | An agent has claimed it. Claim comment is the heartbeat. |
-| `status:done` | Work committed to `dev`. The human reviews on `dev` at leisure; anything needing changes spawns a follow-up task. |
+| `status:done` | Work committed to `main`. The human reviews on `main` at leisure; anything needing changes spawns a follow-up task. |
 | `status:blocked-needs-input` | Agent could not start or finish; needs human input. |
 | `priority:high` | Jumps the work queue (default order is lowest issue number). |
 | `needs-review` | Requires human or integrity review before acceptance. |
@@ -118,9 +118,90 @@ Each issue contains:
 - **Context** — links to spec sections, prior art, or related tasks
 - **Blocked by** — native GitHub issue-blocking relationships forming the lineage
 
-Sizing rule: one task = completable in one agent run (well under an hour).
-If a task can't be done in one run, decompose it before it becomes
-`available`.
+Sizing rule: one task = completable in **one agent run**. Note what a run now
+means: scheduled OpenHands automation runs are hard-capped at **30 minutes
+wall-clock**, and a run killed at the cap loses everything not already pushed.
+Recon, cloning, and gates consume a large share of that, so **size a task for 20
+minutes of work or less**. If a task can't be done in one run, decompose it
+before it becomes `available`.
+
+**Planning and research are legitimate tasks, not overhead.** When an issue is
+too large or too uncertain to implement in a single run, the right decomposition
+is usually a research or planning issue *first* — an investigation whose
+Definition of Done is a written finding, a decision record, or a freshly filed
+set of smaller issues. A 20-minute run that produces a well-scoped plan for the
+next five issues is a good outcome, not a wasted run. Prefer a short, honest
+research task over a half-finished implementation.
+
+## Automated runs (bounded, 30-minute cap)
+
+Some `status:available` work is picked up by a scheduled automation rather than
+an attended agent. Those runs are hard-capped at **30 minutes** — the platform
+rejects any longer timeout — and a run killed at the cap loses everything not
+already pushed to GitHub. Three rules follow. Attended agents should follow them
+too, because the loss mode is identical.
+
+1. **Push constantly.** Commit and push each coherent step the moment it exists.
+   Unpushed work dies with the sandbox; a pushed partial commit is a resumable
+   checkpoint. Do not accumulate local edits and push once at the end.
+2. **Checkpoint rather than overrun.** If a run cannot finish, push what is
+   complete, then post a comment beginning `<!-- oh-agent -->` `CHECKPOINT`
+   naming the run-id, the pushed SHAs, what is done, what remains, and the next
+   concrete step. Release the claim (restore `status:available`) so the next run
+   can pick it up immediately. A run that claims an issue whose last comment is a
+   `CHECKPOINT` should **continue that work, not re-derive it**. Never use
+   `status:blocked-needs-input` for mere time exhaustion — that label means a
+   human decision is required.
+3. **Mark every agent comment with `<!-- oh-agent -->`.** Claim comments,
+   progress notes, checkpoints, and closing comments alike. This is a
+   machine-readable marker, not decoration: an automation watches issue comments
+   and would otherwise wake on agent output and spend an entire run deciding to
+   do nothing. Omitting it costs a run.
+
+## Writing for the human reviewer
+
+Most issues are resolved without the human reading anything, but every so often
+one stops and waits for a person. When that happens, write for someone who has
+not read the thread. Two conventions make the human's queue scannable without
+anyone spending an agent run to summarise it.
+
+**1. `NEEDS:` — open every `status:blocked-needs-input` comment with it.**
+
+The comment's **first line** must be a single self-contained statement of the one
+thing a human must decide or provide:
+
+```
+NEEDS: choose whether the detector statistic is re-derived per-rung or once
+globally — DEC-030 implies per-rung but the ledger records a single value.
+```
+
+Rules for that line:
+
+- One decision or one piece of information. Not two.
+- Self-contained: it must make sense to a reader who has read nothing else.
+  A pointer ("see above", "as discussed") is not a `NEEDS:` line.
+- Say what you already know and where the ambiguity is, so the human can answer
+  in one message rather than asking a clarifying question.
+
+This is what makes the whole blocker queue readable in one command — see
+`needs-audit.sh` in this repo's tooling, or the recipe in
+`automations/HUMAN_REVIEW.md`. A blocked comment without a `NEEDS:` line is
+considered incomplete.
+
+**2. "Not in my lane" — one line on your final comment, when you saw something.**
+
+When a run finishes, if while working it noticed something outside its own task
+that it did **not** act on, append one line:
+
+```
+Not in my lane: ephapse #21 needs a dependency decision; PleaNP #96 looks like
+a duplicate of #77.
+```
+
+Only if true — never manufacture items to fill it. This costs nothing beyond a
+line on a comment already being written, and it makes the human's periodic scan
+surface cross-cutting problems that no single task owns. It is **not** a sweep:
+do not go looking for things to report, and never let it extend a run.
 
 **One task = one signal.** Every task's Definition of Done names a single
 observable check that turns green only when the task is genuinely finished.
@@ -138,6 +219,39 @@ Dependencies are expressed as GitHub "blocked by" relationships, forming
 lineages. A task becomes `available` only when **every** issue blocking it
 is `status:done`. Within a lineage, only one task is ever available at a
 time.
+
+## Emergent requirements
+
+Discovery-during-work is the normal case in an exploratory program, not an
+exception. `#23`, `#24`, and `#25` were all discovered mid-task, filed ad hoc
+with no shared shape, and only `#23` was labelled as what it was. This section
+makes that path first-class. It transcribes
+`docs/reference/PROGRAM_MANAGEMENT_SPEC.md` §6.
+
+**When an agent discovers something outside its claimed task's scope:**
+
+1. **Do not fix it in the claimed task.** Scope creep inside a claim is what
+   makes a done comment unverifiable. `#24` found holes in `#11`'s work *after*
+   `#11` closed; fixing them inside `#11` would have made `#11`'s evidence
+   unreviewable.
+2. **File it before closing the claimed task**, search-then-file — file, then
+   search again for a twin with a lower number and close yours if one exists
+   (§2a, unchanged).
+3. **Give it a `kind:` label per spec §3.1.** A hole in shipped work is
+   `kind:defect`, not `kind:gate`. A newly-needed capability is `kind:gap`.
+4. **Record it in the claimed task's ledger entry** under `emergent`.
+5. **State the blocking relationship honestly.** If the discovery blocks the
+   claimed task, or another live task, say so and use a native dependency link.
+   If it does not, say that too. `#24` is the worked example of both halves: it
+   does **not** block `#11` (which had already closed and whose work it
+   corrects), but it **does** block `#15`, because `#15` cannot honestly repair
+   the artifact tree while the gate it repairs against has two false-negative
+   holes. A discovery's blocking edge is often to a *later* task, not to the one
+   that surfaced it — which is precisely why it must be written down.
+
+**The rule that makes this affordable:** an agent filing an emergent issue does
+**not** have to solve it. The discovery is the deliverable. A filed-and-labelled
+issue with a reproduction is a complete contribution.
 
 ## Claiming protocol
 
@@ -198,12 +312,12 @@ close + unblock dependents) before claiming the next.
 1c. **A sweep is not finished until it is pushed.** Any sweep that changed
    the tracker or the tree — reclaimed a claim (1), repaired a label (1a),
    or fixed a doc (1b) — **must end with the change committed and pushed to
-   `origin/dev`**, and the sweep's results comment must name the commit it
+   `origin/main`**, and the sweep's results comment must name the commit it
    pushed. A sweep that stops at the local tree has not happened: the next
    session sees the unchanged remote and repeats the same work, and if the
    sweep only changed labels it leaves the tree and the tracker inconsistent.
 
-   This is the same rule as §5 (work commits directly to `dev`) applied to
+   This is the same rule as §5 (work commits directly to `main`) applied to
    sweeps. It applies with two caveats:
 
    - **Tracker-only sweeps** (label changes, reclaim comments) push nothing
@@ -215,13 +329,13 @@ close + unblock dependents) before claiming the next.
      rather than leaving the absence of a comment ambiguous.
 
    Concretely: if `git status` is dirty when the sweep ends, the sweep is
-   unfinished. Commit, `git pull --rebase origin dev`, push, and only then
+   unfinished. Commit, `git pull --rebase origin main`, push, and only then
    write the sweep comment. See §Credentials for the push setup — and never
    leave work sitting on the local branch behind a credentials prompt.
 
 2. **Pick work.** Any `status:available` issue the agent can start. Default
    order: lowest issue number first; `priority:high` jumps the queue.
-   Before concluding any work item is undone, check `git log origin/dev`
+   Before concluding any work item is undone, check `git log origin/main`
    and the issue queue — docs tables lag.
 
 2a. **Filing is not atomic — search, file, search again.** Before filing a
@@ -292,20 +406,20 @@ close + unblock dependents) before claiming the next.
    tiebreak): `python3 tooling/claims/claim.py release <issue> <run-id>`. It
    refuses to release a claim held by another run-id.
 
-5. **Do the work; prove the done.** Commit directly to `dev` (no PR —
-   review happens retrospectively on `dev`). Swap `status:claimed` →
+5. **Do the work; prove the done.** Commit directly to `main` (no PR —
+   review happens retrospectively on `main`). Swap `status:claimed` →
    `status:done` and close the issue with a comment linking the commits.
    **Tasks with known-answer criteria close only when the done comment
    includes the exact command and its output** — a done claim without
    evidence is how full maps ship empty and nobody notices.
 
    **Done means pushed, not committed.** A task is not done while its
-   commits exist only on the local branch; the reviewer reads `dev` on the
+   commits exist only on the local branch; the reviewer reads `main` on the
    remote. Before writing the done comment, confirm the remote actually has
    the commit:
 
    ```bash
-   git push origin dev && git status --porcelain    # must print nothing
+   git push origin main && git status --porcelain    # must print nothing
    ```
 
    A `git push` that hangs on a password prompt has failed even though it
@@ -313,14 +427,14 @@ close + unblock dependents) before claiming the next.
    `GIT_TERMINAL_PROMPT=0` so a credential problem errors out instead of
    silently stranding the work.
 
-   **Concurrent-work rules** (agents run in parallel against `dev`):
+   **Concurrent-work rules** (agents run in parallel against `main`):
    - Pull before you start, and again before you push.
-   - On push rejection (non-fast-forward): `git pull --rebase origin dev`,
+   - On push rejection (non-fast-forward): `git pull --rebase origin main`,
      resolve conflicts, push again.
    - **Rebase revealed a sibling landed the same work?** Compare the two
      implementations: if yours adds nothing, drop it; if yours genuinely
      extends it, merge the two in the rebase. Never push a second copy.
-   - **Never force-push to `dev`** — it can destroy a sibling's committed
+   - **Never force-push to `main`** — it can destroy a sibling's committed
      work.
    - A rebase conflict you cannot resolve confidently is a blocker — file it.
 

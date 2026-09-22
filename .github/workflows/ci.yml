@@ -1,6 +1,6 @@
 name: CI
 
-# Tier-0 validation on `dev`. Wires the gate suite and the stdlib test suites
+# Tier-0 validation on `main`. Wires the gate suite and the stdlib test suites
 # into GitHub Actions so the validation layer stops depending on an agent
 # remembering to run it (issue #13).
 #
@@ -32,14 +32,14 @@ name: CI
 
 on:
   push:
-    branches: [dev]
+    branches: [main]
   pull_request:
-    branches: [dev]
+    branches: [main]
   workflow_dispatch: {}
 
-# Least privilege: every job only reads the checkout. This repo's own
-# workflow-hardening check enforces the top-level block, and a workflow that
-# skipped it would be flagged by the auditor.
+# Least privilege: every job only reads the checkout. Declared explicitly rather
+# than left to the default, so the token's reach is a reviewable line rather than
+# an inherited default that changes when GitHub changes it.
 permissions:
   contents: read
 
@@ -161,15 +161,57 @@ jobs:
           import ast, pathlib, sys
           p = pathlib.Path("tooling/auditor.py")
           src = p.read_text()
-          # Make the private-key pattern unmatchable while staying valid Python.
-          # The scanner remains wired and still runs; it just silently finds
-          # nothing -- the "plausible artifact from an unchecked process" shape.
+          # Blind the committed-artifact scanner's extension list while staying
+          # valid Python. The scanner remains wired and still runs; it just
+          # silently finds nothing -- the "plausible artifact from an unchecked
+          # process" shape. `test_tracked_artifact_detected` plants a committed
+          # `.DS_Store`, so an empty pattern list is exactly the condition it
+          # exists to catch.
           #
           # The mutation must parse. The first version of this check produced a
           # syntax error, so the suite exited non-zero for a reason unrelated to
           # detection and the check would have "passed" while proving nothing --
           # the same vacuity the gate fixture rule exists to catch. Hence the
           # explicit ast.parse guard below.
+          old = 'patterns = (".DS_Store", "Thumbs.db", ".pyc", ".pyo", ".orig", ".rej", ".swp")'
+          if old not in src:
+              sys.exit("could not locate the artifact pattern list to mutate")
+          mutated = src.replace(old, "patterns = ()", 1)
+          if mutated == src:
+              sys.exit("mutation was a no-op")
+          ast.parse(mutated)   # a mutation that cannot import proves nothing
+          p.write_text(mutated)
+          PY
+          if python3 tooling/tests/test_auditor.py > /tmp/mutated.log 2>&1; then
+            echo "::error::the auditor suite passed with the artifact scanner blinded —"
+            echo "the tests do not actually constrain the checks they describe"
+            tail -20 /tmp/mutated.log
+            exit 1
+          fi
+          # ...and it must fail on the tests that constrain the mutated pattern,
+          # not on an unrelated error. A non-zero exit is not by itself evidence.
+          grep -q "test_tracked_artifact_detected" /tmp/mutated.log || {
+            echo "::error::the suite failed, but not on the test that constrains"
+            echo "the mutated check — the mutation did not isolate what it claims to"
+            tail -20 /tmp/mutated.log
+            exit 1
+          }
+          echo "auditor suite correctly failed on the blinded-artifact-scanner tests"
+
+      # The PR branch's mutation target, kept as its own step. The suite guards two
+      # scanners; blinding only one leaves the other's tests unproven, and this PR is
+      # what adds the secret scanner, so it is the newer of the two guarantees.
+      - name: Auditor tests can fail (secret-scanner mutation check)
+        run: |
+          set -e
+          MUT=$(mktemp -d)
+          trap 'rm -rf "$MUT"' EXIT
+          cp -r "$GITHUB_WORKSPACE"/. "$MUT"/
+          cd "$MUT"
+          python3 - <<'PY'
+          import ast, pathlib, sys
+          p = pathlib.Path("tooling/auditor.py")
+          src = p.read_text()
           old = r'r"-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----"'
           if old not in src:
               sys.exit("could not locate the private-key pattern to mutate")
@@ -179,21 +221,19 @@ jobs:
           ast.parse(mutated)   # a mutation that cannot import proves nothing
           p.write_text(mutated)
           PY
-          if python3 tooling/tests/test_auditor.py > /tmp/mutated.log 2>&1; then
+          if python3 tooling/tests/test_auditor.py > /tmp/mutated_secret.log 2>&1; then
             echo "::error::the auditor suite passed with the secret scanner blinded —"
             echo "the tests do not actually constrain the checks they describe"
-            tail -20 /tmp/mutated.log
+            tail -20 /tmp/mutated_secret.log
             exit 1
           fi
-          # ...and it must fail on the tests that constrain the mutated pattern,
-          # not on an unrelated error. A non-zero exit is not by itself evidence.
-          grep -q "test_private_key_block_is_reported" /tmp/mutated.log || {
+          grep -q "test_private_key_block_is_reported" /tmp/mutated_secret.log || {
             echo "::error::the suite failed, but not on the test that constrains"
             echo "the mutated check — the mutation did not isolate what it claims to"
-            tail -20 /tmp/mutated.log
+            tail -20 /tmp/mutated_secret.log
             exit 1
           }
-          echo "auditor suite correctly failed on the blinded-scanner tests"
+          echo "auditor suite correctly failed on the blinded-secret-scanner tests"
 
   # Maith's formulation, adopted verbatim: a tier-0 pass is not "gate passed".
   # This job exists so the summary cannot be read as more than it is.

@@ -93,7 +93,8 @@ def test_every_gate_satisfies_the_two_part_contract():
 
 
 # ------------------------------------------------------------------ G-E gates
-FINDINGS_GATES = ("G-E1", "G-E2", "G-E6", "G-E7")
+FINDINGS_GATES = ("G-E1", "G-E2", "G-E6", "G-E7",
+                  "G-E3", "G-E4", "G-E5", "G-E8")
 
 
 @pytest.mark.parametrize("gate_id", FINDINGS_GATES)
@@ -145,6 +146,71 @@ def test_g_e7_runid_violation_is_fail_not_skip(monkeypatch, tmp_path):
     status, findings = V.check_issue_and_runid(bad)
     assert status == "FAIL", f"expected FAIL, got {status}"
     assert any("run_id" in f for f in findings)
+
+
+# ------------------------------------------------ claim-consistency G-E3..E8
+CC_CLEAN = R.FIXTURES / "findings" / "claim_consistency_clean.jsonl"
+
+
+def _cc_records():
+    return [json.loads(l) for l in CC_CLEAN.read_text().splitlines()
+            if l.strip() and not l.startswith("#")]
+
+
+def test_claim_consistency_clean_fixture_is_silent():
+    """The clean case holds one legitimate flagged causal record and one null
+    carrying the absorption caveat; none of G-E3/E4/E5/E8 may fire.
+
+    This is the false-positive guard: a rule that rejects the clean case is
+    worse than no rule, because it would force the log to drop real findings.
+    """
+    import validate_findings as V
+    for fn in (V.check_causal_consistency, V.check_paraphrase_consistency,
+               V.check_no_conclusions, V.check_absorption_caveat):
+        assert fn(CC_CLEAN) == [], f"{fn.__name__} fired on the clean fixture"
+
+
+def test_claim_consistency_clean_fixture_is_actually_flagged_and_null():
+    """Guard the guard: the clean case must exercise both branches, or the
+    silence above proves nothing."""
+    verdicts = {r["verdict"] for r in _cc_records()}
+    assert verdicts == {"flagged", "null"}, verdicts
+    assert any(r["causal_claim"] is True for r in _cc_records())
+    assert any(r["paraphrase_survived"] is True for r in _cc_records())
+
+
+def test_claim_consistency_g_e5_passes_a_disclaimed_claim():
+    """A record that says 'this is not a mathematical result' / 'no theorem is
+    claimed' must pass — the disclaimer is the rule working, not a violation."""
+    import validate_findings as V
+    assert V.check_no_conclusions(CC_CLEAN) == []
+
+
+@pytest.mark.parametrize("fixture,fn,needle", [
+    ("g_e3_causal_no_intervention.jsonl", "check_causal_consistency", "intervention"),
+    ("g_e4_survived_no_controls.jsonl", "check_paraphrase_consistency", "paraphrase_controls"),
+    ("g_e5_asserts_theorem.jsonl", "check_no_conclusions", "mathematical-claim language"),
+    ("g_e8_null_no_absorption.jsonl", "check_absorption_caveat", "absorption"),
+])
+def test_claim_consistency_gate_fires_on_its_fixture(fixture, fn, needle):
+    """One failing fixture per rule; deleting any one turns this red.
+
+    Selected by `-k claim_consistency`, which is issue #19's Definition of Done.
+    """
+    import validate_findings as V
+    findings = getattr(V, fn)(R.FIXTURES / "findings" / fixture)
+    assert findings, f"{fn} did not fire on {fixture}"
+    assert any(needle in f for f in findings), findings
+
+
+def test_real_findings_file_passes_the_claim_consistency_gates():
+    """The repo's own findings.jsonl must satisfy G-E3/E4/E5/E8 as well."""
+    import validate_findings as V
+    real = REPO / "findings.jsonl"
+    assert V.check_causal_consistency(real) == [], "G-E3 fired on real log"
+    assert V.check_paraphrase_consistency(real) == [], "G-E4 fired on real log"
+    assert V.check_no_conclusions(real) == [], "G-E5 fired on real log"
+    assert V.check_absorption_caveat(real) == [], "G-E8 fired on real log"
 
 
 def test_g_e1_accepts_declared_extension_keys():
@@ -318,6 +384,28 @@ def test_real_findings_file_passes_the_registered_findings_gates():
     assert status in ("PASS", "SKIP"), f"G-E7 on real log: {status} {findings}"
 
 
+def test_findings_header_declares_every_extension_key():
+    """Every key in KNOWN_EXTENSIONS must be documented in the findings header.
+
+    Issue #25: the gate accepted `input_disjointness` (declared in
+    KNOWN_EXTENSIONS) while the header prose documented none of its extension
+    keys. That is a silent divergence in the schema of record — the gate knows
+    a key the header does not. This test makes the drift loud: adding a key to
+    KNOWN_EXTENSIONS without documenting it in the header fails here.
+    """
+    import validate_findings as V
+    header = "\n".join(
+        line for line in (REPO / "findings.jsonl").read_text(
+            encoding="utf-8").splitlines() if line.startswith("#")
+    )
+    undeclared = [k for k in V.KNOWN_EXTENSIONS if k not in header]
+    assert not undeclared, (
+        f"KNOWN_EXTENSIONS key(s) {undeclared} are not documented in the "
+        f"findings.jsonl header — document them or the schema of record "
+        f"diverges from the gate"
+    )
+
+
 # -------------------------------------------------------------- G-R gates
 def test_infrastructure_exemption_matches_dated_filenames():
     """The README's patterns must match the repo's `<date>-<slug>.py` names.
@@ -331,10 +419,96 @@ def test_infrastructure_exemption_matches_dated_filenames():
     assert not V._is_infra("2026-09-18-detector-positive-control.py", "")
 
 
-def test_infrastructure_exemption_via_explicit_declaration():
+def test_infrastructure_declaration_no_longer_grants_the_exemption():
+    """Issue #24 hole 2: prose alone must not excuse a file.
+
+    The old `_is_infra` returned True on this exact declaration for any name, so
+    a hypothesis-test file could drop `Null`/`Correction` with a docstring edit.
+    The exemption is now name-only; the declaration is ignored.
+    """
     import validate_experiments as V
     text = "*Infrastructure/baseline file: no hypothesis under test.*"
-    assert V._is_infra("2026-09-19-whatever.py", text)
+    assert not V._is_infra("2026-09-19-whatever.py", text)
+    assert not V._is_infra("2026-09-19-cross-domain-probe.py", text)
+    # A genuinely exempt name is still exempt, declaration or not.
+    assert V._is_infra("2026-09-19-latency-fixture.py", "")
+    # `gen_*` is NOT an enumerated exemption: it was only ever exempt via the
+    # prose route this hole closes, and the README does not list it. Its real
+    # repair is a header (#24 leaves it red; #16 owns whether it joins the set).
+    assert not V._is_infra("gen_cross_domain.py", "")
+
+
+def test_g_r1_fires_when_a_hypothesis_file_self_declares_infrastructure():
+    """The failing fixture now self-declares, so this fails for the right reason.
+
+    Before the fix `_is_infra` excused this file; the assertion below would then
+    have found no findings and the fixture would have been green — the exact
+    hole. It must be reported as a hypothesis-test missing `Inputs`/`Null`/
+    `Correction`.
+    """
+    import validate_experiments as V
+    d = R.FIXTURES / "experiments_r1_invalid_exemption"
+    findings = V.gate_r1(d)
+    assert findings, "G-R1 excused a self-declared 'infrastructure' file"
+    assert any("2026-09-19-claims-exemption.py" in f for f in findings), findings
+    assert any("full header" in f for f in findings), findings
+
+
+def test_header_rule_three_cases_full_exempted_and_claimed():
+    """The G-R1 fixture set proves the three cases issue #16 names.
+
+    Full header (clean), the enumerable exemption (latency-*), and a
+    hypothesis-test file that *claims* the exemption and must be rejected.
+    """
+    import validate_experiments as V
+
+    clean = R.FIXTURES / "experiments_clean"
+    assert V.gate_r1(clean) == [], "G-R1 fired on the clean fixture set"
+
+    claimed = R.FIXTURES / "experiments_r1_invalid_exemption"
+    findings = V.gate_r1(claimed)
+    assert any("2026-09-19-claims-exemption.py" in f and "full header" in f
+               for f in findings), findings
+    # The genuinely exempt `latency-*` file in the same directory must not fire.
+    assert not any("latency-fixture" in f for f in findings), findings
+
+    missing = R.FIXTURES / "experiments_r1_missing_field"
+    findings = V.gate_r1(missing)
+    assert any("2026-09-19-missing-correction.py" in f and "Correction" in f
+               for f in findings), findings
+
+
+def test_header_near_miss_is_reported_not_only_an_empty_file():
+    """A header that looks complete but omits one field must be caught.
+
+    A gate that only fires on an empty or obviously-malformed file satisfies the
+    letter of the fixture rule and none of its purpose.
+    """
+    import validate_experiments as V
+    d = R.FIXTURES / "experiments_r1_missing_field"
+    findings = V.gate_r1(d)
+    assert any("G-R1 full header missing" in f for f in findings), findings
+
+
+def test_readme_header_exemption_matches_the_gate():
+    """The README's exemption patterns must be the gate's, not a drifting copy.
+
+    Issue #16 method constraint: one source of truth. The failure mode is a rule
+    that drifts from its checker (the Maith G2-5 docs-vs-scanner divergence).
+    This test fails if the README names a pattern `_is_infra` does not implement,
+    or omits one it does.
+    """
+    import validate_experiments as V
+
+    readme = (REPO / "experiments" / "README.md").read_text(encoding="utf-8")
+    for pattern in V.INFRA_PATTERNS:
+        assert pattern in readme, (
+            f"README does not name the gate's exemption pattern {pattern!r} — "
+            f"the rule has drifted from its checker")
+    for required in ("Model", "Inputs", "Question", "Null", "Correction", "Issue"):
+        assert required in readme, f"README template omits the {required} field"
+    assert "validate_experiments.py" in readme, (
+        "README does not point at the gate that enforces the header rule")
 
 
 def test_g_r2_fails_closed_when_no_model_can_be_determined():
@@ -346,24 +520,48 @@ def test_g_r2_fails_closed_when_no_model_can_be_determined():
     assert any("cannot determine" in f for f in findings)
 
 
-def test_g_r2_fires_on_a_superseded_model():
+def test_g_r2_accepts_a_correctly_attributed_superseded_model():
+    """Issue #24 hole 1: a `Supersedes:` naming the model decision is an escape.
+
+    Without it #15 must falsify or delete the superseded 160M measurements to
+    turn the gate green, which is dishonest. The fixture names DEC-014 (the
+    model decision), so G-R2 must be silent.
+    """
     import validate_experiments as V
     d = R.FIXTURES / "experiments_r2_superseded_model"
     findings = V.gate_r2(d)
-    assert any("pythia-160m" in f for f in findings), findings
+    assert findings == [], f"a valid supersession must be accepted: {findings}"
 
 
-def test_g_r1_fires_on_a_claimed_but_invalid_exemption():
-    """A hypothesis-test file claiming the exemption must not be excused.
+def test_g_r2_fires_on_a_superseded_model_with_an_unrelated_decision():
+    """The escape must not degrade into "any DEC mention silences the gate".
 
-    Three fields would satisfy the reduced set, so this only fails if the file
-    is correctly judged NOT to be infrastructure — which is the point.
+    `**Supersedes: DEC-011**` is not the model decision, so citing it cannot
+    authorize the 160M. This is the failing fixture G-R2 is registered with.
     """
     import validate_experiments as V
-    d = R.FIXTURES / "experiments_r1_invalid_exemption"
-    findings = V.gate_r1(d)
-    assert findings, "G-R1 excused a file that claimed the exemption"
-    assert any("full header" in f for f in findings), findings
+    d = R.FIXTURES / "experiments_r2_unrelated_decision"
+    findings = V.gate_r2(d)
+    assert any("pythia-160m" in f for f in findings), findings
+    assert all("Supersedes" in f for f in findings), findings
+
+
+def test_g_r2_escape_is_not_reachable_by_a_bare_dec_mention():
+    """A DEC in prose (no `Supersedes:`) must not authorize a non-target id."""
+    import validate_experiments as V
+    d = R.FIXTURES / "experiments_r2_unrelated_decision"
+    text = (d / "2026-09-19-unrelated-decision.py").read_text()
+    assert "DEC-014" not in text, "fixture must not accidentally cite the decision"
+    findings = V.gate_r2(d)
+    assert findings, "a bare DEC mention must not silence G-R2"
+
+
+def test_model_decision_policy_is_machine_readable():
+    """The escape's policy lives with the target, not in prose or in the gate."""
+    import validate_experiments as V
+    assert V.load_model_decisions() == ["DEC-014"], V.load_model_decisions()
+    # The policy line must not be mistaken for a model id.
+    assert "model-decision: DEC-014" not in V.load_target_models()
 
 
 def test_g_r5_fires_on_an_unlogged_file():
@@ -844,3 +1042,182 @@ def test_g_m1_fires_on_an_out_of_vocabulary_kind():
     status, findings = V.check_label_cardinality(tmp)
     assert status == "FAIL", f"expected FAIL, got {status}"
     assert any("not a known kind" in f for f in findings), findings
+
+
+# --------------------------------------------------- G-R4 docs coherence (#20)
+import check_docs_coherence as D  # noqa: E402
+
+_DOC_FIX = R.FIXTURES / "docs_coherence"
+
+
+def test_docs_coherence_g_r4_is_registered_and_declares_both_fixtures():
+    gate = next(g for g in R.REGISTRY if g.id == "G-R4")
+    assert gate.clean_fixture == "docs_coherence/coherent"
+    assert gate.failing_fixture == "docs_coherence/contradictory_current"
+
+
+def test_docs_coherence_g_r4_is_silent_on_the_coherent_fixture():
+    assert D.gate_r4(_DOC_FIX / "coherent") == []
+
+
+def test_docs_coherence_g_r4_fires_on_the_contradictory_current_fixture():
+    findings = D.gate_r4(_DOC_FIX / "contradictory_current")
+    assert findings, "the failing fixture must produce a finding"
+    assert any("target-model-id" in f for f in findings), findings
+    assert any("no-pythia-160m-sae" in f for f in findings), findings
+    assert any("branch-policy" in f for f in findings), findings
+
+
+def test_docs_coherence_g_r4_branch_policy_fires_only_on_an_active_branch_claim():
+    """DEC-001: `main` may be *named*, but not as the active/integration branch.
+
+    The real docs say "`main` is the reviewed branch" — correct, and silent.
+    """
+    assert D._branch_policy_findings("Development happens on `dev`.") == []
+    assert D._branch_policy_findings("`main` is the reviewed branch.") == []
+    assert D._branch_policy_findings(
+        "DEC-001 recorded that the only branch used to be `main`.") == []
+    fires = D._branch_policy_findings("The single active branch is `main`.")
+    assert fires, "naming main as the active branch must fire"
+
+
+def test_docs_coherence_g_r4_passes_a_corrected_history_entry():
+    """The false-positive guard: a DEC entry that *records* a withdrawn value.
+
+    DEC-010/014/015 all document superseded claims. A gate that fires on the
+    history of a correction is unusable — this is the design difficulty the
+    issue names, not an edge case.
+    """
+    findings = D.gate_r4(_DOC_FIX / "corrected_history")
+    assert findings == [], f"corrected history must pass: {findings}"
+
+
+def test_docs_coherence_g_r4_requires_both_a_160m_reference_and_a_positive_existence_claim():
+    """A legitimate mention of 160M (measurement, or a negated release) is silent."""
+    assert D._no_160m_sae_findings("Baseline: Pythia-160M peak RSS 2.68 GB") == []
+    assert D._no_160m_sae_findings("There is no Pythia-160M SAE release.") == []
+    fires = D._no_160m_sae_findings("Use the pythia-160m-sae release for all runs.")
+    assert fires, "a positive existence claim about a 160M SAE must fire"
+
+
+def test_docs_coherence_g_r4_real_tree_is_coherent():
+    """The gate over the four obliged docs — the sweep Step 1b automates."""
+    assert D.main() == 0, "the real docs contradict a settled fact"
+
+
+def test_docs_coherence_g_r4_fires_on_a_stale_status_line():
+    """Second drift class (issue #20 scope addition): a status line that lags.
+
+    The value is right (DEC-033 is cited) but the state is stale ("not yet
+    adopted"). The decision log records DEC-033 as adopting, so this fails.
+    """
+    findings = D.gate_r4(_DOC_FIX / "stale_status")
+    assert findings, "a status line lagging its adopting DEC must fire"
+    assert any("pre-adoption" in f for f in findings), findings
+
+
+def test_docs_coherence_g_r4_status_line_check_targets_the_line_not_the_file():
+    """The #8 caveat: a status-line check must not fire on body text.
+
+    A doc whose status line is correct must pass even when the body discusses
+    adoption or mentions "proposal" in an unrelated sentence.
+    """
+    findings = D.gate_r4(_DOC_FIX / "coherent_with_proposal_body")
+    assert findings == [], f"body text must not trip the status-line check: {findings}"
+
+
+
+# ------------------------------------------------------------------ G-C gates
+# Issue #22, spec §3/§4/§6. The fixture set is drawn from the real DEC-019/020
+# shapes; each test asserts the gate fires on its own fixture with the right
+# reason, not merely that some finding appears.
+CODE_GATES = ("G-C1", "G-C2", "G-C3", "G-C4", "G-C5")
+_FIX_CODE = R.FIXTURES / "fixture_code"
+
+
+@pytest.mark.parametrize("gate_id", CODE_GATES)
+def test_experiment_code_gate_passes_with_its_fixtures(gate_id):
+    gate = next(g for g in R.REGISTRY if g.id == gate_id)
+    res = R.run_gate(gate)
+    assert res.status == "PASS", f"{gate_id}: {res.status} — {res.detail}"
+
+
+@pytest.mark.parametrize("gate_id", CODE_GATES)
+def test_experiment_code_gate_registered_and_tier_0(gate_id):
+    gate = next((g for g in R.REGISTRY if g.id == gate_id), None)
+    assert gate is not None, f"{gate_id} not registered"
+    assert gate.tier == 0, f"{gate_id} is not Tier-0"
+
+
+def test_experiment_code_g_c1_fires_on_catchall_marginal():
+    from check_experiment_code import check_g_c1
+    findings = check_g_c1(_FIX_CODE / "g_c1_catchall_marginal.py")
+    assert any("catch-all" in f for f in findings), findings
+
+
+def test_experiment_code_g_c1_ceiling_is_below_threshold():
+    """The DEC-019 failure-2 arithmetic, asserted directly.
+
+    Equal marginals admit NPMI=1.0, so the ceiling only bites when a marginal
+    is either 1.0 (catch-all) or far below the other — which is the shape both
+    failure 1 and failure 2 took.
+    """
+    from check_experiment_code import _npmi_ceiling
+    assert _npmi_ceiling(1.0, 1.0, 0.20) == 0.0
+    assert _npmi_ceiling(0.001, 0.9, 0.20) < 0.8
+
+
+def test_experiment_code_g_c2_fires_on_control_that_never_fires():
+    from check_experiment_code import check_g_c2
+    findings = check_g_c2(_FIX_CODE / "g_c2_control_never_fires.py")
+    assert any("both groups" in f or "planted signal" in f for f in findings), findings
+
+
+def test_experiment_code_g_c3_fires_on_inverted_survival():
+    from check_experiment_code import check_g_c3
+    findings = check_g_c3(_FIX_CODE / "g_c3_inverted_survival.py")
+    assert any("gammaincc" in f for f in findings), findings
+
+
+def test_experiment_code_g_c3_clean_survival_call_is_bound():
+    from check_experiment_code import check_g_c3
+    assert check_g_c3(_FIX_CODE / "clean_experiment.py") == []
+
+
+def test_experiment_code_g_c4_fires_on_isolate_vacuity():
+    from check_experiment_code import check_g_c4
+    findings = check_g_c4(_FIX_CODE / "g_c4_isolate_vacuity.py")
+    assert any("isolate" in f for f in findings), findings
+
+
+def test_experiment_code_g_c5_fires_on_incomparable_params():
+    from check_experiment_code import check_g_c5
+    findings = check_g_c5(_FIX_CODE / "g_c5_incomparable_params.py")
+    assert any("comparability" in f for f in findings), findings
+
+
+@pytest.mark.parametrize("gate_id", CODE_GATES)
+def test_experiment_code_gate_fails_closed_without_a_declaration(gate_id, tmp_path):
+    """Absent a GATE-DECL block the gate must FLAG, never pass silently.
+
+    G-C3 is the exception: with no survival/CDF call in the file there is no
+    direction to verify, so silence is correct. It is checked separately below —
+    a file that makes such a call must still fail closed without a binding.
+    """
+    import check_experiment_code as C
+    fn = {"G-C1": C.check_g_c1, "G-C2": C.check_g_c2, "G-C3": C.check_g_c3,
+          "G-C4": C.check_g_c4, "G-C5": C.check_g_c5}[gate_id]
+    bare = tmp_path / "bare.py"
+    bare.write_text("import numpy as np\n", encoding="utf-8")
+    if gate_id == "G-C3":
+        pytest.skip("no survival/CDF call → nothing to bind")
+    assert fn(bare), f"{gate_id} passed a file with no declaration"
+
+
+def test_experiment_code_g_c3_fails_closed_on_an_unbound_call(tmp_path):
+    from check_experiment_code import check_g_c3
+    bare = tmp_path / "bare_call.py"
+    bare.write_text("from scipy import stats\nstats.poisson.sf(1, 1.0)\n",
+                    encoding="utf-8")
+    assert check_g_c3(bare), "an unbound survival call must fail closed"
+

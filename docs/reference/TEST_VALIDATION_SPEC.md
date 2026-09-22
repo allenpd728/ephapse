@@ -209,7 +209,7 @@ rather than after a plausible-looking null.
 | **G-R4** | Docs coherence — README / handoff / DEC log / experiments README agree on target model and settled facts | workflow § Step 1b | 0 |
 | **G-R5** | Run-log currency — every `experiments/*.py` has a row in the experiments README run log | **defect #2** | 0 |
 
-**Tier 0 is the first deliverable.** It is 29 of the 37 gates, needs no model,
+**Tier 0 is the first deliverable.** It is 29 of the 38 gates, needs no model,
 no torch, and no GPU, and it covers defects #1 and #2 outright, the whole
 evidence-integrity surface, and — most importantly — the entire `G-C` code-gate
 series for the fifth defect class. Tier 1 gates are the detector-validity ones,
@@ -440,12 +440,15 @@ The revision adds the `G-C` series (§3), the constructibility, frozen-parameter
 tracking and replication gates (G-D7–G-D10), the arithmetic-capability
 requirement on multiplicity correction (G-D2, corrected by DEC-016), the
 isolate-vacuity rule (G-F2), the aggregate-attribution gate (G-F5), and the
-split causal rung (§5). Inventory: 24 → 37 gates. #22 is the new
+split causal rung (§5). Inventory: 24 → 38 gates. #22 is the new
 highest-value task; #23 logs the related registry gap.
 
 *Count history:* DEC-021 recorded 24 gates, DEC-022 raised it to 34, DEC-025 to
-36, DEC-026 to 37 (G-D9/G-D10 from DEC-023/024; G-F6 from DEC-025). The larger
-number is current.
+36, DEC-026 to 37 (G-D9/G-D10 from DEC-023/024; G-F6 from DEC-025). DEC-039
+added no gate: it recounted this section's § 3 inventory mechanically and found
+**38** ids (29 tier-0 capable, 9 tier-1), so DEC-026's 37 was a hand-count that
+missed one row. 38 is canonical. `tooling/gates/gate_inventory.py` derives the
+count from this table — quote its output rather than a typed number.
 
 **Three splits, each because the bundled task had more than one signal.**
 This is the substantive change from the first filing, and it is worth recording

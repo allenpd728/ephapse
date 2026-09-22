@@ -1,0 +1,11 @@
+# Fixture ledger for program/view.py tests (issue #32, spec §5).
+# Four records chosen so every view has something to render:
+#   P-001  in-flight record (outcome: null)
+#   P-002  completed record with a rung
+#   P-003  instrument-failed record with findings
+#   P-004  defect-found record with emergent links
+# Schema: PROGRAM_MANAGEMENT_SPEC.md §4. Validated by program/ledger.py.
+{"id": "P-001", "ts": "2026-09-20T10:00:00Z", "issue": 31, "run_id": "20260920-1000-a1b2", "kind": "protocol", "outcome": null, "rung": null, "results": ["program/ledger.jsonl"], "decisions": ["DEC-035"], "findings": [], "blocks": [32, 33], "emergent": [], "note": "Ledger tooling landed; outcome unclassified until the #33 backfill."}
+{"id": "P-002", "ts": "2026-09-20T11:00:00Z", "issue": 6, "run_id": "20260920-1100-c3d4", "kind": "experiment", "outcome": "phenomenon-present", "rung": 2, "results": ["findings.jsonl"], "decisions": ["DEC-013", "DEC-018"], "findings": [2], "blocks": [7], "emergent": [], "note": "Weak verbal-symbolic bridging, surface-controlled."}
+{"id": "P-003", "ts": "2026-09-20T12:00:00Z", "issue": 7, "run_id": "20260920-1200-e5f6", "kind": "experiment", "outcome": "instrument-failed", "rung": null, "results": ["findings.jsonl"], "decisions": ["DEC-020", "DEC-025"], "findings": [4], "blocks": [], "emergent": [], "note": "0/50 features above the cause threshold under corrected thresholds."}
+{"id": "P-004", "ts": "2026-09-20T13:00:00Z", "issue": 24, "run_id": "20260920-1300-g7h8", "kind": "defect", "outcome": "defect-found", "rung": null, "results": ["docs/reference/TEST_VALIDATION_SPEC.md"], "decisions": [], "findings": [], "blocks": [15], "emergent": [23], "note": "Two false-negative holes in the gates shipped by #11."}

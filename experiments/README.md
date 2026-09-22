@@ -2,27 +2,60 @@
 
 One file per experiment, named `<YYYY-MM-DD>-<slug>.py` (or `.ipynb`).
 
-Every experiment file starts with a header comment stating:
+Every experiment file starts with a header comment carrying six mandatory
+fields. Copy this block verbatim and fill it in:
 
-- **Model** — exact model id and dtype
-- **Inputs** — what prompt sets are used, and where they come from
-- **Question** — what is being tested, in one sentence
-- **Null** — the null model the result will be compared against
-- **Correction** — the multiplicity correction applied
-- **Issue** — the GitHub issue this belongs to
+```python
+"""<one-line summary>
 
-A file without those five header fields is not runnable as evidence.
+**Model:** <exact model id>, <dtype>, <device>.
+**Inputs:** <what prompt sets are used, and where they come from>.
+**Question:** <what is being tested, in one sentence>.
+**Null:** <the null model the result is compared against>.
+**Correction:** <the multiplicity correction applied>.
+**Issue:** #<number> (<context>).
+"""
+```
+
+A file missing any of the six fields is not runnable as evidence. The rule is
+enforced by `tooling/gates/validate_experiments.py` (G-R1) — that gate's rule
+definition is the single source of truth; this section describes it and is tied
+to it, it does not replace it.
 
 ---
 
 ## Infrastructure / baseline measurements
 
-Files whose purpose is measuring the environment rather than testing a
-scientific question (`sandbox-baseline-*`, `latency-*`) are exempt from the
-`Null` and `Correction` header fields — there is no hypothesis under test.
-They must still state **Model**, **Question**, and **Issue**, and their
-results land in `docs/reference/SANDBOX_BASELINE.md` rather than
+The exemption is an **enumerable filename pattern**, never an intent. A file is
+exempt when its name — with any leading `YYYY-MM-DD-` stripped — matches one of
+the patterns enumerated in `INFRA_PATTERNS` in
+`tooling/gates/validate_experiments.py`:
+
+- `sandbox-baseline-*`
+- `latency-*`
+
+Those files measure the environment rather than testing a scientific question,
+so they drop `Null` and `Correction` and carry the three reduced fields —
+**Model**, **Question**, **Issue**:
+
+```python
+"""<one-line summary>
+
+**Model:** <exact model id>, <dtype>, <device>.
+**Question:** <what the environment measurement establishes>.
+**Issue:** #<number> (<context>).
+"""
+```
+
+Their results land in `docs/reference/SANDBOX_BASELINE.md` rather than
 `findings.jsonl`.
+
+A file cannot grant itself the exemption by describing itself as
+infrastructure: a line-leading declaration is ignored, because the exemption is
+a function of the filename alone. A hypothesis-test file that claims the
+exemption is judged against the full six-field rule and reported — the intent
+phrasing ("whose purpose is measuring the environment") is deliberately not the
+rule, since no agent can apply it consistently.
 
 ---
 
@@ -67,3 +100,35 @@ NP_SAE      = "3-res-sm"
 
 Decoder directions come from local `sae.W_dec`. Neuronpedia does **not**
 serve vectors (DEC-015).
+| 2026-09-22 | `2026-09-22-comparator-baselines.py` | #37 | DEC-034 comparators on the #6 corpus: SAE bridge statistic beside difference-in-means and linear-probe AUROC, on matched / shuffled-null / paraphrase arms. SAE stays the primary reading; comparators are a sensitivity check |
+```
+python3 experiments/2026-09-22-comparator-baselines.py
+```
+
+Records a `kind: comparator_baselines` result object (not a `findings.jsonl`
+line — that is the flagged-event log and its write belongs to a detector run,
+#3) shaped like a finding: `n`, `geometry`, and an `arms` list, one entry per
+arm, each carrying the SAE bridge reading, both supervised AUROCs, and a
+bridge-shaped statistic for the probe direction so all three substrates are
+directly comparable (G-C5).
+
+Headline (n=200, pythia-70m-deduped, `blocks.3.hook_resid_post`):
+
+| arm | SAE best / cutoff / survivors | diff-in-means AUROC | probe AUROC | probe bridge best / cutoff |
+|---|---|---|---|---|
+| matched | 0.035 / 0.015 / 6 | 0.756 | 0.585 | 0.50 / 0.485 |
+| shuffled-null | 0.010 / 0.015 / 0 | 0.569 | 0.600 | 0.48 / 0.485 |
+| paraphrase | 0.050 / 0.015 / 17 | 0.407 | 0.448 | 0.23 / 0.33 |
+
+Neither substrate detects a paraphrase-invariant bridge: the probe is at
+chance on the paraphrase arm (AUROC 0.448, bridge 0.23 below its own 0.33
+cutoff), so the null is not an SAE artifact. The matched SAE numbers
+reproduce #6 exactly (63 selected, best 0.035, 6 survivors), which is the
+cross-run comparability check. The probe is **not** a substrate
+replacement: it yields a direction, not an enumerable decoder-backed
+feature, so this is a sensitivity check on the detector, not a swap.
+
+Geometry: raw hook basis; cosine similarity is not used anywhere in this
+run, so the PRIOR_ART §9 concern (concepts are not linear in the raw basis)
+does not apply to a threshold here.
+

@@ -1,0 +1,14 @@
+{
+  "_comment": "Fixture issue-state cache for program/tests/test_view.py (issue #32). Deliberately small and self-contained so the view tests do not drift with the live queue. Same shape as tests/fixture_issue_state.json.",
+  "_generated": "fixture",
+  "6": {"state": "CLOSED", "done": true, "labels": ["kind:experiment", "status:done"], "blocked_by": []},
+  "7": {"state": "CLOSED", "done": true, "labels": ["kind:experiment", "status:done"], "blocked_by": []},
+  "15": {"state": "CLOSED", "done": true, "labels": ["kind:repair", "status:done"], "blocked_by": [24]},
+  "23": {"state": "OPEN", "done": false, "labels": ["kind:gap", "status:blocked-needs-input"], "blocked_by": [22]},
+  "24": {"state": "CLOSED", "done": true, "labels": ["kind:defect", "status:done"], "blocked_by": []},
+  "31": {"state": "CLOSED", "done": true, "labels": ["kind:decision", "status:done"], "blocked_by": []},
+  "32": {"state": "OPEN", "done": false, "labels": ["kind:gate", "status:available"], "blocked_by": [31]},
+  "33": {"state": "OPEN", "done": false, "labels": ["kind:repair", "status:available"], "blocked_by": [31]},
+  "36": {"state": "OPEN", "done": false, "labels": ["kind:defect", "status:blocked-needs-input"], "blocked_by": []},
+  "40": {"state": "OPEN", "done": false, "labels": ["kind:spec"], "blocked_by": []}
+}

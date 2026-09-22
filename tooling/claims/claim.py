@@ -372,7 +372,8 @@ def cmd_release(args) -> int:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="git-ref claim CAS (issue #27)")
     ap.add_argument("--repo", default=".", help="repository working copy")
-    ap.add_argument("--branch", default="dev")
+    ap.add_argument("--branch", default="main",
+                    help="branch holding the claim refs (default: main)")
     ap.add_argument("--token", default=os.environ.get("GITHUB_TOKEN"),
                     help="API token for heartbeat lookups (defaults to "
                          "GITHUB_TOKEN; omit to skip the lookup)")

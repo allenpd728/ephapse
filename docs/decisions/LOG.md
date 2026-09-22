@@ -2052,3 +2052,96 @@ not loosen the check.
 - #46-#48 carry `kind:hygiene`.
 - A future vocabulary addition still needs a DEC; this entry is the second
   precedent, after DEC-035.
+
+---
+
+## DEC-038 — `flow.blocked` is scoped to human-blocking work; definitions move to a contract
+
+**Date:** 2026-09-21 · **Status:** adopted
+
+**Decision:** the `flow.blocked` field published to the HuB dashboard no longer
+counts every issue labelled `status:blocked-needs-input`. It excludes `on-hold`
+and `auditor:*` — the audit queue — which are now published separately as
+`flow.janitorial`. Field definitions become owned by a versioned contract in the
+private `portfolio-ops` repo (`METRIC_CONTRACT.md` v1), and this repo's
+`hub_sweep.py` defers to it.
+
+**What forced it.** At 2026-09-21T04:28 five issues (#41–#45, four of them
+`[auditor:doc-count-drift]` bookkeeping, all `on-hold`) were relabelled
+`status:blocked-needs-input`. The 07:47 sweep then published
+`blocked_ratio: 0.4146` — above the `index.html` crit threshold of `0.40`, so a
+public rose flag — where the previous sweep had read `0.0714`. Nothing about the
+program had changed. The metric was honest about the labels and wrong about the
+program, and a janitorial relabel was enough to move it.
+
+**Why a contract rather than a patch.** This is the failure DEC-035 and DEC-037
+both circled: a definition that lived only in code, with no single owner and no
+stated change process, so nothing distinguished "the program got worse" from
+"someone retagged the audit queue". `PM_STATUS_FRAMEWORK.md` defines `trl`
+rigorously and left `flow` largely undefined; that asymmetry is what allowed it.
+The contract fixes a single definition per published field, names who may change
+it, and makes a definition change a two-part act (contract bump plus a DEC), never
+a code edit alone.
+
+**The second defect this exposed.** The sweep was already publishing
+`needs_review` (7 in this repo) and `index.html` never rendered it, while the
+page's `?? 0` fallbacks turned any unmeasured field into a published `0` —
+directly against the sweep's own rule that an absent field is a true statement and
+a zero is often false. Both are fixed in the same change.
+
+**Consequences.**
+
+- `flow.blocked` reads 12 for this repo, not 17; `blocked_ratio` 0.2927, not
+  0.4146. `flow.janitorial` carries the 5.
+- `status_log.jsonl` is append-only, so this appears as a visible discontinuity in
+  the trend chart, marked at the definition change. No historical line was
+  rewritten and none may be.
+- A future change to a published field's meaning needs a contract version bump and
+  an entry here.
+- The metric remains imperfect in the same direction it always was: `open_total`
+  stays inclusive, so a repo with many audit issues can *understate* its blocked
+  ratio rather than overstate it. That is the deliberate direction of the error.
+
+---
+
+## DEC-039 — The gate-count figures are reconciled to 38 specified / 29 tier-0 / 11 wired, and single-sourced
+
+**Date:** 2026-09-22 · **Status:** adopted
+
+**Decision:** The specified gate count is **38** (29 tier-0 capable — 28 tier-0
+only plus the conditional G-P2 — and 9 tier-1). The wired count is **11**. Four
+documents carried a stale **37**, and two the stale tier-1 figure **8**; all are
+corrected. `tooling/gates/gate_inventory.py` now derives the specified counts
+from the spec's § 3 inventory table, so prose cites a computed number instead of
+a hand-typed one. Resolves #38.
+
+**Rationale — the disagreement was a hand-count, not a design change.** The spec's
+§ 3 table enumerates 38 rows with 38 distinct ids; `PROGRAM_MANAGEMENT_SPEC.md`
+said 38, while `README.md`, `AGENT_HANDOFF.md`, and the spec's own § "Tier 0 is
+the first deliverable" and § 5 said 37. DEC-025 said 36 and DEC-026 said 37 — the
+inventory grew, but the last step to 38 was never recorded, so the number drifted
+one behind the table. Two further figures were wrong in the other direction:
+
+- The spec's tier-1 prose enumerated ten gates but labelled them "8"; the table
+  carries **9** tier-1 ids (G-D9/G-D10 landed in DEC-023/024 with the split).
+- `PROGRAM_MANAGEMENT_SPEC.md` twice said "7 wired"; `run_all.py` wires **11**
+  (`G-P2, G-R3, G-R1, G-R2, G-R5, G-E1, G-E2, G-E6, G-E7, G-M1, G-M2`).
+
+**Why a script and not just corrected numbers.** DEC-026 already named this
+pattern: the count "moved four times in one day", each revision paying a
+coherence cost across the spec, handoff, and gates README. Correcting 37 → 38 by
+hand would reproduce that. `gate_inventory.py` parses the inventory table, counts
+distinct ids by tier, and returns `{total, tier0, tier1, ...}`; the docs now point
+at it. The wired count stays owned by `run_all.py`, which prints it on every run.
+
+**Consequences.**
+
+- Docs that quote a specified-gate total must cite `gate_inventory.py --json`,
+  not a typed number. The next gate addition updates the table and the number
+  follows — no prose edit.
+- `README.md`, `AGENT_HANDOFF.md`, `TEST_VALIDATION_SPEC.md`, and
+  `PROGRAM_MANAGEMENT_SPEC.md` are corrected. This is exactly the drift **G-R4**
+  exists to catch (#20) and was caught in the window before G-R4 is wired.
+- The count history in the spec and handoff now records DEC-039 so the next
+  reader sees why 37 → 38 happened and does not re-open it.
+

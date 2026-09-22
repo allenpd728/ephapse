@@ -370,16 +370,19 @@ pointer, not a substitute.
 - **Tier 0** — no model load, no torch. Schema, text, and cross-reference
   checks over artifacts (`findings.jsonl`, experiment headers, requirements,
   docs coherence), **plus the `G-C` experiment-code gates**. Runs in CI. 29 of
-  the 37 gates.
+  the 38 gates (`gate_inventory.py` is the single source).
 - **Tier 1** — requires loading the probed model. The detector-validity gates
   (positive control, control-can-fail, null calibration, constructibility,
   frozen parameters, recovered-pair identity, instrument supersession,
   paraphrase survival, causal load-bearing, interference control, site and
-  scale). 8 gates.
+  scale). 9 gates.
 
 > **Count history.** DEC-021 recorded "20 of 24" from the spec as committed at
 > `26840ed`. DEC-022 added the `G-C` series and raised it to 34. DEC-025 to 36,
-> DEC-026 to 37. The largest number is current.
+> DEC-026 to 37. DEC-039 recounted the spec's § 3 inventory mechanically (38
+> ids: 29 tier-0 capable, 9 tier-1) and recorded 38 as canonical; the 37 figure
+> was a hand-count that missed one id and is superseded. `gate_inventory.py`
+> derives the count from the table so it no longer drifts.
 
 **A tier-0 pass is not "gate passed."** Maith's formulation is exact and
 binding here: *"Treating a grep pass as a gate pass is itself an integrity
@@ -476,7 +479,7 @@ this repo for the full protocol. Summary:
   `status:available`. **Ephapse-specific caveat:** NDIF queue waits and
   cold model downloads can legitimately exceed this. If you're blocked on
   a remote queue, post a heartbeat comment rather than losing the claim.
-- Single active branch: **`dev`**. State it in the README on day one —
+- Single active branch: **`main`** (renamed from `dev`, 2026-09-22). State it in the README on day one —
   Maith's DEC-036 adopted this after parallel branches sprawled.
 - Every experiment (not just every code change) gets an issue and a
   logged result, positive or negative — mirrors Maith's ledger discipline

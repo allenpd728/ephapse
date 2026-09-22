@@ -38,13 +38,13 @@ RID_C_BASE="20260919-1004-cccc"
 git init -q --bare "$TMP/remote.git"
 # A bare repo's HEAD defaults to `master`; without this the clones check out
 # nothing and every command fails with a confusing git error.
-git --git-dir="$TMP/remote.git" symbolic-ref HEAD refs/heads/dev
+git --git-dir="$TMP/remote.git" symbolic-ref HEAD refs/heads/main
 git init -q "$TMP/seed"
 cd "$TMP/seed"
 git -c user.name=t -c user.email=t@t commit -q --allow-empty -m init
-git branch -M dev
+git branch -M main
 git remote add origin "$TMP/remote.git"
-git push -q origin dev
+git push -q origin main
 
 # Run-ids are validated by the tool, so the fixtures must be well-formed:
 # <YYYYMMDD-HHMM>-<4 alnum>. Using realistic ones also means the test exercises
@@ -54,7 +54,7 @@ RID_A="$RID_A_BASE"; RID_B="$RID_B_BASE"; RID_C="$RID_C_BASE"; RID_STALE="202609
 git clone -q "$TMP/remote.git" "$TMP/a"
 git clone -q "$TMP/remote.git" "$TMP/b"
 
-remote_claim() { git --git-dir="$TMP/remote.git" show "dev:claims/$1.claim" 2>/dev/null; }
+remote_claim() { git --git-dir="$TMP/remote.git" show "main:claims/$1.claim" 2>/dev/null; }
 
 echo "== 1. concurrent claim of the same issue =="
 # Both clones start from the same base, so both will attempt to push a claim on
@@ -115,16 +115,16 @@ echo "== 4. a STALE claim is reclaimable (§ 1 window still works) =="
 # from step 1 and correctly refuses. (The first version of this test omitted the
 # fetch and failed against its own setup, not against the tool.)
 cd "$TMP/seed"
-git fetch -q origin dev && git reset -q --hard origin/dev
+git fetch -q origin main && git reset -q --hard origin/main
 mkdir -p claims
 OLD_TS="$(date -u -d '2 hours ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-2H +%Y-%m-%dT%H:%M:%SZ)"
 echo "$RID_STALE $OLD_TS" > claims/99.claim
 git add -A
 git -c user.name=t -c user.email=t@t commit -q -m "stale claim for 99"
-git push -q origin dev
-git --git-dir="$TMP/remote.git" show dev:claims/99.claim | head -1
+git push -q origin main
+git --git-dir="$TMP/remote.git" show main:claims/99.claim | head -1
 
-( cd "$LOSER_CLONE" && git fetch -q origin dev && git reset -q --hard origin/dev \
+( cd "$LOSER_CLONE" && git fetch -q origin main && git reset -q --hard origin/main \
   && python3 "$CLAIM_PY" --repo . claim 99 "$RID_C" >"$TMP/reclaim.out" 2>&1 )
 RC=$?
 cat "$TMP/reclaim.out" | sed 's/^/    /'

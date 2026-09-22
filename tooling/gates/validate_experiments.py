@@ -11,6 +11,28 @@ model the target DEC does not authorize, and a run log that omits rows.
 | G-R2 | Model id matches the authorized target unless a DEC authorizes otherwise — read from one machine-readable source, not hardcoded |
 | G-R5 | Every `experiments/*.py` has a row in the `experiments/README.md` run log |
 
+TWO FALSE-NEGATIVE HOLES CLOSED (issue #24). Both were reachable by editing a
+docstring, and both let a violating file pass:
+
+* **Hole 2 — the exemption was self-granted by prose.** `_is_infra` accepted a
+  line-leading "infrastructure file" declaration from *any* file, so a
+  hypothesis-test file could drop `Null`/`Correction` by adding one sentence.
+  The exemption is now **filename-based**; a bare declaration no longer excuses
+  a file. The declaration is still recorded and cross-checked, but it cannot
+  grant the exemption on its own. Closing this hole is what exposes the real
+  tree's `gen_cross_domain.py`, which relied on the prose route; the correct
+  response is a header, not a new exemption pattern — whether a genuinely
+  infrastructure file belongs in the enumerated set is #16's README/exemption
+  reconciliation.
+* **Hole 1 — no attribution escape.** `check_model_authorized` flagged any
+  non-target id unconditionally, so #15 could not honestly repair the tree: it
+  had to falsify the superseded 160M measurements or delete them. A non-target
+  id is now accepted when the file carries a line-leading
+  `**Supersedes: <decision-id>**` naming the decision that *is* the model
+  decision (read from `target_model.txt`, not hardcoded). An unrelated DEC
+  citation does not qualify — the earlier bare `DEC-<n>` draft failed exactly
+  that way, per #24's method constraint.
+
 Two entry points, deliberately:
 
     python3 tooling/gates/validate_experiments.py     # over the REAL tree
@@ -49,9 +71,18 @@ TARGET_FILE = Path(__file__).resolve().parent / "target_model.txt"
 FULL_FIELDS = ("Model", "Inputs", "Question", "Null", "Correction", "Issue")
 REDUCED_FIELDS = ("Model", "Question", "Issue")
 
-# The exemption is a filename pattern or an explicit declaration, never
-# "whose purpose is measuring the environment" — that phrasing is not
-# enumerable, so it cannot be checked (issue #11 method constraint).
+# The exemption is a filename pattern, never "whose purpose is measuring the
+# environment" — that phrasing is not enumerable, so it cannot be checked
+# (issue #11 method constraint). The enumerated patterns are the whole
+# exemption: `_is_infra` is a function of the filename alone. An earlier
+# version also accepted a line-leading "infrastructure file" declaration from
+# any file; issue #24 hole 2 showed that let a hypothesis-test file excuse
+# itself by editing its docstring, so the declaration no longer grants the
+# exemption. INFRA_DECL_RE is retained only to report a declaration on a
+# non-exempt name (a likely prose-vs-name mismatch for a later issue). The
+# enumerated set is the README's (`experiments/README.md` §Infrastructure);
+# whether other genuinely-infrastructural names should join it is #16's
+# README/exemption reconciliation, not this hole-closure.
 INFRA_PATTERNS = ("sandbox-baseline-*", "latency-*")
 INFRA_DECL_RE = re.compile(
     r"^\s*\**\s*infrastructure\s*(?:/|\band\b)?\s*(?:baseline\s*)?file\b",
@@ -73,6 +104,18 @@ ID_IN_TEXT_RE = re.compile(r"\b((?:pythia|gpt2|EleutherAI)[A-Za-z0-9._/-]*)")
 
 SAE_SUFFIXES = ("-res-sm", "-res-jb", "-res-mid", "-res-post", "-res-mid")
 
+# G-R2 attribution policy (issue #24 hole 1). Line-leading `model-decision:`
+# entries in target_model.txt enumerate the decision id(s) that ARE the model
+# decision; a file may carry a non-target model only by declaring a
+# line-leading `**Supersedes: <one of those>**`. Reading the policy from the
+# same source file keeps the escape from silently drifting from the target.
+MODEL_DECISION_LINE_RE = re.compile(
+    r"^model-decision:\s*(\S+)\s*$", re.MULTILINE | re.IGNORECASE)
+SUPERSEDES_RE = re.compile(
+    r"^\s*\**\s*supersedes\s*\**\s*:?\s*\**\s*([A-Za-z0-9._-]+)",
+    re.MULTILINE | re.IGNORECASE)
+DECISION_MENTION_RE = re.compile(r"\bDEC-\d+\b", re.IGNORECASE)
+
 
 def _experiment_files(root: Path) -> list[Path]:
     if root.is_dir():
@@ -89,7 +132,7 @@ def normalize_model_id(mid: str) -> str:
 
 
 def _is_infra(name: str, text: str) -> bool:
-    """Infrastructure exemption: a filename pattern OR a line-leading declaration.
+    """Infrastructure exemption: an enumerated **filename** pattern.
 
     The pattern is matched against the filename **with any leading date stripped**.
     The naming convention is `<YYYY-MM-DD>-<slug>.py`, so the README's patterns
@@ -99,6 +142,12 @@ def _is_infra(name: str, text: str) -> bool:
     violations because the pattern silently never applied. Recorded rather than
     patched silently: a documented pattern that matches nothing is the same class
     of defect as a gate with no failing fixture.
+
+    `text` is accepted for signature compatibility but deliberately **ignored**.
+    Issue #24 hole 2: the previous version returned True for any file carrying a
+    line-leading "infrastructure file" declaration, so a hypothesis-test file
+    could drop `Null`/`Correction` with a docstring edit. A file cannot grant
+    itself an exemption by describing itself, so the exemption is name-only.
     """
     slug = re.sub(r"^\d{4}-\d{2}-\d{2}-", "", name)
     for pat in INFRA_PATTERNS:
@@ -107,7 +156,7 @@ def _is_infra(name: str, text: str) -> bool:
                 return True
         elif slug == pat or name == pat:
             return True
-    return bool(INFRA_DECL_RE.search(text[:4000]))
+    return False
 
 
 def _present_fields(text: str) -> set[str]:
@@ -121,9 +170,32 @@ def load_target_models() -> list[str]:
     out = []
     for line in TARGET_FILE.read_text(encoding="utf-8").splitlines():
         line = line.strip()
-        if line and not line.startswith("#"):
+        if line and not line.startswith("#") and not MODEL_DECISION_LINE_RE.match(line):
             out.append(line)
     return out
+
+
+def load_model_decisions() -> list[str]:
+    """Decision ids that ARE the model decision, per target_model.txt.
+
+    G-R2's attribution escape only accepts a `Supersedes:` naming one of these,
+    so a file cannot silence the gate by citing an unrelated decision (issue #24
+    hole 1 method constraint). Empty when the policy line is absent, in which
+    case no supersession is accepted — fail closed.
+    """
+    if not TARGET_FILE.exists():
+        return []
+    return MODEL_DECISION_LINE_RE.findall(
+        TARGET_FILE.read_text(encoding="utf-8"))
+
+
+def supersession_declared(text: str, decisions: list[str]) -> bool:
+    """A line-leading `Supersedes: <decision>` naming a model decision."""
+    for m in SUPERSEDES_RE.finditer(text):
+        cited = m.group(1)
+        if any(cited.lower() == d.lower() for d in decisions):
+            return True
+    return False
 
 
 def _authorized(mid: str, targets: list[str]) -> bool:
@@ -171,8 +243,15 @@ def extract_models(path: Path) -> tuple[set[str], str | None]:
     return norm, header
 
 
-def check_model_authorized(path: Path, targets: list[str]) -> list[str]:
-    """G-R2 for one file. Fails closed when no model can be determined."""
+def check_model_authorized(path: Path, targets: list[str],
+                           decisions: list[str] | None = None) -> list[str]:
+    """G-R2 for one file. Fails closed when no model can be determined.
+
+    A non-target model is accepted only when the file declares a line-leading
+    `Supersedes: <model-decision>` (issue #24 hole 1). `decisions` defaults to
+    the policy read from `target_model.txt`; pass `[]` to disable the escape
+    (fixtures that assert it is absent).
+    """
     findings: list[str] = []
     ids, header = extract_models(path)
 
@@ -189,14 +268,33 @@ def check_model_authorized(path: Path, targets: list[str]) -> list[str]:
                         f"(fails closed — a substitution could go unnoticed)")
         return findings
 
-    for h in sorted(header_ids):
-        if not _authorized(h, targets):
-            findings.append(f"{path.name}: G-R2 header names model {h!r}, "
-                            f"which is not an authorized target {targets}")
+    decisions = load_model_decisions() if decisions is None else decisions
+    text = path.read_text(encoding="utf-8", errors="replace")
+    superseded = supersession_declared(text, decisions)
 
-    for i in sorted(i for i in ids if not _authorized(i, targets)):
-        findings.append(f"{path.name}: G-R2 loads model {i!r}, which is not an "
-                        f"authorized target {targets} (DEC-014)")
+    def finding(verb: str, mid: str, suffix: str = "") -> str | None:
+        """A finding, or None when the id is authorized or validly superseded.
+
+        A valid `Supersedes:` yields **no** finding: acceptance is silence, so a
+        correctly-attributed superseded file leaves the gate green.
+        """
+        if _authorized(mid, targets):
+            return None
+        if superseded:
+            return None
+        return (f"{path.name}: G-R2 {verb} model {mid!r}, which is not "
+                f"an authorized target {targets} (no valid `Supersedes:` "
+                f"declaration){suffix}")
+
+    for h in sorted(header_ids):
+        f = finding("header names", h)
+        if f:
+            findings.append(f)
+
+    for i in sorted(ids):
+        f = finding("loads", i, " (DEC-014)")
+        if f:
+            findings.append(f)
     return findings
 
 
@@ -205,9 +303,10 @@ def gate_r2(root: Path) -> list[str]:
     if not targets:
         return [f"G-R2 cannot read the authorized target list from "
                 f"{TARGET_FILE.name} — cannot check model authorization"]
+    decisions = load_model_decisions()
     findings: list[str] = []
     for f in _experiment_files(root):
-        findings.extend(check_model_authorized(f, targets))
+        findings.extend(check_model_authorized(f, targets, decisions))
     return findings
 
 
@@ -248,15 +347,17 @@ register(Gate(
     failing_fixture="experiments_r1_missing_field",
     traces_to="experiments/README.md; spec §3",
     description="Six mandatory header fields, or the documented three-field "
-                "infrastructure exemption.",
+                "infrastructure exemption (filename-enumerated; issue #24).",
 ))
 
 register(Gate(
     id="G-R2", name="experiment model authorization", tier=0, check=gate_r2,
     clean_fixture="experiments_clean",
-    failing_fixture="experiments_r2_superseded_model",
+    failing_fixture="experiments_r2_unrelated_decision",
     traces_to="DEC-014; spec §1 defect #1",
-    description="Model id matches the authorized target. Fails closed.",
+    description="Model id matches the authorized target. Fails closed; a "
+                "non-target id is accepted only with a `Supersedes:` "
+                "attribution naming the model decision (issue #24).",
 ))
 
 register(Gate(

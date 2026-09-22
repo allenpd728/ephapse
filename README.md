@@ -35,7 +35,7 @@ activation space instead of a brain.
   oracle here** — that is the central difference from Maith — so a two-tier
   automated validation layer (`tooling/gates/`, DEC-021) carries as much of
   the discipline as is mechanically checkable.
-- **Single active branch:** `dev`.
+- **Single active branch:** `main` (renamed from `dev` on 2026-09-22).
 - **Status:** proof-of-concept, and the first real output is a **methodology
   null-result assessment**. The detector is validated; a probe returned a
   weak bridging signal; the general cross-domain probe returned a clean null
@@ -72,9 +72,80 @@ succeeds.
 **What this does not change.** Repositioning an existing asset is not building
 new infrastructure. This is a statement about what the work *is*, not a licence
 to build more: "What not to build yet" below is unchanged, and no new validation
-machinery is proposed by this framing. The layer's ~37 specified gates and their
+machinery is proposed by this framing. The layer's 38 specified gates and their
 fixtures already exist; the change is that they are described as an output rather
 than as scaffolding.
+
+## How a task moves through the pipeline
+
+The lifecycle in one picture. It is the same for every task: a run takes the
+claim lock, produces an artifact, and the artifact must survive the validation
+layer before a human sees it. The two failure branches are not edge cases —
+distinguishing them is the whole point of the layer.
+
+```mermaid
+flowchart TD
+    A[Task: status:available] --> B[Agent run takes claim lock]
+    B --> C[Artifact produced: code, finding, doc]
+    C --> D{Gates 1..N}
+    D -->|gate cannot fire| E[instrument-failed<br/>apparatus broken - do not trust the number]
+    D -->|all gates pass| F[Verdict recorded]
+    F --> G{What did the measurement find?}
+    G -->|nothing, apparatus known good| H[phenomenon-null<br/>real measurement - the answer is no]
+    G -->|something, at its rung| I[phenomenon-present<br/>candidate, not a discovery]
+    E --> J[Human review]
+    H --> J
+    I --> J
+    J --> K{Accept?}
+    K -->|yes| L[status:done on dev]
+    K -->|no| M[Rejection: follow-up task filed]
+    M --> A
+```
+
+Read the two middle branches together. `instrument-failed` and
+`phenomenon-null` both read "no significant result" in a log and mean opposite
+things: the first says the pipeline is broken and the number should not be
+trusted, the second says the pipeline works and the answer is genuinely no. A
+vocabulary that cannot tell them apart at a glance will keep costing the
+rediscovery — which is what DEC-023 and DEC-024 record
+(`docs/reference/PROGRAM_MANAGEMENT_SPEC.md` §3.2).
+
+## The guardrail: classifying a negative before it propagates
+
+This project runs a **validation gate** between every measurement and the
+decision that measurement feeds: an automatic check that has to pass before
+any human acts on a number. Its job is not to judge whether a result is
+interesting — it is to stop a number from travelling any further until a
+machine has said *which kind of negative it is*.
+
+Concretely, every measurement that comes out of this pipeline is placed in one
+of two categories before anyone acts on it:
+
+- **`instrument-failed`** — the measuring pipeline itself is broken. The
+  number does not mean what it appears to mean, and must not be trusted. This
+  is an internal fault to be fixed, not evidence about the world.
+- **`phenomenon-null`** — the measuring pipeline is known to be working, and
+  the answer is genuinely *no*. The thing being looked for is simply not
+  there at this scale.
+
+In a plain log both read "no significant result", and that is exactly the
+failure the gate exists to prevent: acting on the first as though it were the
+second is how a broken instrument gets quietly recorded as a scientific fact,
+and acting on the second as though it were the first is how a real negative
+gets dismissed as a bug.
+
+**Why this is what makes a negative result actionable.** A `phenomenon-null`
+is only usable — as a published finding, as a reason to change direction, as
+evidence in a larger argument — if it is backed by a demonstrated sensitivity
+floor: a check showing that if the phenomenon *had* been present, the pipeline
+would have seen it. The gate produces that backing mechanically. So a negative
+that passes the gate is a real answer that a human can act on, while one that
+fails it is a to-do item for the pipeline. The distinction is what turns "we
+found nothing" from a dead end into a decision.
+
+This is a pre-production discipline borrowed from operations, not a statement
+about research epistemology: classify the output before it propagates, so the
+downstream consumer never has to guess what "no result" meant.
 
 ## What this project is not
 
@@ -210,8 +281,9 @@ is the adopted authority, implemented by `tooling/gates/`:
 
 - **Tier 0** — no model load, no torch, no network: schema, text, and
   cross-reference checks over `findings.jsonl`, experiment headers, and docs,
-  plus the `G-C` experiment-code gates. Runs in CI. **29 of the 37 gates** (per
-  the spec's gate inventory).
+  plus the `G-C` experiment-code gates. Runs in CI. **29 of the 38 gates** (per
+  the spec's gate inventory; `tooling/gates/gate_inventory.py` derives the
+  count mechanically — do not hand-copy it).
 - **Tier 1** — requires loading the probed model: the detector-validity gates
   (positive control, control-can-fail, null calibration, constructibility,
   paraphrase survival, causal load-bearing, interference control).
@@ -258,4 +330,4 @@ adjudicates claims remains out of bounds until there is a candidate to check.
 ## Working on this repo
 
 Read `docs/AGENT_HANDOFF.md` first, then `docs/MULTI_AGENT_WORKFLOW.md` for
-the claiming protocol. Development happens on the single `dev` branch.
+the claiming protocol. Development happens on the single `main` branch.

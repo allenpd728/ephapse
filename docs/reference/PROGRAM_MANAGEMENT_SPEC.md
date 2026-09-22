@@ -13,7 +13,7 @@ program, and what does it need next?"* — it tracks the work.
 The two are deliberately separate. A repo can have perfect artifacts and no
 idea what it is doing; it can have a clear plan and invalid evidence. Ephapse
 currently has the second problem in its primitive form and the first problem
-solved: 38 gate ids are specified (7 wired), 26 decisions are logged, and the
+solved: 38 gate ids are specified (11 wired), 26 decisions are logged, and the
 issue queue does not reliably say what is open.
 
 **Read first.** `MULTI_AGENT_WORKFLOW.md` (claiming, run-ids, dependencies) and
@@ -43,7 +43,7 @@ Ephapse's process discipline is strong at the **task** level and absent at the
 | No program view | Reading the state means reading 26 DECs (1,217 lines), 15 issues, and 4 findings. There is no single surface. |
 | No unforeseen-requirement protocol | #23, #24, and #25 were each discovered *while doing other work* and filed ad hoc. #24 found two live false-negative holes **in #11's landed, reviewed, gate-passing work**. |
 | No results→plan feedback | A null result should change what is attempted next. Nothing routes it. |
-| No health metric | Gate count is "38 ids in the spec, 7 wired" — true only because a human counted. Nothing computes it. |
+| No health metric | Gate count is "38 ids in the spec, 11 wired" — true only because a human counted. Nothing computes it. (DEC-039 mandated `tooling/gates/gate_inventory.py` for the specified total; the wired count still comes from `run_all.py`.) |
 
 None of these is a correctness bug. All of them are the reason a growing program
 becomes unreadable, and they compound: without an issue-type axis, gate #15
@@ -213,6 +213,19 @@ python3 program/view.py            # the program at a glance
 python3 program/view.py --json     # machine-readable
 python3 program/view.py --issue 24 # one issue's full traversal
 ```
+
+`--ledger PATH` and `--cache PATH` point the views at a different ledger and
+issue-state cache; they exist so the tests can render the committed fixture
+without a live GitHub read:
+
+```
+python3 program/view.py \
+  --ledger program/tests/fixture_ledger.jsonl \
+  --cache  program/tests/fixture_issue_state.json
+```
+
+An empty or malformed ledger exits non-zero rather than rendering an empty
+dashboard — a view that silently shows nothing is worse than one that fails.
 
 | View | Answers |
 |---|---|

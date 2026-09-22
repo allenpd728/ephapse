@@ -25,6 +25,11 @@ Flow metrics follow this repo's own multi-agent protocol (see
 docs/MULTI_AGENT_WORKFLOW.md §"Sweep stale claims"): a claim is stale when its
 newest claim comment is older than `CLAIM_STALE_AFTER` with no activity since.
 
+Every published field's definition is owned by
+`portfolio-ops/METRIC_CONTRACT.md` (private). It wins over this file: if the
+two disagree, this script is the bug. Do not change a field's meaning here
+without a contract version bump and a decision-log entry.
+
 Usage:
     python3 tooling/hub_sweep.py --repo philipdallen/Maith
     python3 tooling/hub_sweep.py --repo philipdallen/Maith --dry-run
@@ -159,17 +164,28 @@ def build_flow(open_issues: list[dict], closed_issues: list[dict],
     labels = [label_names(i) for i in open_issues]
 
     wip = sum(1 for ls in labels if "status:claimed" in ls)
-    blocked = sum(1 for ls in labels if "status:blocked-needs-input" in ls)
     available = sum(1 for ls in labels if "status:available" in ls)
     review = sum(
         1 for ls in labels
         if "needs-review" in ls or any(l.startswith("review:") for l in ls)
     )
 
+    # Not every `status:blocked-needs-input` issue is program blockage. Parked
+    # (`on-hold`) and auditor-generated (`auditor:*`) issues are the audit queue,
+    # which is already tracked elsewhere. Counting them lets a relabelling move
+    # the published blocked_ratio. See portfolio-ops/METRIC_CONTRACT.md v1.
+    def is_janitorial(ls: list[str]) -> bool:
+        return "on-hold" in ls or any(l.startswith("auditor:") for l in ls)
+
+    status_blocked = [ls for ls in labels if "status:blocked-needs-input" in ls]
+    blocked = sum(1 for ls in status_blocked if not is_janitorial(ls))
+    janitorial = len(status_blocked) - blocked
+
     flow: dict = {
         "open_total": open_total,
         "wip": wip,
         "blocked": blocked,
+        "janitorial": janitorial,
         "available": available,
         "needs_review": review,
         "blocked_ratio": round(blocked / open_total, 4) if open_total else 0.0,
@@ -220,6 +236,8 @@ def build_notes(open_issues: list[dict], flow: dict, claimants: list[dict],
         f"sweep: {flow['open_total']} open, {flow['wip']} claimed, "
         f"{flow['blocked']} blocked, {flow['available']} available"
     ]
+    if flow["janitorial"]:
+        parts.append(f"{flow['janitorial']} janitorial/on-hold")
     if flow["stale_reversions_since_last"]:
         parts.append(f"{flow['stale_reversions_since_last']} stale claim(s) reclaimed")
     if "cycle_time_median_hours" in flow:
