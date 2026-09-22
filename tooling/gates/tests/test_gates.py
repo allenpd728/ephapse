@@ -331,10 +331,39 @@ def test_infrastructure_exemption_matches_dated_filenames():
     assert not V._is_infra("2026-09-18-detector-positive-control.py", "")
 
 
-def test_infrastructure_exemption_via_explicit_declaration():
+def test_infrastructure_declaration_no_longer_grants_the_exemption():
+    """Issue #24 hole 2: prose alone must not excuse a file.
+
+    The old `_is_infra` returned True on this exact declaration for any name, so
+    a hypothesis-test file could drop `Null`/`Correction` with a docstring edit.
+    The exemption is now name-only; the declaration is ignored.
+    """
     import validate_experiments as V
     text = "*Infrastructure/baseline file: no hypothesis under test.*"
-    assert V._is_infra("2026-09-19-whatever.py", text)
+    assert not V._is_infra("2026-09-19-whatever.py", text)
+    assert not V._is_infra("2026-09-19-cross-domain-probe.py", text)
+    # A genuinely exempt name is still exempt, declaration or not.
+    assert V._is_infra("2026-09-19-latency-fixture.py", "")
+    # `gen_*` is NOT an enumerated exemption: it was only ever exempt via the
+    # prose route this hole closes, and the README does not list it. Its real
+    # repair is a header (#24 leaves it red; #16 owns whether it joins the set).
+    assert not V._is_infra("gen_cross_domain.py", "")
+
+
+def test_g_r1_fires_when_a_hypothesis_file_self_declares_infrastructure():
+    """The failing fixture now self-declares, so this fails for the right reason.
+
+    Before the fix `_is_infra` excused this file; the assertion below would then
+    have found no findings and the fixture would have been green — the exact
+    hole. It must be reported as a hypothesis-test missing `Inputs`/`Null`/
+    `Correction`.
+    """
+    import validate_experiments as V
+    d = R.FIXTURES / "experiments_r1_invalid_exemption"
+    findings = V.gate_r1(d)
+    assert findings, "G-R1 excused a self-declared 'infrastructure' file"
+    assert any("2026-09-19-claims-exemption.py" in f for f in findings), findings
+    assert any("full header" in f for f in findings), findings
 
 
 def test_g_r2_fails_closed_when_no_model_can_be_determined():
@@ -346,24 +375,48 @@ def test_g_r2_fails_closed_when_no_model_can_be_determined():
     assert any("cannot determine" in f for f in findings)
 
 
-def test_g_r2_fires_on_a_superseded_model():
+def test_g_r2_accepts_a_correctly_attributed_superseded_model():
+    """Issue #24 hole 1: a `Supersedes:` naming the model decision is an escape.
+
+    Without it #15 must falsify or delete the superseded 160M measurements to
+    turn the gate green, which is dishonest. The fixture names DEC-014 (the
+    model decision), so G-R2 must be silent.
+    """
     import validate_experiments as V
     d = R.FIXTURES / "experiments_r2_superseded_model"
     findings = V.gate_r2(d)
-    assert any("pythia-160m" in f for f in findings), findings
+    assert findings == [], f"a valid supersession must be accepted: {findings}"
 
 
-def test_g_r1_fires_on_a_claimed_but_invalid_exemption():
-    """A hypothesis-test file claiming the exemption must not be excused.
+def test_g_r2_fires_on_a_superseded_model_with_an_unrelated_decision():
+    """The escape must not degrade into "any DEC mention silences the gate".
 
-    Three fields would satisfy the reduced set, so this only fails if the file
-    is correctly judged NOT to be infrastructure — which is the point.
+    `**Supersedes: DEC-011**` is not the model decision, so citing it cannot
+    authorize the 160M. This is the failing fixture G-R2 is registered with.
     """
     import validate_experiments as V
-    d = R.FIXTURES / "experiments_r1_invalid_exemption"
-    findings = V.gate_r1(d)
-    assert findings, "G-R1 excused a file that claimed the exemption"
-    assert any("full header" in f for f in findings), findings
+    d = R.FIXTURES / "experiments_r2_unrelated_decision"
+    findings = V.gate_r2(d)
+    assert any("pythia-160m" in f for f in findings), findings
+    assert all("Supersedes" in f for f in findings), findings
+
+
+def test_g_r2_escape_is_not_reachable_by_a_bare_dec_mention():
+    """A DEC in prose (no `Supersedes:`) must not authorize a non-target id."""
+    import validate_experiments as V
+    d = R.FIXTURES / "experiments_r2_unrelated_decision"
+    text = (d / "2026-09-19-unrelated-decision.py").read_text()
+    assert "DEC-014" not in text, "fixture must not accidentally cite the decision"
+    findings = V.gate_r2(d)
+    assert findings, "a bare DEC mention must not silence G-R2"
+
+
+def test_model_decision_policy_is_machine_readable():
+    """The escape's policy lives with the target, not in prose or in the gate."""
+    import validate_experiments as V
+    assert V.load_model_decisions() == ["DEC-014"], V.load_model_decisions()
+    # The policy line must not be mistaken for a model id.
+    assert "model-decision: DEC-014" not in V.load_target_models()
 
 
 def test_g_r5_fires_on_an_unlogged_file():

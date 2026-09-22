@@ -9,3 +9,11 @@
 #
 # DEC-014: there is no Pythia-160M SAE release, so the target is the deduped 70M.
 pythia-70m-deduped
+
+# G-R2 attribution policy, parsed by validate_experiments.py (line-leading
+# `model-decision:` lines here; all other `#` lines are comments). A file may
+# carry a non-target model id only when it declares a line-leading
+# `**Supersedes: <id>**` naming one of these. That distinguishes "superseded
+# measurement, correctly attributed" from "wrong model, silently used" — see
+# issue #24 hole 1. An unrelated DEC citation does not qualify.
+model-decision: DEC-014
