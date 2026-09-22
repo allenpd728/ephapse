@@ -2,7 +2,7 @@
 
 This repo publishes one append-only status snapshot per sweep. The HuB
 dashboard (https://philipdallen.github.io/HuB/) fetches
-`status_log.jsonl` from this repo's `dev` branch and renders it. This repo is
+`status_log.jsonl` from this repo's `main` branch and renders it. This repo is
 the writer; HuB only reads.
 
 ## What writes it
