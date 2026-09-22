@@ -463,6 +463,248 @@ def test_placeholder_refs_ignored(tmp_path):
     assert aud.check_dangling_doc_refs(root) == []
 
 
+# ---- stale owner slug (contradiction) ------------------------------------
+
+def test_retired_slug_outside_frozen_record_is_reported(tmp_path):
+    root = init_repo(tmp_path)
+    (root / "docs").mkdir()
+    (root / "docs" / "GUIDE.md").write_text("clone https://github.com/allenpd728/x.git\n")
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "x"], cwd=root, check=True)
+    findings = aud.check_stale_owner_refs(root)
+    assert findings and "GUIDE.md" in findings[0].body
+    assert findings[0].category == aud.CATEGORY_ARCH
+
+
+def test_retired_slug_in_frozen_record_is_not_reported(tmp_path):
+    """docs/decisions records the slug as it was; rewriting it would make it false."""
+    root = init_repo(tmp_path)
+    (root / "docs" / "decisions").mkdir(parents=True)
+    (root / "docs" / "decisions" / "LOG.md").write_text("login allenpd728, id 26507447\n")
+    assert aud.check_stale_owner_refs(root) == []
+
+
+def test_auditor_source_never_flags_itself(tmp_path):
+    """The slug list and the ban's explanation live in auditor.py."""
+    root = init_repo(tmp_path)
+    (root / "tooling").mkdir()
+    (root / "tooling" / "auditor.py").write_text('RETIRED = ("allenpd728",)\n')
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "x"], cwd=root, check=True)
+    assert aud.check_stale_owner_refs(root) == []
+
+
+def test_no_retired_slug_is_clean(tmp_path):
+    root = init_repo(tmp_path)
+    (root / "README.md").write_text("owner is philipdallen\n")
+    assert aud.check_stale_owner_refs(root) == []
+
+
+# ---- committed secrets ---------------------------------------------------
+
+def test_private_key_block_is_reported(tmp_path):
+    root = init_repo(tmp_path)
+    (root / "k.pem").write_text("-----BEGIN RSA PRIVATE KEY-----\nMIIabc\n")
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "x"], cwd=root, check=True)
+    findings = aud.check_committed_secrets(root)
+    assert findings and findings[0].category == aud.CATEGORY_SECURITY
+    assert "private-key" in findings[0].title
+
+
+def test_aws_key_id_is_reported(tmp_path):
+    root = init_repo(tmp_path)
+    (root / "conf.py").write_text('KEY = "AKIAIOSFODNN7EXAMPLE"\n')
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "x"], cwd=root, check=True)
+    assert any("aws" in f.title for f in aud.check_committed_secrets(root))
+
+
+def test_secret_value_is_never_echoed_into_the_finding(tmp_path):
+    """The issue is public. Reproducing the value would complete the leak."""
+    root = init_repo(tmp_path)
+    secret = "AKIAIOSFODNN7EXAMPLE"
+    (root / "conf.py").write_text(f'KEY = "{secret}"\n')
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "x"], cwd=root, check=True)
+    findings = aud.check_committed_secrets(root)
+    assert findings
+    for f in findings:
+        assert secret not in f.body and secret not in f.title
+
+
+def test_untracked_secret_is_not_reported(tmp_path):
+    root = init_repo(tmp_path)
+    (root / ".env").write_text("AWS=AKIAIOSFODNN7EXAMPLE\n")
+    assert aud.check_committed_secrets(root) == []
+
+
+def test_clean_repo_has_no_secret_findings(tmp_path):
+    root = init_repo(tmp_path)
+    assert aud.check_committed_secrets(root) == []
+
+
+def test_secret_findings_are_capped(tmp_path):
+    root = init_repo(tmp_path)
+    for i in range(aud.MAX_SECRET_FINDINGS + 4):
+        (root / f"k{i}.pem").write_text("-----BEGIN PRIVATE KEY-----\nx\n")
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "x"], cwd=root, check=True)
+    assert len(aud.check_committed_secrets(root)) == aud.MAX_SECRET_FINDINGS
+
+
+# ---- workflow hardening --------------------------------------------------
+
+def _wf(root, name, text):
+    d = root / ".github" / "workflows"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / name).write_text(text)
+
+
+def test_workflow_without_permissions_is_reported(tmp_path):
+    root = init_repo(tmp_path)
+    _wf(root, "ci.yml", "name: ci\non:\n  push:\njobs:\n  a:\n    runs-on: ubuntu-latest\n")
+    findings = aud.check_workflow_hardening(root)
+    assert any("no top-level" in f.title for f in findings)
+
+
+def test_workflow_with_permissions_is_silent(tmp_path):
+    root = init_repo(tmp_path)
+    _wf(root, "ci.yml", "name: ci\non:\n  push:\npermissions:\n  contents: read\n"
+                        "jobs:\n  a:\n    runs-on: ubuntu-latest\n")
+    assert aud.check_workflow_hardening(root) == []
+
+
+def test_untrusted_interpolation_is_reported(tmp_path):
+    root = init_repo(tmp_path)
+    _wf(root, "p.yml",
+        "name: p\non:\n  pull_request_target:\npermissions:\n  contents: read\n"
+        "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n"
+        "      - run: echo ${{ github.event.pull_request.title }}\n")
+    findings = aud.check_workflow_hardening(root)
+    assert any("interpolated" in f.title for f in findings)
+
+
+def test_step_scoped_permissions_does_not_count_as_top_level(tmp_path):
+    """A step-scoped permissions does not set the job default."""
+    root = init_repo(tmp_path)
+    _wf(root, "ci.yml", "name: ci\non:\n  push:\njobs:\n  a:\n    runs-on: ubuntu-latest\n"
+                        "    steps:\n      - run: echo hi\n        permissions:\n          contents: read\n")
+    findings = aud.check_workflow_hardening(root)
+    assert any("no top-level" in f.title for f in findings)
+
+
+def test_pr_head_checkout_is_reported(tmp_path):
+    root = init_repo(tmp_path)
+    _wf(root, "t.yml",
+        "name: t\non:\n  pull_request_target:\npermissions:\n  contents: read\n"
+        "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n"
+        "      - uses: actions/checkout@v4\n        with:\n"
+        "          ref: ${{ github.event.pull_request.head.sha }}\n"
+        "      - run: echo ${{ github.event.pull_request.title }}\n")
+    findings = aud.check_workflow_hardening(root)
+    assert any("PR head ref" in f.title for f in findings)
+
+
+def test_env_pattern_is_not_flagged_as_injection(tmp_path):
+    """Passing the value through `env:` is the FIX. Flagging it would punish the
+    correct pattern and bury the real finding."""
+    root = init_repo(tmp_path)
+    _wf(root, "p.yml",
+        "name: p\non:\n  issue_comment:\npermissions:\n  issues: write\n"
+        "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n"
+        "      - run: echo \"$BODY\"\n        env:\n"
+        "          BODY: ${{ github.event.comment.body }}\n")
+    findings = aud.check_workflow_hardening(root)
+    assert not any("interpolated" in f.title for f in findings), findings
+
+
+def test_no_workflows_dir_is_clean(tmp_path):
+    root = init_repo(tmp_path)
+    assert aud.check_workflow_hardening(root) == []
+
+
+# ---- dependency advisories (network injected, stays offline) -------------
+
+def test_advisory_hit_is_reported(tmp_path):
+    root = init_repo(tmp_path)
+    (root / "requirements.txt").write_text("torch==2.14.0\n")
+    def fake(_pkgs):
+        return {"results": [{"vulns": [{"id": "CVE-2026-1", "summary": "bad"}]}]}
+    findings = aud.check_dependency_advisories(root, query=fake)
+    assert findings and "CVE-2026-1" in findings[0].body
+    assert findings[0].category == aud.CATEGORY_SECURITY
+
+
+def test_advisory_clean_result_is_silent(tmp_path):
+    root = init_repo(tmp_path)
+    (root / "requirements.txt").write_text("torch==2.14.0\n")
+    assert aud.check_dependency_advisories(root, query=lambda p: {"results": [{}]}) == []
+
+
+def test_advisory_lookup_failure_is_reported_not_swallowed(tmp_path):
+    """An unavailable check and a clean result must not look the same."""
+    root = init_repo(tmp_path)
+    (root / "requirements.txt").write_text("torch==2.14.0\n")
+    def boom(_pkgs):
+        raise OSError("network down")
+    findings = aud.check_dependency_advisories(root, query=boom)
+    assert findings and findings[0].category == aud.CATEGORY_CATCHALL
+    assert "did not run" in findings[0].title
+
+
+def test_unpinned_requirement_is_skipped(tmp_path):
+    root = init_repo(tmp_path)
+    (root / "requirements.txt").write_text("numpy\n# comment\ntorch==2.14.0\n")
+    assert aud.parse_requirements(root) == [("torch", "2.14.0")]
+
+
+def test_no_requirements_file_is_silent(tmp_path):
+    root = init_repo(tmp_path)
+    assert aud.check_dependency_advisories(root, query=lambda p: {"results": []}) == []
+
+
+def test_requirements_extras_and_comments_parse(tmp_path):
+    root = init_repo(tmp_path)
+    (root / "requirements.txt").write_text("torch[cpu]==2.14.0+cpu  # pinned\n")
+    assert aud.parse_requirements(root) == [("torch", "2.14.0+cpu")]
+
+
+# ---- security category is wired into the digest --------------------------
+
+def test_security_category_appears_in_digest():
+    f = aud.Finding("workflow-hardening", aud.CATEGORY_SECURITY, "No perms", "b", "ci.yml")
+    body = aud.build_digest_body("2026-01-01T00:00:00Z", "abc1234", [], [f], [], [])
+    assert aud.CATEGORY_SECURITY in body
+    assert "No perms" in body
+
+
+def test_new_checks_are_registered():
+    for fn in (aud.check_stale_owner_refs, aud.check_committed_secrets,
+               aud.check_workflow_hardening, aud.check_dependency_advisories):
+        assert fn in aud.REGISTRY, fn.__name__
+
+
+# ---- json output mode ----------------------------------------------------
+
+def test_json_mode_writes_nothing_and_is_parseable(tmp_path):
+    """--json is read-only inspection: it must not write a status line or checkpoint."""
+    root = init_repo(tmp_path)
+    (root / "extra.txt").write_text("x\n")
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "x"], cwd=root, check=True)
+    import contextlib, io
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = aud.main(["--repo", "o/r", "--root", str(root), "--json"])
+    assert rc == 0
+    payload = json.loads(buf.getvalue())
+    assert "findings" in payload and "sha" in payload
+    assert payload["finding_count"] == len(payload["findings"])
+    assert not (root / "status_log.jsonl").exists()
+    assert not (root / "status").exists()
+
+
 if __name__ == "__main__":
     fails = 0
     for name, fn in sorted(globals().items()):
