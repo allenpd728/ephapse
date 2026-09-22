@@ -322,9 +322,20 @@ def build_all(records: list, cache: dict, registry: dict) -> dict:
 
 
 # --------------------------------------------------------------- rendering
+QUESTIONS = {
+    "program_state": "Per issue kind: counts by outcome class, open/closed, and "
+                     "the rung distribution for claims",
+    "traversal": "For one issue: its ledger records, the results they rest on, "
+                 "the findings, the DECs, and the issues it blocked or created",
+    "decision_queue": "Every kind:decision issue and what it blocks — the human's inbox",
+    "health": "Gates defined vs wired, findings by rung, and the §7 label-hygiene count",
+    "open_gaps": "Every kind:gap and kind:defect with its age in days",
+}
+
+
 def _render_text(all_views: dict) -> None:
     ps = all_views["program_state"]
-    print("== Program state — per issue kind: counts by outcome class, open/closed ==")
+    print(f"== Program state — {QUESTIONS['program_state']} ==")
     for kind in sorted(ps["by_kind"]):
         b = ps["by_kind"][kind]
         outcomes = ", ".join(f"{k}={v}" for k, v in sorted(b["by_outcome"].items()))
@@ -333,7 +344,7 @@ def _render_text(all_views: dict) -> None:
     print(f"  rung distribution (claims): "
           f"{ps['rung_distribution'] or '(none)'}")
 
-    print("\n== Decision queue — every kind:decision issue and what it blocks ==")
+    print(f"\n== Decision queue — {QUESTIONS['decision_queue']} ==")
     dq = all_views["decision_queue"]
     if not dq:
         print("  (none)")
@@ -341,14 +352,14 @@ def _render_text(all_views: dict) -> None:
         print(f"  #{d['issue']} ({d['state']}) blocks {d['blocks'] or '(nothing)'}")
 
     h = all_views["health"]
-    print("\n== Health — gates defined vs wired, findings by rung, label hygiene ==")
+    print(f"\n== Health — {QUESTIONS['health']} ==")
     print(f"  gates registered={h['gates_defined']} wired={h['gates_wired']}")
     print(f"  findings by rung: {h['findings_by_rung'] or '(none)'}")
     print(f"  open issues violating §7 label hygiene: "
           f"{[v['issue'] for v in h['label_hygiene_violations']] or '(none)'}")
     print(f"  note: {h['note']}")
 
-    print("\n== Open gaps — every kind:gap and kind:defect with its age ==")
+    print(f"\n== Open gaps — {QUESTIONS['open_gaps']} ==")
     og = all_views["open_gaps"]
     if not og:
         print("  (none)")
@@ -358,7 +369,8 @@ def _render_text(all_views: dict) -> None:
 
 
 def _render_traversal(t: dict) -> None:
-    print(f"== Traversal — #{t['issue']} ({t['kind']}, {t['state']}) ==")
+    print(f"== Traversal — {QUESTIONS['traversal']} ==")
+    print(f"   #{t['issue']} ({t['kind']}, {t['state']})")
     print(f"  records: {[r['id'] for r in t['records']] or '(none)'}")
     print(f"  results: {t['results'] or '(none)'}")
     print(f"  findings: {t['findings'] or '(none)'}")
@@ -373,8 +385,19 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="derived views over the program ledger")
     ap.add_argument("--json", action="store_true", help="machine-readable output")
     ap.add_argument("--issue", type=int, help="one issue's full traversal")
+    ap.add_argument("--ledger", type=Path, default=None,
+                    help="read this ledger instead of program/ledger.jsonl "
+                         "(e.g. program/tests/fixture_ledger.jsonl)")
+    ap.add_argument("--cache", type=Path, default=None,
+                    help="read this issue-state cache instead of "
+                         "tests/fixture_issue_state.json")
     args = ap.parse_args(argv)
 
+    global LEDGER_PATH, CACHE_PATH
+    if args.ledger is not None:
+        LEDGER_PATH = args.ledger
+    if args.cache is not None:
+        CACHE_PATH = args.cache
     try:
         records = load_records()
         cache = load_cache()

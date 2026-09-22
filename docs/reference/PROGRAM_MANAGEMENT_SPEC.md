@@ -214,6 +214,19 @@ python3 program/view.py --json     # machine-readable
 python3 program/view.py --issue 24 # one issue's full traversal
 ```
 
+`--ledger PATH` and `--cache PATH` point the views at a different ledger and
+issue-state cache; they exist so the tests can render the committed fixture
+without a live GitHub read:
+
+```
+python3 program/view.py \
+  --ledger program/tests/fixture_ledger.jsonl \
+  --cache  program/tests/fixture_issue_state.json
+```
+
+An empty or malformed ledger exits non-zero rather than rendering an empty
+dashboard — a view that silently shows nothing is worse than one that fails.
+
 | View | Answers |
 |---|---|
 | **Program state** | Per issue kind: counts by outcome class, open/closed, and the rung distribution for claims |

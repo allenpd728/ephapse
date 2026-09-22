@@ -120,6 +120,27 @@ def test_main_exits_nonzero_on_bad_ledger(monkeypatch, tmp_path, capsys):
     assert "ERROR" in capsys.readouterr().err
 
 
+def test_cli_fixture_flags_render_and_label_every_view(monkeypatch, capsys):
+    """The documented fixture invocation renders all five views, each labelled."""
+    rc = view.main(["--ledger", str(FIXTURE_LEDGER), "--cache", str(FIXTURE_CACHE)])
+    assert rc == 0
+    out = capsys.readouterr().out
+    # traversal is only rendered by --issue, so it is asserted separately below.
+    for key, question in view.QUESTIONS.items():
+        if key != "traversal":
+            assert question in out
+
+
+def test_cli_issue_flag_prints_traversal(monkeypatch, capsys):
+    rc = view.main(["--ledger", str(FIXTURE_LEDGER), "--cache", str(FIXTURE_CACHE),
+                    "--issue", "24"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert view.QUESTIONS["traversal"] in out
+    assert "#24 (defect, CLOSED)" in out
+    assert "P-004" in out
+
+
 def test_json_output_is_parseable(wired, capsys):
     records, cache = wired
     # build_all is what --json serialises; assert it round-trips as JSON.
