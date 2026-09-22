@@ -72,7 +72,7 @@ succeeds.
 **What this does not change.** Repositioning an existing asset is not building
 new infrastructure. This is a statement about what the work *is*, not a licence
 to build more: "What not to build yet" below is unchanged, and no new validation
-machinery is proposed by this framing. The layer's ~37 specified gates and their
+machinery is proposed by this framing. The layer's 38 specified gates and their
 fixtures already exist; the change is that they are described as an output rather
 than as scaffolding.
 
