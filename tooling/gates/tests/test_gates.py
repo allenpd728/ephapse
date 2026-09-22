@@ -318,6 +318,28 @@ def test_real_findings_file_passes_the_registered_findings_gates():
     assert status in ("PASS", "SKIP"), f"G-E7 on real log: {status} {findings}"
 
 
+def test_findings_header_declares_every_extension_key():
+    """Every key in KNOWN_EXTENSIONS must be documented in the findings header.
+
+    Issue #25: the gate accepted `input_disjointness` (declared in
+    KNOWN_EXTENSIONS) while the header prose documented none of its extension
+    keys. That is a silent divergence in the schema of record — the gate knows
+    a key the header does not. This test makes the drift loud: adding a key to
+    KNOWN_EXTENSIONS without documenting it in the header fails here.
+    """
+    import validate_findings as V
+    header = "\n".join(
+        line for line in (REPO / "findings.jsonl").read_text(
+            encoding="utf-8").splitlines() if line.startswith("#")
+    )
+    undeclared = [k for k in V.KNOWN_EXTENSIONS if k not in header]
+    assert not undeclared, (
+        f"KNOWN_EXTENSIONS key(s) {undeclared} are not documented in the "
+        f"findings.jsonl header — document them or the schema of record "
+        f"diverges from the gate"
+    )
+
+
 # -------------------------------------------------------------- G-R gates
 def test_infrastructure_exemption_matches_dated_filenames():
     """The README's patterns must match the repo's `<date>-<slug>.py` names.

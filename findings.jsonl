@@ -35,6 +35,19 @@
 #                   in BOTH domains, above the interference control
 #   verdict     — "flagged" | "null"  (a label, NOT a conclusion)
 #
+# Extension keys. The list above is the required set; a record may also carry
+# keys beyond it. Every such key must be *declared* — G-E1 accepts it only if it
+# appears in `KNOWN_EXTENSIONS` (tooling/gates/validate_findings.py), and this
+# list documents the same keys here so the schema of record matches the gate:
+#   kind             — the run family, e.g. "positive_control",
+#                      "paraphrase_robustness", "causal_positive_control",
+#                      "cross_domain_probe"
+#   injection        — a planted-signal control: tokens, placement, rates
+#   result           — the run's raw numbers (sweeps, controls, survivors)
+#   note             — the run's own adjudication, kept separate from `verdict`
+#   input_disjointness — G-P2 evidence for a zero-shared-token input gate:
+#                      {"shared_tokenizer_ids": <int>, "method": ..., "note": ...}
+#
 # A record with no null_model / correction / n is not evidence.
 #
 # A record whose verdict is "flagged" is NOT a finding unless

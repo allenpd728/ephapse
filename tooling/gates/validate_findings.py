@@ -25,9 +25,10 @@ recorded result. Instead:
     KNOWN_EXTENSIONS below, so an unknown key still fails.
 This keeps the gate strict about the schema being *declared* while not
 retroactively invalidating real records. The header's required-key list and the
-gate's REQUIRED set are identical, so there is no divergence to reconcile yet;
-the KNOWN_EXTENSIONS list is the one place the gate is more permissive than the
-prose, and that is stated here rather than discovered later.
+gate's REQUIRED set are identical, and the header's "Extension keys" section
+documents the KNOWN_EXTENSIONS list, so the prose and the gate agree on both
+sets. `test_findings_header_declares_every_extension_key` fails if a key is
+added to KNOWN_EXTENSIONS without a matching header line (issue #25).
 
 **Q4 — does G-E6 need history?** No: a committed high-water mark. The clone is
 shallow, so git history is unavailable; the gate reads
