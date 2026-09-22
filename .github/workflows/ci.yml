@@ -18,9 +18,17 @@ name: CI
 # TIER 0 ONLY
 #
 # No torch, no model, no GPU, no secrets. `requirements.txt` is deliberately NOT
-# installed: every job below is stdlib-only, and installing the ML stack would
-# break the tier-0 guarantee that this suite is cheap and deterministic. Anything
-# needing a model is tier 1 and does not belong here.
+# installed: installing the ML stack would break the tier-0 guarantee that this
+# suite is cheap and deterministic. Anything needing a model is tier 1 and does
+# not belong here.
+#
+# `numpy` IS installed, and that is a deliberate exception rather than drift.
+# `tooling/gates/comparators.py` is the supervised-baseline module and describes
+# itself as "tier-0, numpy-only": numpy is its only dependency, so it is a tier-0
+# dependency. Excluding it fails collection of `test_comparators.py` -- the whole
+# `pytest` run aborts and NO gate-harness test executes, which is a worse outcome
+# than a missing optional skip. Installing numpy keeps that suite running without
+# importing torch.
 #
 # A GREEN RUN HERE IS NECESSARY, NOT SUFFICIENT
 #
@@ -103,12 +111,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # pytest is the ONE dependency this workflow installs. It is the only
-      # non-stdlib package the tier-0 suite needs: `tooling/gates/tests/` is a
-      # pytest suite. `requirements.txt` is still deliberately not installed --
-      # torch would break the tier-0 guarantee (issue #13's method constraint).
-      - name: Install pytest (the only dependency)
-        run: python3 -m pip install --quiet pytest
+      # The two dependencies this workflow installs, and no more. `pytest` runs
+      # `tooling/gates/tests/`; `numpy` is required by `tooling/gates/comparators.py`,
+      # which is the tier-0 supervised-baseline module (`test_comparators.py`).
+      # Without numpy that module fails to import, collection aborts, and none of
+      # the gate-harness tests run at all. `requirements.txt` is still deliberately
+      # not installed -- torch would break the tier-0 guarantee (issue #13's method
+      # constraint).
+      - name: Install tier-0 test dependencies (pytest, numpy)
+        run: python3 -m pip install --quiet pytest numpy
 
       # The harness's own tests. These are the load-bearing ones: they assert
       # that every gate fires on its failing fixture, that BROKEN is reachable
