@@ -17,6 +17,10 @@ made** and **work already owned by a human**. Skipping it is how a session redoe
 someone else's work, contradicts a recorded decision, or spends its run on something
 a human must do anyway.
 
+**If you are an unattended automation run, skip this step** — the operating contract
+is already inlined at the top of your prompt, and this orientation is for
+human-directed and ad-hoc sessions.
+
 **Do not confuse the two queues.** Work here is claimed and executed locally. Janitorial
 work — lint sweeps, stale references, mechanical hygiene — is deliberately tracked
 privately in `portfolio-ops`, not filed here. If you find mechanical work, do not file
