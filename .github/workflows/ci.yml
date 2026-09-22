@@ -1,6 +1,6 @@
 name: CI
 
-# Tier-0 validation on `dev`. Wires the gate suite and the stdlib test suites
+# Tier-0 validation on `main`. Wires the gate suite and the stdlib test suites
 # into GitHub Actions so the validation layer stops depending on an agent
 # remembering to run it (issue #13).
 #
@@ -32,9 +32,9 @@ name: CI
 
 on:
   push:
-    branches: [dev]
+    branches: [main]
   pull_request:
-    branches: [dev]
+    branches: [main]
   workflow_dispatch: {}
 
 # Least privilege: every job only reads the checkout. Declared explicitly rather
