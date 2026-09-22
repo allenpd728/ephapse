@@ -1090,3 +1090,24 @@ def test_docs_coherence_g_r4_real_tree_is_coherent():
     """The gate over the four obliged docs — the sweep Step 1b automates."""
     assert D.main() == 0, "the real docs contradict a settled fact"
 
+
+def test_docs_coherence_g_r4_fires_on_a_stale_status_line():
+    """Second drift class (issue #20 scope addition): a status line that lags.
+
+    The value is right (DEC-033 is cited) but the state is stale ("not yet
+    adopted"). The decision log records DEC-033 as adopting, so this fails.
+    """
+    findings = D.gate_r4(_DOC_FIX / "stale_status")
+    assert findings, "a status line lagging its adopting DEC must fire"
+    assert any("pre-adoption" in f for f in findings), findings
+
+
+def test_docs_coherence_g_r4_status_line_check_targets_the_line_not_the_file():
+    """The #8 caveat: a status-line check must not fire on body text.
+
+    A doc whose status line is correct must pass even when the body discusses
+    adoption or mentions "proposal" in an unrelated sentence.
+    """
+    findings = D.gate_r4(_DOC_FIX / "coherent_with_proposal_body")
+    assert findings == [], f"body text must not trip the status-line check: {findings}"
+

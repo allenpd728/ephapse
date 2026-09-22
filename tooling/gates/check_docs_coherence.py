@@ -4,6 +4,7 @@
 | ID   | Check |
 |------|-------|
 | G-R4 | README / handoff / DEC log / experiments README agree on the settled target model and the settled SAE facts |
+| G-R4 (fact 2) | a spec's status line names the DEC that adopted it and no longer claims a pre-adoption state (scope addition, DEC-035) |
 
 This automates the manual docs-coherence sweep in
 `docs/MULTI_AGENT_WORKFLOW.md` § Step 1b. Two entry points, mirroring
@@ -74,6 +75,17 @@ OBLIGED = (
     "docs/AGENT_HANDOFF.md",
     "docs/decisions/LOG.md",
     "experiments/README.md",
+)
+
+# The docs that carry a `**Status:**` line (issue #20 scope addition, DEC-035).
+# The fact is "this spec was adopted by DEC-NNN": the authority is the decision
+# log, and these are the docs obliged to state the adopted state.
+OBLIGED_STATUS = (
+    "docs/ROADMAP.md",
+    "docs/reference/PROGRAM_MANAGEMENT_SPEC.md",
+    "docs/reference/TEST_VALIDATION_SPEC.md",
+    "docs/reference/EPHAPSE_SPECIFICATION_ASSESSMENT.md",
+    "docs/reference/CRITIQUE_RESPONSE_2026-09-19.md",
 )
 
 # A value is historical, not current, when the line carries one of these. Kept
@@ -197,6 +209,85 @@ def facts() -> list[Fact]:
     ]
 
 
+# ------------------------------------------- fact: status line vs. DEC log
+# Issue #20 scope addition (DEC-035): a doc's *status line* can lag the decision
+# that adopted it — `docs/ROADMAP.md` claimed "proposal ... not yet adopted" long
+# after DEC-033 adopted it. The class differs from the model facts above: it is
+# not a wrong *value*, it is a stale *state*. The authority is the decision log.
+#
+# The check targets the document-level status block, not the file: #8's DoD made
+# the mistake of grepping the whole file for "proposal" and fired on unrelated
+# uses. Only the first `**Status:**` occurrence (the doc-level line, near the
+# top) and its continuation to the next blank line are inspected.
+_STATUS_RE = re.compile(r"^\s*>?\s*\*\*Status:\*\*", re.IGNORECASE)
+_PRE_ADOPTION_RE = re.compile(
+    r"(not\s+yet\s+adopted|not\s+adopted|never\s+adopted|awaiting\s+adoption"
+    r"|pending\s+adoption|still\s+a\s+proposal|remains?\s+a\s+proposal"
+    r"|not\s+yet\s+in\s+force)",
+    re.IGNORECASE,
+)
+_DEC_RE = re.compile(r"\bDEC-(\d+)\b")
+
+
+def _dec_headings(root: Path) -> dict[str, str]:
+    """Map `DEC-<digits>` -> heading text, from the authoritative decision log.
+
+    The log is not itself an obliged doc: it is where superseded values
+    legitimately live, so it is the authority for this fact and is exempt from
+    the status-line check by construction. `root` is the scan root, so a fixture
+    tree supplies its own `LOG.md` and is self-contained.
+    """
+    headings: dict[str, str] = {}
+    log = root / "LOG.md"
+    if not log.exists():
+        log = REPO / "docs" / "decisions" / "LOG.md"
+    if not log.exists():
+        return headings
+    for line in log.read_text(encoding="utf-8").splitlines():
+        m = re.match(r"^##\s+(DEC-\d+)\b(.*)", line)
+        if m:
+            headings[m.group(1)] = m.group(2).strip()
+    return headings
+
+
+def _status_block(path: Path) -> str | None:
+    """The doc-level status block: the first `**Status:**` line + continuation."""
+    lines = path.read_text(encoding="utf-8").splitlines()
+    for i, line in enumerate(lines[:40]):
+        if _STATUS_RE.match(line):
+            block = [line]
+            for cont in lines[i + 1:]:
+                if not cont.strip():
+                    break
+                block.append(cont)
+            return "\n".join(block)
+    return None
+
+
+def status_line_findings(path: Path, root: Path) -> list[str]:
+    """Findings for the 'status line names its adopting DEC' fact."""
+    if path.name == "LOG.md":
+        return []
+    block = _status_block(path)
+    if block is None:
+        return []
+    headings = _dec_headings(root)
+    cited = {f"DEC-{n}" for n in _DEC_RE.findall(block)}
+    findings: list[str] = []
+    for dec in sorted(cited):
+        if dec not in headings:
+            findings.append(
+                f"status line cites {dec}, which has no entry in the decision log")
+    if _PRE_ADOPTION_RE.search(block):
+        adopting = [d for d in sorted(cited)
+                    if "adopt" in headings.get(d, "").lower()]
+        if adopting:
+            findings.append(
+                f"status line still claims a pre-adoption state although "
+                f"{'/'.join(adopting)} adopted it")
+    return findings
+
+
 def check_docs(path: Path, obliged: tuple[str, ...] | None = None) -> list[str]:
     """Scan a docs set for contradictory *current* statements.
 
@@ -220,6 +311,16 @@ def check_docs(path: Path, obliged: tuple[str, ...] | None = None) -> list[str]:
             for lineno, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
                 for finding in fact.check_line(line):
                     findings.append(f"{label}:{lineno}: {fact.id}: {finding}")
+
+    # The status-line fact is per-document, not per-line, so it runs outside
+    # the line loop above.
+    if path.is_dir():
+        for p, label in files:
+            for finding in status_line_findings(p, path):
+                findings.append(f"{label}: status-line: {finding}")
+    else:
+        for finding in status_line_findings(path, path.parent):
+            findings.append(f"{path.name}: status-line: {finding}")
     return findings
 
 
@@ -235,10 +336,11 @@ register(Gate(
     check=gate_r4,
     clean_fixture="docs_coherence/coherent",
     failing_fixture="docs_coherence/contradictory_current",
-    traces_to="workflow § Step 1b; spec §3 (G-R4); DEC-014, DEC-015",
+    traces_to="workflow § Step 1b; spec §3 (G-R4); DEC-014, DEC-015, DEC-035",
     description="The obliged docs agree on the settled target model and the "
-                "settled SAE facts. Corrected-history entries pass; an assertive "
-                "contradictory current value fails.",
+                "settled SAE facts, and each spec's status line names the DEC "
+                "that adopted it. Corrected-history entries pass; an assertive "
+                "contradictory current value or a stale status line fails.",
 ))
 
 
@@ -259,8 +361,16 @@ def main() -> int:
             for lineno, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
                 for finding in fact.check_line(line):
                     findings.append(f"{rel}:{lineno}: {fact.id}: {finding}")
+    for rel in OBLIGED_STATUS:
+        p = REPO / rel
+        if not p.exists():
+            findings.append(f"{rel}: missing obliged doc")
+            continue
+        for finding in status_line_findings(p, REPO):
+            findings.append(f"{rel}: status-line: {finding}")
     print("-" * 78)
-    print(f"{len(OBLIGED)} obliged doc(s) inspected; {len(findings)} finding(s)")
+    print(f"{len(OBLIGED) + len(OBLIGED_STATUS)} obliged doc(s) inspected; "
+          f"{len(findings)} finding(s)")
     for f in findings:
         print(f"  - {f}")
     return 1 if findings else 0
