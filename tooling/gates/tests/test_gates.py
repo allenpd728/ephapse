@@ -366,6 +366,63 @@ def test_g_r1_fires_when_a_hypothesis_file_self_declares_infrastructure():
     assert any("full header" in f for f in findings), findings
 
 
+def test_header_rule_three_cases_full_exempted_and_claimed():
+    """The G-R1 fixture set proves the three cases issue #16 names.
+
+    Full header (clean), the enumerable exemption (latency-*), and a
+    hypothesis-test file that *claims* the exemption and must be rejected.
+    """
+    import validate_experiments as V
+
+    clean = R.FIXTURES / "experiments_clean"
+    assert V.gate_r1(clean) == [], "G-R1 fired on the clean fixture set"
+
+    claimed = R.FIXTURES / "experiments_r1_invalid_exemption"
+    findings = V.gate_r1(claimed)
+    assert any("2026-09-19-claims-exemption.py" in f and "full header" in f
+               for f in findings), findings
+    # The genuinely exempt `latency-*` file in the same directory must not fire.
+    assert not any("latency-fixture" in f for f in findings), findings
+
+    missing = R.FIXTURES / "experiments_r1_missing_field"
+    findings = V.gate_r1(missing)
+    assert any("2026-09-19-missing-correction.py" in f and "Correction" in f
+               for f in findings), findings
+
+
+def test_header_near_miss_is_reported_not_only_an_empty_file():
+    """A header that looks complete but omits one field must be caught.
+
+    A gate that only fires on an empty or obviously-malformed file satisfies the
+    letter of the fixture rule and none of its purpose.
+    """
+    import validate_experiments as V
+    d = R.FIXTURES / "experiments_r1_missing_field"
+    findings = V.gate_r1(d)
+    assert any("G-R1 full header missing" in f for f in findings), findings
+
+
+def test_readme_header_exemption_matches_the_gate():
+    """The README's exemption patterns must be the gate's, not a drifting copy.
+
+    Issue #16 method constraint: one source of truth. The failure mode is a rule
+    that drifts from its checker (the Maith G2-5 docs-vs-scanner divergence).
+    This test fails if the README names a pattern `_is_infra` does not implement,
+    or omits one it does.
+    """
+    import validate_experiments as V
+
+    readme = (REPO / "experiments" / "README.md").read_text(encoding="utf-8")
+    for pattern in V.INFRA_PATTERNS:
+        assert pattern in readme, (
+            f"README does not name the gate's exemption pattern {pattern!r} — "
+            f"the rule has drifted from its checker")
+    for required in ("Model", "Inputs", "Question", "Null", "Correction", "Issue"):
+        assert required in readme, f"README template omits the {required} field"
+    assert "validate_experiments.py" in readme, (
+        "README does not point at the gate that enforces the header rule")
+
+
 def test_g_r2_fails_closed_when_no_model_can_be_determined():
     """Silence is not acceptance: an unidentifiable model is flagged."""
     import validate_experiments as V

@@ -2,27 +2,60 @@
 
 One file per experiment, named `<YYYY-MM-DD>-<slug>.py` (or `.ipynb`).
 
-Every experiment file starts with a header comment stating:
+Every experiment file starts with a header comment carrying six mandatory
+fields. Copy this block verbatim and fill it in:
 
-- **Model** — exact model id and dtype
-- **Inputs** — what prompt sets are used, and where they come from
-- **Question** — what is being tested, in one sentence
-- **Null** — the null model the result will be compared against
-- **Correction** — the multiplicity correction applied
-- **Issue** — the GitHub issue this belongs to
+```python
+"""<one-line summary>
 
-A file without those five header fields is not runnable as evidence.
+**Model:** <exact model id>, <dtype>, <device>.
+**Inputs:** <what prompt sets are used, and where they come from>.
+**Question:** <what is being tested, in one sentence>.
+**Null:** <the null model the result is compared against>.
+**Correction:** <the multiplicity correction applied>.
+**Issue:** #<number> (<context>).
+"""
+```
+
+A file missing any of the six fields is not runnable as evidence. The rule is
+enforced by `tooling/gates/validate_experiments.py` (G-R1) — that gate's rule
+definition is the single source of truth; this section describes it and is tied
+to it, it does not replace it.
 
 ---
 
 ## Infrastructure / baseline measurements
 
-Files whose purpose is measuring the environment rather than testing a
-scientific question (`sandbox-baseline-*`, `latency-*`) are exempt from the
-`Null` and `Correction` header fields — there is no hypothesis under test.
-They must still state **Model**, **Question**, and **Issue**, and their
-results land in `docs/reference/SANDBOX_BASELINE.md` rather than
+The exemption is an **enumerable filename pattern**, never an intent. A file is
+exempt when its name — with any leading `YYYY-MM-DD-` stripped — matches one of
+the patterns enumerated in `INFRA_PATTERNS` in
+`tooling/gates/validate_experiments.py`:
+
+- `sandbox-baseline-*`
+- `latency-*`
+
+Those files measure the environment rather than testing a scientific question,
+so they drop `Null` and `Correction` and carry the three reduced fields —
+**Model**, **Question**, **Issue**:
+
+```python
+"""<one-line summary>
+
+**Model:** <exact model id>, <dtype>, <device>.
+**Question:** <what the environment measurement establishes>.
+**Issue:** #<number> (<context>).
+"""
+```
+
+Their results land in `docs/reference/SANDBOX_BASELINE.md` rather than
 `findings.jsonl`.
+
+A file cannot grant itself the exemption by describing itself as
+infrastructure: a line-leading declaration is ignored, because the exemption is
+a function of the filename alone. A hypothesis-test file that claims the
+exemption is judged against the full six-field rule and reported — the intent
+phrasing ("whose purpose is measuring the environment") is deliberately not the
+rule, since no agent can apply it consistently.
 
 ---
 
