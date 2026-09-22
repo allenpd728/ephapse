@@ -35,7 +35,7 @@ activation space instead of a brain.
   oracle here** — that is the central difference from Maith — so a two-tier
   automated validation layer (`tooling/gates/`, DEC-021) carries as much of
   the discipline as is mechanically checkable.
-- **Single active branch:** `dev`.
+- **Single active branch:** `main` (renamed from `dev` on 2026-09-22).
 - **Status:** proof-of-concept, and the first real output is a **methodology
   null-result assessment**. The detector is validated; a probe returned a
   weak bridging signal; the general cross-domain probe returned a clean null
@@ -330,4 +330,4 @@ adjudicates claims remains out of bounds until there is a candidate to check.
 ## Working on this repo
 
 Read `docs/AGENT_HANDOFF.md` first, then `docs/MULTI_AGENT_WORKFLOW.md` for
-the claiming protocol. Development happens on the single `dev` branch.
+the claiming protocol. Development happens on the single `main` branch.
