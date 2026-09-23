@@ -5,9 +5,11 @@
   templates, each rendered as words, as digits/operators, and as a paraphrase.
 **Question:** produce two renderings of each relation with ZERO shared
   tokenizer ids, and verify that mechanically rather than assuming it.
+**Null:** none — a corpus-generation step; no measurement is compared against a
+  chance baseline. (The disjointness check is exact, not statistical.)
+**Correction:** none — no hypothesis tests run; the zero-token-id intersection
+  is verified by construction, so there is no test family to correct.
 **Issue:** #6 (run 20260919-0213-tsm5).
-
-Infrastructure/generation task — no null model applies.
 
 DESIGN. Each item asserts a relation R(a,b) between two integers chosen per
 instance. Three renderings:

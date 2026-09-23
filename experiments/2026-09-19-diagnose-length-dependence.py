@@ -7,9 +7,12 @@
   and a passage (~60+ tokens).
 **Question:** does the near-zero feature activity in #6's first run come from
   short prompts, and at what length does the substrate become usable?
+**Null:** none — a descriptive measurement of feature-activity counts at three
+  prompt lengths; the comparison is between measured counts, not against a
+  chance baseline.
+**Correction:** none — no family of tests and no threshold decision follows
+  from this diagnostic.
 **Issue:** #6 (run 20260919-0213-tsm5). Root-cause test for the #6 saturation.
-
-Infrastructure/diagnostic — no null model applies.
 
 #6's first run found 32,764/32,768 features firing on ZERO prompts at a
 99th-percentile threshold. Hypothesis: 3-4 token prompts give the residual

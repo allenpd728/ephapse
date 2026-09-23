@@ -5,13 +5,16 @@ Neuronpedia's hosted copy of the same feature.
 **Inputs:** a fixed set of 8 short prompts (below); no external corpus.
 **Question:** does the local SAE (SAELens) and the hosted SAE (Neuronpedia)
   describe the *same* feature for a given model/layer/feature-index?
+**Null:** none — this is a value-agreement cross-check of two implementations
+  of the same model/SAE (local SAELens vs Neuronpedia's hosted copy) on fixed
+  inputs; there is no sampling noise and no chance baseline to model.
+**Correction:** none — a single deterministic agreement comparison, not a
+  family of hypothesis tests.
 **Issue:** #2 (run 20260918-1720-altu).
 
-Infrastructure/verification task, not a hypothesis test — no null model or
-multiplicity correction applies (see experiments/README.md exemption). The
-cross-check is: does Neuronpedia's reported max activation for feature F agree
-with our locally-observed max activation for the same F on the same inputs,
-and does the decoder vector dimension match d_model?
+The cross-check is: does Neuronpedia's reported max activation for feature F
+agree with our locally-observed max activation for the same F on the same
+inputs, and does the decoder vector dimension match d_model?
 """
 import json
 import urllib.request

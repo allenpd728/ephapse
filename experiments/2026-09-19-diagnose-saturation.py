@@ -4,9 +4,11 @@
 **Inputs:** Corpus/verbal_symbolic.json (200 narrative/symbolic/paraphrase).
 **Question:** how many SAE features fire on ~every prompt (making the bridge
   statistic saturate), and what feature-selection rule gives discrimination?
+**Null:** none — a descriptive measurement of the feature firing-rate
+  distribution that produced #6's saturated statistic.
+**Correction:** none — no hypothesis tests are run; the output is a histogram
+  and a selection rule.
 **Issue:** #6 (run 20260919-0213-tsm5). Diagnostic for the saturation bug.
-
-Infrastructure/diagnostic — no null model applies.
 
 The first #6 run returned best=1.0=cutoff in ALL arms including the null, so
 the statistic could not discriminate. Cause: bridge(f) = P(f fires in A and B);

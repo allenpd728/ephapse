@@ -5,13 +5,11 @@
   domain vocabularies (cooking vs astronomy).
 **Question:** produce two passage sets from unrelated domains that share ZERO
   tokenizer ids, and verify that mechanically rather than assuming it.
+**Null:** none — a corpus-generation step; no measurement is compared against a
+  chance baseline. (The disjointness check is exact, not statistical.)
+**Correction:** none — no hypothesis tests run; the zero-token-id intersection
+  is verified by construction, so there is no test family to correct.
 **Issue:** #3 (run 20260919-0229-to3m).
-
-**Infrastructure file** - passage generation only, no hypothesis under test, so
-no null model or multiplicity correction applies. This declaration is the
-gate's documented exemption for infrastructure files
-(`tooling/gates/validate_experiments.py`, G-R1), used deliberately rather than
-filing a false Null/Correction header.
 
 DESIGN. Passages are built by combining a domain-specific vocabulary with a
 small set of sentence frames whose *function words* are also domain-specific,
