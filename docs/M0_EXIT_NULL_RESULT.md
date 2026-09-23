@@ -100,6 +100,26 @@ statistics retired along the way (DEC-016, DEC-023, DEC-027) were each caught by
 running the positive control first, which is why the process rule — *never report
 a null the control did not survive* — is itself a transferable result.
 
+## 6. Hand-off status (M0's second half)
+
+The M0 exit also asked whether the ephapse → Maith candidate hand-off — rung 6 of
+the ladder, the probe's only cross-program value flow — is a real path or
+aspirational prose. **Status: not reached, and not currently reachable.**
+
+Rung 6 hands a *surfaced candidate* to a human, who articulates it as a
+plain-language mathematical claim for Maith's gate 1 (`ROADMAP.md`, rung 6).
+The rung-2 null means **no candidate has been surfaced**, so there is nothing to
+hand off — the receiving issue would have no input to name. Filing one now would
+be the "infrastructure ahead of a result" failure this repo explicitly warns
+against (README; `EPHAPSE_SPECIFICATION_ASSESSMENT.md`).
+
+The dependency is carried, rather than prose-only, by **`portfolio-ops#13`**
+(*"Track the ephapse → Maith candidate hand-off (currently prose-only)"*), whose
+DoD is either a Maith issue naming ephapse as its input, or corrected audit
+prose. **That is a human decision — whether the flow is real or aspirational —
+and `portfolio-ops` is out of scope for unattended agents** (operating contract).
+It is routed there rather than resolved here.
+
 ## Reproducing the basis
 
 - `docs/decisions/LOG.md` — DEC-027 (the result and its setup), DEC-021
