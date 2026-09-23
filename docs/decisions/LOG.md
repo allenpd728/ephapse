@@ -2145,3 +2145,69 @@ at it. The wired count stays owned by `run_all.py`, which prints it on every run
 - The count history in the spec and handoff now records DEC-039 so the next
   reader sees why 37 → 38 happened and does not re-open it.
 
+---
+
+## DEC-040 — G-R2 recognises a DEC-authorized non-Pythia target and an explicit model-free artifact; both are cross-checked against the file body
+
+**Date:** 2026-09-23 · **Status:** adopted (implementation filed as #74 and #75; resolves #73)
+
+**Decision.** G-R2's model vocabulary and fail-closed branch are extended in two
+ways, and neither extension can be granted by prose alone:
+
+1. **A second authorized target.** `tooling/gates/target_model.txt` gains
+   `gemma-2-2b` alongside `pythia-70m-deduped`, and `ANY_MODEL_RE` /
+   `ID_IN_TEXT_RE` gain `gemma` to their alternation. This is the DEC-033
+   scale-up target (rung 3), which DEC-033 put on record as *feasible, not
+   blocked* — 316 SAEs in the Gemma Scope residual release. The gate already
+   supports a multi-id target list (`load_target_models` returns a list and
+   `_authorized` tries each); the defect is only that the vocabulary cannot
+   *see* a `gemma` id, so the file reads as "no model determined" and fails
+   closed. Extending the vocabulary is the fix; it does **not** require
+   weakening the fail-closed rule.
+
+2. **An explicit model-free artifact path.** A file that loads no model at all
+   (`experiments/fetch_corpus.py` — corpus preparation) may declare itself with a
+   line-leading `**Model:** none` (or `n/a`) and be accepted **only when the
+   file body carries no model-loading construct**. This mirrors the two
+   hole-closures in #24: the declaration is not self-granting. A file that
+   declares model-free *and* contains `from_pretrained(`, a module-level
+   `MODEL =`, or an `ANY_MODEL_RE` hit is reported, because that is precisely the
+   "substitution going unnoticed" state the fail-closed rule exists to catch.
+
+**Why a policy DEC rather than just a patch.** Both changes widen what G-R2
+accepts, and widening an accept rule is the kind of change that silently reopens
+a closed hole if the guard is dropped later. Recording the *rule* — accept only
+with a decidable, body-checked predicate — makes the guard part of the spec
+rather than an implementation detail a later edit can overlook.
+
+**Why not option 2 (artifact change only).** No header edit to
+`2026-09-22-gemma-2b-feasibility.py` can make its model determinable, because the
+file legitimately measures a model the vocabulary cannot render; and no honest
+header for `fetch_corpus.py` can produce an id-shaped token, because it loads
+nothing. Option 1 is the only path that keeps both files truthful, and the
+issue's method constraint is explicit that the fail-closed rule must not be
+weakened to silence the finding.
+
+**A trap the implementation must handle (measured this run).** A vocabulary that
+adds the bare token `gemma` also matches the SAE *release* name
+`gemma-scope-2b-pt-res-canonical` (`SAE_RELEASE` in the feasibility file), which
+is not a model. `ANY_MODEL_RE` matches quoted strings, so the naive extension
+reports the release as an unauthorized non-target model — a false positive that
+would be repaired by "adding a Supersedes", i.e. by misstating the artifact.
+The implementation must either exclude SAE-release-shaped ids
+(`^gemma-scope-`) or require a model-shaped id. Likewise an org-prefixed id
+(`google/gemma-2-2b`, `unsloth/gemma-2-2b`) must match the target
+`gemma-2-2b` — `_authorized` compares whole strings, so either the target line
+carries the org prefix or the comparison strips it. Both are stated here because
+they are exactly the sort of detail that turns a gate change into a new
+false-positive class.
+
+**Consequences.**
+
+- Implementation is **#74** (vocabulary + target line) and **#75** (model-free
+  path), each sized for one run; both carry the measured trap above.
+- No gate or artifact change lands in #73. The deliverable there is this DEC plus
+  the two implementation issues.
+- The fail-closed branch in `check_model_authorized` is unchanged; the two
+  accept paths are additive and body-checked.
+
