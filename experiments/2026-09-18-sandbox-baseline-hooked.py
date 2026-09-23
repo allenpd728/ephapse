@@ -1,6 +1,11 @@
 """Issue #1 gap 3: peak RSS for a *real* probe (hooks caching activations),
 not a bare forward pass. Also confirms SAELens encode path and CDN download.
 
+**Model:** pythia-160m, fp32, cpu.
+**Question:** What is the peak RSS of a hooked `run_with_cache` probe versus a
+bare forward pass, and what cache size per prompt does it hold?
+**Issue:** #1 (sandbox baseline, gap 3).
+
 Run: python3 experiments/2026-09-18-sandbox-baseline-hooked.py
 """
 import os

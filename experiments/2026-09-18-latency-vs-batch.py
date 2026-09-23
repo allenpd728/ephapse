@@ -1,5 +1,10 @@
 """Settle the latency discrepancy: 217 ms/call (earlier, single) vs 14 ms/prompt
 (batched, this session). Measures amortized latency across batch sizes.
+
+**Model:** pythia-160m, fp32, cpu.
+**Question:** How does amortized per-prompt latency scale with batch size on CPU,
+and does batching explain the 217 ms single-call vs 14 ms batched discrepancy?
+**Issue:** #1 (sandbox baseline / latency discrepancy).
 """
 import time
 
