@@ -122,6 +122,31 @@ SUPERSEDES_RE = re.compile(
     re.MULTILINE | re.IGNORECASE)
 DECISION_MENTION_RE = re.compile(r"\bDEC-\d+\b", re.IGNORECASE)
 
+# DEC-040(2): an explicit model-free artifact path. A file that loads no model
+# (corpus preparation, environment measurement) may declare itself line-leading
+# with `**Model:** none` (or `n/a`). The declaration is NOT self-granting: it is
+# accepted only when the body carries no model-loading construct, which is why
+# the body is checked rather than trusted (same pattern as the #24 hole
+# closures). A bare `from_pretrained(` is matched without requiring a literal
+# id, so `from_pretrained(model_id)` — the id held in a variable — cannot slip
+# past the body check.
+MODEL_FREE_RE = re.compile(
+    r"^\s*\**\s*model\s*\**\s*:?\s*\**\s*(?:n/?a|none)\b",
+    re.MULTILINE | re.IGNORECASE)
+FROM_PRETRAINED_CALL_RE = re.compile(r"from_pretrained\s*\(")
+
+
+def _loads_any_model(text: str) -> bool:
+    """True when the body carries any model-loading construct.
+
+    The three constructs DEC-040 names: `from_pretrained(`, a module-level
+    `MODEL =`, or an `ANY_MODEL_RE` hit. Presence of any one means the file is
+    not model-free, so a `Model: none` declaration cannot excuse it.
+    """
+    return bool(FROM_PRETRAINED_CALL_RE.search(text)
+                or MODEL_ASSIGN_RE.search(text)
+                or ANY_MODEL_RE.search(text))
+
 
 def _experiment_files(root: Path) -> list[Path]:
     if root.is_dir():
@@ -271,6 +296,7 @@ def check_model_authorized(path: Path, targets: list[str],
     """
     findings: list[str] = []
     ids, header = extract_models(path)
+    text = path.read_text(encoding="utf-8", errors="replace")
 
     # A header that names no *recognisable model id* is not a determination.
     # The first version of this gate treated any non-empty Model line as
@@ -281,12 +307,21 @@ def check_model_authorized(path: Path, targets: list[str],
     determined = bool(ids) or bool(header_ids)
 
     if not determined:
+        # DEC-040(2): the one additive accept path for the undetermined case.
+        # A line-leading `**Model:** none` (or `n/a`) is accepted only when the
+        # body carries no model-loading construct. The declaration cannot grant
+        # itself: `_loads_any_model` is the guard, and it reads the body, not the
+        # header. A file that declares model-free yet loads one is reported — the
+        # "substitution going unnoticed" state the fail-closed rule exists to
+        # catch — so the rule is not weakened, only given an honest exit for the
+        # artifact that genuinely loads nothing.
+        if MODEL_FREE_RE.search(text) and not _loads_any_model(text):
+            return findings
         findings.append(f"{path.name}: G-R2 cannot determine a model id "
                         f"(fails closed — a substitution could go unnoticed)")
         return findings
 
     decisions = load_model_decisions() if decisions is None else decisions
-    text = path.read_text(encoding="utf-8", errors="replace")
     superseded = supersession_declared(text, decisions)
 
     def finding(verb: str, mid: str, suffix: str = "") -> str | None:
@@ -371,10 +406,12 @@ register(Gate(
     id="G-R2", name="experiment model authorization", tier=0, check=gate_r2,
     clean_fixture="experiments_clean",
     failing_fixture="experiments_r2_unrelated_decision",
-    traces_to="DEC-014; spec §1 defect #1",
+    traces_to="DEC-014; DEC-040; spec §1 defect #1",
     description="Model id matches the authorized target. Fails closed; a "
                 "non-target id is accepted only with a `Supersedes:` "
-                "attribution naming the model decision (issue #24).",
+                "attribution naming the model decision (issue #24). A "
+                "line-leading `Model: none|n/a` is accepted only when the body "
+                "carries no model-loading construct (DEC-040(2), #75).",
 ))
 
 register(Gate(

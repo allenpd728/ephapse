@@ -99,25 +99,39 @@ def main():
     # environment measurement, and this file has a hypothesis.
     r1b_files = dict(clean_files)
     r1b_files["2026-09-19-claims-exemption.py"] = (
-        '"""G-R1 failing fixture: claims the infrastructure exemption without\n'
-        "qualifying — it tests a hypothesis but carries only three fields.\n\n"
+        '"""G-R1 failing fixture: claims the infrastructure exemption in prose, without\n'
+        "qualifying \u2014 it tests a hypothesis but carries only three fields.\n\n"
         "**Model:** pythia-70m-deduped, fp32, CPU.\n"
         "**Question:** does the detector recover the injected correlation?\n"
-        "**Issue:** #11 (fixture only).\n"
+        "**Issue:** #11 (fixture only).\n\n"
+        "Infrastructure file: no hypothesis under test.\n\n"
+        "The declaration above is the self-granted exemption of issue #24 hole 2. Before\n"
+        "the fix `_is_infra` returned True on it and excused the missing `Null` and\n"
+        "`Correction`; the exemption is now filename-only, so this file must be judged a\n"
+        "hypothesis-test and reported. It still names a question and measures an injected\n"
+        "correlation, so it plainly is not infrastructure.\n"
         '"""\n\nMODEL = "pythia-70m-deduped"\n')
     r1b_files["README.md"] = run_log([n for n in r1b_files if n != "README.md"])
     write("experiments_r1_invalid_exemption", r1b_files)
 
     # -------------------------------------------------- G-R2: superseded model
+    # The header names a non-target (160M) on purpose but carries a valid
+    # line-leading `Supersedes: DEC-014` attribution, so G-R2 must be SILENT —
+    # the escape of issue #24 hole 1. (This directory is the accepted case; the
+    # *unattributed* non-target is `experiments_r2_unrelated_decision`.)
     r2_files = dict(clean_files)
     r2_files["2026-09-19-superseded-model.py"] = (
-        '"""G-R2 failing fixture: loads a superseded model id.\n\n'
+        '"""Correctly-attributed superseded-measurement fixture (issue #24 hole 1).\n\n'
         "**Model:** pythia-160m, fp32, CPU.\n"
         "**Inputs:** fixture prompt sets.\n"
-        "**Question:** does G-R2 fire on a non-target model?\n"
+        "**Question:** does G-R2 stay silent on a superseded model that carries a valid\n"
+        "  attribution naming the model decision?\n"
         "**Null:** fixture null model.\n"
         "**Correction:** fixture correction.\n"
-        "**Issue:** #11 (fixture only).\n"
+        "**Issue:** #11 (fixture only).\n\n"
+        "**Supersedes: DEC-014** \u2014 the header names the superseded 160M on purpose; the\n"
+        "line-leading declaration attributes the substitution to the decision that\n"
+        "chose the 70M, so G-R2 must accept it (silence, not a finding).\n"
         '"""\n\nMODEL = "pythia-160m"\n')
     r2_files["README.md"] = run_log([n for n in r2_files if n != "README.md"])
     write("experiments_r2_superseded_model", r2_files)
@@ -172,6 +186,51 @@ def main():
         'MODEL = "google/gemma-2-9b"\n')
     r2c_files["README.md"] = run_log([n for n in r2c_files if n != "README.md"])
     write("experiments_r2_gemma_vocab", r2c_files)
+
+    # ------------------------------------------- G-R2: model-free artifact path
+    # DEC-040(2) / issue #75. A file that genuinely loads no model may declare
+    # `Model: none|n/a` and be accepted, but only when the body carries no
+    # model-loading construct. Two directories pin both directions.
+    #
+    # (a) The honest declaration: header says `n/a`, body loads nothing. The
+    # gate must be SILENT on this file (the real `fetch_corpus.py` case).
+    r2d_files = dict(clean_files)
+    r2d_files["2026-09-19-model-free.py"] = (
+        '"""G-R2 clean fixture: a model-free artifact, honestly declared.\n\n'
+        "**Model:** n/a (corpus preparation; no model is loaded).\n"
+        "**Inputs:** fixture corpus files.\n"
+        "**Question:** does G-R2 accept a body-checked model-free declaration?\n"
+        "**Null:** fixture null model.\n"
+        "**Correction:** fixture correction.\n"
+        "**Issue:** #75 (fixture only).\n"
+        '"""\n\n'
+        'import json\n\n\n'
+        'def load(path):\n'
+        '    with open(path) as f:\n'
+        '        return json.load(f)\n')
+    r2d_files["README.md"] = run_log([n for n in r2d_files if n != "README.md"])
+    write("experiments_r2_model_free", r2d_files)
+
+    # (b) The self-granting lie: header says model-free but the body loads one.
+    # Must FAIL. The id is held in a variable, so no quoted id-shaped token
+    # exists and the gate reaches the undetermined branch — the `_loads_any_model`
+    # body guard is what has to fire, exercising the hole-closure directly
+    # (DEC-040's "declares model-free and calls from_pretrained()" case).
+    r2e_files = dict(clean_files)
+    r2e_files["2026-09-19-model-free-lies.py"] = (
+        '"""G-R2 failing fixture: declares model-free but loads a model.\n\n'
+        "**Model:** none\n"
+        "**Inputs:** fixture prompt sets.\n"
+        "**Question:** does a false model-free declaration still fail?\n"
+        "**Null:** fixture null model.\n"
+        "**Correction:** fixture correction.\n"
+        "**Issue:** #75 (fixture only).\n"
+        '"""\n\n'
+        'from transformers import AutoModelForCausalLM\n\n\n'
+        'def load(model_id):\n'
+        '    return AutoModelForCausalLM.from_pretrained(model_id)\n')
+    r2e_files["README.md"] = run_log([n for n in r2e_files if n != "README.md"])
+    write("experiments_r2_model_free_lies", r2e_files)
 
     # -------------------------------------------------- G-R5: missing log row
     r5_files = dict(clean_files)

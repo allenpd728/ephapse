@@ -620,6 +620,78 @@ def test_model_decision_policy_is_machine_readable():
     assert "model-decision: DEC-014" not in V.load_target_models()
 
 
+def test_g_r2_accepts_a_body_checked_model_free_declaration():
+    """DEC-040(2) / #75: a genuinely model-free artifact is accepted.
+
+    `fetch_corpus.py` loads nothing, so no honest header can yield an id-shaped
+    token. The additive path accepts a line-leading `Model: none|n/a` **only**
+    when the body carries no model-loading construct.
+    """
+    import validate_experiments as V
+    f = (R.FIXTURES / "experiments_r2_model_free" /
+         "2026-09-19-model-free.py")
+    findings = V.check_model_authorized(f, V.load_target_models(),
+                                        V.load_model_decisions())
+    assert findings == [], f"a body-checked model-free file must pass: {findings}"
+
+
+def test_g_r2_reports_a_model_free_declaration_that_still_loads_a_model():
+    """The declaration is not self-granting (DEC-040).
+
+    `**Model:** none` plus a `from_pretrained(...)` call is exactly the
+    "substitution going unnoticed" state, so it must be reported even though the
+    file claims to be model-free. The id is held in a variable, so the gate
+    reaches the undetermined branch and the body guard is what fires.
+    """
+    import validate_experiments as V
+    f = (R.FIXTURES / "experiments_r2_model_free_lies" /
+         "2026-09-19-model-free-lies.py")
+    findings = V.check_model_authorized(f, V.load_target_models(),
+                                        V.load_model_decisions())
+    assert any("cannot determine" in x for x in findings), findings
+
+
+def test_g_r2_model_free_path_does_not_weaken_fail_closed():
+    """An undetermined file with no declaration still fails (the #11 rule).
+
+    The new accept path is additive: absence of a `Model: none|n/a` declaration
+    leaves the original fail-closed finding untouched.
+    """
+    import validate_experiments as V
+    d = R.FIXTURES / "experiments_r2_no_model"
+    findings = V.gate_r2(d)
+    assert findings, "G-R2 must still fail closed without a declaration"
+    assert any("cannot determine" in f for f in findings), findings
+
+
+def test_model_free_regex_is_not_granted_by_a_bare_none_in_prose():
+    """`none` in the body is not a declaration — only a line-leading Model field.
+
+    Guards against a later edit loosening MODEL_FREE_RE to a substring match.
+    """
+    import validate_experiments as V
+    assert V.MODEL_FREE_RE.search("**Model:** n/a (corpus preparation).")
+    assert V.MODEL_FREE_RE.search("**Model:** none")
+    # Prose mentioning "none" is not a Model field.
+    assert not V.MODEL_FREE_RE.search("there is none here")
+
+
+def test_loads_any_model_detects_a_variable_held_id():
+    """The body guard must fire on `from_pretrained(model_id)`.
+
+    `FROM_PRETRAINED_RE` requires a literal id, so it misses the variable case;
+    `FROM_PRETRAINED_CALL_RE` is what closes that gap and keeps the declaration
+    from being self-granting.
+    """
+    import validate_experiments as V
+    assert V.FROM_PRETRAINED_RE.findall(
+        "AutoModelForCausalLM.from_pretrained(model_id)") == []
+    assert V._loads_any_model(
+        "AutoModelForCausalLM.from_pretrained(model_id)")
+    assert V._loads_any_model('MODEL = "pythia-70m-deduped"')
+    assert not V._loads_any_model("import json\n\ndef load(p):\n  return p\n")
+
+
 def test_g_r5_fires_on_an_unlogged_file():
     import validate_experiments as V
     d = R.FIXTURES / "experiments_r5_missing_log_row"
