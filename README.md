@@ -253,6 +253,8 @@ docs/reference/PROGRAM_MANAGEMENT_SPEC.md — the adopted program-tracking layer
 docs/reference/EPHAPSE_SPECIFICATION_ASSESSMENT.md — review of the external spec
 docs/ROADMAP.md              — the verdict-revision rung ladder (where the
                                method stands, and what would revise the null)
+docs/M0_EXIT_NULL_RESULT.md  — the M0 exit statement: the cross-domain
+                               probe's clean null, written up to cite
 docs/decisions/LOG.md        — decision log (DEC-001 onward)
 tooling/gates/               — Tier-0 integrity gates (fixture-gated) + runner
 tooling/program/             — atomic issue-state setter + cache refresh
