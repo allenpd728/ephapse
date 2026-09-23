@@ -2,6 +2,9 @@
 not a bare forward pass. Also confirms SAELens encode path and CDN download.
 
 **Model:** pythia-160m, fp32, cpu.
+**Supersedes: DEC-014** — pythia-160m is a superseded target (no Pythia-160M SAE
+release; the authorized target is pythia-70m-deduped). These 160M measurements
+are retained as a valid historical upper bound, not rewritten.
 **Question:** What is the peak RSS of a hooked `run_with_cache` probe versus a
 bare forward pass, and what cache size per prompt does it hold?
 **Issue:** #1 (sandbox baseline, gap 3).

@@ -2,6 +2,9 @@
 (batched, this session). Measures amortized latency across batch sizes.
 
 **Model:** pythia-160m, fp32, cpu.
+**Supersedes: DEC-014** — pythia-160m is a superseded target (no Pythia-160M SAE
+release; the authorized target is pythia-70m-deduped). These 160M measurements
+are retained as a valid historical upper bound, not rewritten.
 **Question:** How does amortized per-prompt latency scale with batch size on CPU,
 and does batching explain the 217 ms single-call vs 14 ms batched discrepancy?
 **Issue:** #1 (sandbox baseline / latency discrepancy).
