@@ -95,12 +95,18 @@ HEADER_MODEL_RE = re.compile(
 
 MODEL_ASSIGN_RE = re.compile(r'^\s*MODEL\s*=\s*["\']([^"\']+)["\']', re.MULTILINE)
 FROM_PRETRAINED_RE = re.compile(r'from_pretrained\(\s*["\']([^"\']+)["\']')
-# Recognisable model ids, so "a model we can see but which is not the target" is
-# distinguishable from "no model id at all" (which fails closed).
+# Recognisable model-id families, so "a model we can see but which is not the
+# target" is distinguishable from "no model id at all" (which fails closed).
+# `gemma` is DEC-040's DEC-033 scale-up target. The negative lookahead keeps the
+# Gemma Scope *release* name (`gemma-scope-2b-pt-res-canonical`) out of the
+# vocabulary — it is not a model, and matching it produces a false positive with
+# no honest repair, because the only quick fix would be a fake `Supersedes:`
+# (DEC-040's measured trap).
+_MODEL_FAMILY = r"(?:pythia|gpt2|EleutherAI|gemma(?!-scope-))"
 ANY_MODEL_RE = re.compile(
-    r'["\']((?:pythia|gpt2|EleutherAI)[A-Za-z0-9._/-]*)["\']')
+    rf'["\']({_MODEL_FAMILY}[A-Za-z0-9._/-]*)["\']')
 # An id-shaped token in prose/header text.
-ID_IN_TEXT_RE = re.compile(r"\b((?:pythia|gpt2|EleutherAI)[A-Za-z0-9._/-]*)")
+ID_IN_TEXT_RE = re.compile(rf"\b({_MODEL_FAMILY}[A-Za-z0-9._/-]*)")
 
 SAE_SUFFIXES = ("-res-sm", "-res-jb", "-res-mid", "-res-post", "-res-mid")
 
@@ -198,8 +204,19 @@ def supersession_declared(text: str, decisions: list[str]) -> bool:
     return False
 
 
+def strip_org_prefix(mid: str) -> str:
+    """Drop a leading `org/` so `google/gemma-2-2b` compares to `gemma-2-2b`.
+
+    DEC-040: `_authorized` compares whole strings, so an org-prefixed id would
+    never match the bare target line. Stripping the org on the comparison side
+    is the fix (the alternative is enumerating every org-prefixed spelling in
+    `target_model.txt`).
+    """
+    return mid.split("/", 1)[1] if "/" in mid else mid
+
+
 def _authorized(mid: str, targets: list[str]) -> bool:
-    m = normalize_model_id(mid)
+    m = normalize_model_id(strip_org_prefix(mid))
     return any(m == t or m.startswith(t + "-") or t.startswith(m + "-")
                for t in targets)
 

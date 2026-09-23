@@ -520,6 +520,62 @@ def test_g_r2_fails_closed_when_no_model_can_be_determined():
     assert any("cannot determine" in f for f in findings)
 
 
+def test_g_r2_accepts_the_dec_040_gemma_target():
+    """DEC-040: an org-prefixed DEC-authorized target must be recognised.
+
+    Before the vocabulary change `gemma-2-2b` was invisible to `ANY_MODEL_RE`,
+    so the file read as "cannot determine a model id" and failed closed. The
+    fixture also carries the Gemma Scope release name, which must not be
+    misread as an unauthorized model (DEC-040's measured trap).
+    """
+    import validate_experiments as V
+    f = (R.FIXTURES / "experiments_r2_gemma_vocab" /
+         "2026-09-19-gemma-target.py")
+    findings = V.check_model_authorized(f, V.load_target_models(),
+                                        V.load_model_decisions())
+    assert findings == [], f"the DEC-040 gemma target must be accepted: {findings}"
+
+
+def test_g_r2_fires_on_a_non_target_model_in_the_gemma_family():
+    """Widening the vocabulary must not widen the accept rule.
+
+    `gemma-2-9b` is in the newly-recognised family but is not on the target
+    list, so G-R2 must still report it.
+    """
+    import validate_experiments as V
+    f = (R.FIXTURES / "experiments_r2_gemma_vocab" /
+         "2026-09-19-gemma-nontarget.py")
+    findings = V.check_model_authorized(f, V.load_target_models(),
+                                        V.load_model_decisions())
+    assert any("gemma-2-9b" in x for x in findings), findings
+
+
+def test_gemma_scope_release_name_is_not_read_as_a_model():
+    """DEC-040's trap: the SAE release `gemma-scope-...` is not a model id.
+
+    The feasibility file carries `SAE_RELEASE = "gemma-scope-2b-pt-res-canonical"`
+    next to the model, so a vocabulary that added the bare token `gemma` would
+    report the release as an unauthorized model. The negative lookahead keeps it
+    out; the fixture is checked end-to-end in the test above.
+    """
+    import validate_experiments as V
+    release = 'SAE_RELEASE = "gemma-scope-2b-pt-res-canonical"'
+    assert V.ANY_MODEL_RE.findall(release) == [], V.ANY_MODEL_RE.findall(release)
+    # A bare gemma id is still a model.
+    assert V.ANY_MODEL_RE.findall('"gemma-2-2b"') == ["gemma-2-2b"]
+
+
+def test_org_prefix_is_stripped_before_the_target_comparison():
+    """DEC-040: `google/gemma-2-2b` must match the bare `gemma-2-2b` target."""
+    import validate_experiments as V
+    assert V.strip_org_prefix("google/gemma-2-2b") == "gemma-2-2b"
+    assert V.strip_org_prefix("gemma-2-2b") == "gemma-2-2b"
+    assert V._authorized("google/gemma-2-2b", ["gemma-2-2b"])
+    assert V._authorized("unsloth/gemma-2-2b", ["gemma-2-2b"])
+    # The org strip must not make a non-target id authorized.
+    assert not V._authorized("google/gemma-2-9b", ["gemma-2-2b"])
+
+
 def test_g_r2_accepts_a_correctly_attributed_superseded_model():
     """Issue #24 hole 1: a `Supersedes:` naming the model decision is an escape.
 

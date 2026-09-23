@@ -137,6 +137,42 @@ def main():
     r2b_files["README.md"] = run_log([n for n in r2b_files if n != "README.md"])
     write("experiments_r2_no_model", r2b_files)
 
+    # ------------------------------------------------ G-R2: DEC-040 gemma vocab
+    # Three perturbations that pin the DEC-040 acceptance path in both
+    # directions. The clean copies stay so the directory is a valid experiment
+    # tree; the gemma files are read individually by the tests.
+    r2c_files = dict(clean_files)
+    # Authorized org-prefixed target, plus the Gemma Scope release name that the
+    # naive `gemma` vocabulary would misread as an unauthorized model (DEC-040's
+    # measured trap). Must be SILENT.
+    r2c_files["2026-09-19-gemma-target.py"] = (
+        '"""G-R2 clean fixture: the DEC-040 gemma-2-2b target, org-prefixed.\n\n'
+        "**Model:** google/gemma-2-2b, bf16, CPU.\n"
+        "**Inputs:** fixture prompt sets.\n"
+        "**Question:** does G-R2 accept an org-prefixed DEC-authorized target?\n"
+        "**Null:** fixture null model.\n"
+        "**Correction:** fixture correction.\n"
+        "**Issue:** #74 (fixture only).\n"
+        '"""\n\n'
+        'import os\n\n'
+        'MODEL = os.environ.get("EPHAPSE_GEMMA_MODEL", "google/gemma-2-2b")\n'
+        'MIRROR = os.environ.get("EPHAPSE_GEMMA_MIRROR", "unsloth/gemma-2-2b")\n'
+        '# Not a model: the SAE release name must not be read as one.\n'
+        'SAE_RELEASE = "gemma-scope-2b-pt-res-canonical"\n')
+    # Same family, wrong size: a non-target gemma id must still FAIL.
+    r2c_files["2026-09-19-gemma-nontarget.py"] = (
+        '"""G-R2 failing fixture: a non-target model in the gemma family.\n\n'
+        "**Model:** google/gemma-2-9b, bf16, CPU.\n"
+        "**Inputs:** fixture prompt sets.\n"
+        "**Question:** does G-R2 still fire on gemma-2-9b after DEC-040?\n"
+        "**Null:** fixture null model.\n"
+        "**Correction:** fixture correction.\n"
+        "**Issue:** #74 (fixture only).\n"
+        '"""\n\n'
+        'MODEL = "google/gemma-2-9b"\n')
+    r2c_files["README.md"] = run_log([n for n in r2c_files if n != "README.md"])
+    write("experiments_r2_gemma_vocab", r2c_files)
+
     # -------------------------------------------------- G-R5: missing log row
     r5_files = dict(clean_files)
     r5_files["2026-09-19-unlogged.py"] = (

@@ -10,6 +10,11 @@
 # DEC-014: there is no Pythia-160M SAE release, so the target is the deduped 70M.
 pythia-70m-deduped
 
+# DEC-040: the DEC-033 scale-up target (rung 3) is the Gemma Scope residual
+# release's base model. The gate matches an org-prefixed id (`google/gemma-2-2b`,
+# `unsloth/gemma-2-2b`) to this bare line by stripping the org before comparing.
+gemma-2-2b
+
 # G-R2 attribution policy, parsed by validate_experiments.py (line-leading
 # `model-decision:` lines here; all other `#` lines are comments). A file may
 # carry a non-target model id only when it declares a line-leading
