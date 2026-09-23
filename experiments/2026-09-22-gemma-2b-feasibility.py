@@ -32,6 +32,16 @@ N_BATCH = 64
 N_RECON = 16
 SEQ_LEN = 32
 
+# Weight dtype for the mirror load. The prior run (20260923-0251-r1qp) measured
+# that fp32 + batch 64 OOMs in this sandbox: 11.48 GB peak RSS of 15 GiB, leaving
+# 2.54 GB against the ~2.61 GB the batch-64 forward needs. bf16 weights are
+# 5.23 GB, so the same batch fits with ~7 GB headroom. `plan` (measure_footprint.py)
+# confirms: bf16 batch-64 = 8.84 GB vs 13.43 GB MemAvailable. Override with
+# EPHAPSE_DTYPE=fp32 to reproduce the infeasible path.
+_DTYPE_NAME = os.environ.get("EPHAPSE_DTYPE", "bf16")
+_DTYPES = {"bf16": torch.bfloat16, "fp32": torch.float32, "fp16": torch.float16}
+DTYPE = _DTYPES.get(_DTYPE_NAME, torch.bfloat16)
+
 PROMPTS = [
     "The Eiffel Tower is located in the city of Paris",
     "Photosynthesis converts light into chemical energy",
@@ -52,7 +62,7 @@ def env_report():
     print("=== environment ===")
     print(f"  torch                : {torch.__version__}")
     print(f"  torch threads        : {torch.get_num_threads()}")
-    print(f"  dtype                : float32 (CPU workload)")
+    print(f"  dtype                : {_DTYPE_NAME}{' (bf16 weights, fp32 compute)' if _DTYPE_NAME == 'bf16' else ''}")
     print(f"  HF_HOME              : {os.environ.get('HF_HOME', '<unset>')}")
     print(f"  HF_TOKEN present     : {bool(os.environ.get('HF_TOKEN'))}")
     print(f"  cgroup mem limit     : {os.environ.get('MEMORY_LIMIT', '<not exported>')}")
@@ -92,7 +102,7 @@ def load_model():
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
         tok = AutoTokenizer.from_pretrained(MIRROR)
-        model = AutoModelForCausalLM.from_pretrained(MIRROR, dtype=torch.float32)
+        model = AutoModelForCausalLM.from_pretrained(MIRROR, dtype=DTYPE)
         model.eval()
         load_s = time.time() - t0
         cfg = model.config
@@ -132,7 +142,9 @@ def _resid_post(modelw, prompts, layer):
         out = modelw["model"](**enc, output_hidden_states=True)
     # HF hidden_states[0] is the embedding output; hidden_states[i] is the output
     # of block i-1, so hook_resid_post of block `layer` is hidden_states[layer+1].
-    t = out.hidden_states[layer + 1]
+    # Cast to fp32: the SAE is an fp32 artefact, and bf16 residual geometry is not
+    # bit-identical to fp32 (the caveat recorded by run 20260923-0251-r1qp, #40).
+    t = out.hidden_states[layer + 1].float()
     return t.reshape(-1, t.shape[-1])
 
 
