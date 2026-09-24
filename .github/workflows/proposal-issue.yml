@@ -1,0 +1,125 @@
+name: proposal-issue
+
+# Comment-driven trigger for the auditor proposal queue.
+#
+# Why this exists: `auditor:proposed` issues (23 open across ephapse, PleaNP,
+# rubato, Maith) had NO handler at all. The auditor files them, and a human had
+# to hand-edit three labels in the sidebar - untick `on-hold`, untick
+# `auditor:proposed`, tick `status:available` - with a documented trap: ticking
+# `status:available` first leaves the issue inert while looking approved. The
+# reviewer has no terminal, so this moves the whole decision into one comment.
+#
+# Mirrors the proven pattern in PleaNP's review-issue.yml `respond` job:
+#   - issue_comment trigger, keyword as the first word of the body
+#   - re-read labels before acting, so the handler is idempotent
+#   - label swap and the audit comment are the same step, so there is no window
+#     where the issue is half-approved
+#
+# Commands (first word of the comment body, case-insensitive):
+#   approve             -> remove on-hold + auditor:proposed, add status:available
+#   decline <reason>    -> remove on-hold + auditor:proposed, add wontfix, close
+#   batch-approve       -> same as approve, but for the doc-count-drift family
+#
+# Loop guard: the reviewer and the agents post as the SAME GitHub account, so
+# author identity cannot separate them. Agent comments carry a `<!-- oh-agent -->`
+# marker; this handler ignores any comment containing it, and also ignores
+# github-actions[bot]. A human comment has no marker, so it fires.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  decide:
+    # Cheap gate before spending a runner: only proposals are in scope.
+    if: >-
+      github.event.issue.pull_request == null &&
+      contains(github.event.issue.labels.*.name, 'auditor:proposed')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply the reviewer's decision
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ISSUE: ${{ github.event.issue.number }}
+          # Comment body and author go through env, never `${{ }}` inside the
+          # script, so an issue comment cannot inject shell. Same rule the
+          # review-issue.yml jobs follow (semgrep run-shell-injection).
+          BODY: ${{ github.event.comment.body }}
+          AUTHOR: ${{ github.event.comment.user.login }}
+        run: |
+          set -euo pipefail
+
+          if [ "$AUTHOR" = "github-actions[bot]" ]; then
+            echo "comment from github-actions[bot]; ignoring."
+            exit 0
+          fi
+
+          # Agent-authored comments carry the marker; the human's do not.
+          case "$BODY" in
+            *'<!-- oh-agent -->'*)
+              echo "agent-marked comment; ignoring."
+              exit 0
+              ;;
+          esac
+
+          verb=$(printf '%s' "$BODY" | awk '{print tolower($1); exit}')
+
+          case "$verb" in
+            approve|batch-approve) action=approve ;;
+            decline)               action=decline ;;
+            *)
+              echo "first word '$verb' is not approve/decline; ignoring."
+              exit 0
+              ;;
+          esac
+
+          # Re-read labels now: the issue may have been decided between the
+          # event firing and this step starting. Idempotent by construction.
+          # `gh -q '.labels[].name'` separates labels with NEWLINES, but the
+          # `case` matchers below are written against SPACE-separated text, so
+          # without this `tr` every label except the last fails to match and the
+          # handler reports "already decided" for every issue. (PleaNP's
+          # review-issue.yml has the same pattern but escapes it: review issues
+          # carry exactly one label, so the single-label case still matches.)
+          labels=$(gh issue view "$ISSUE" --repo "$REPO" --json labels \
+                     -q '.labels[].name' 2>/dev/null | tr '\n' ' ' || true)
+
+          case " $labels " in
+            *" auditor:proposed "*) ;;
+            *)
+              echo "issue #$ISSUE no longer carries auditor:proposed; already decided."
+              exit 0
+              ;;
+          esac
+
+          # Build the remove/add sets from what is actually present, so a label
+          # that was never applied does not fail the whole command.
+          remove=""
+          for l in on-hold auditor:proposed; do
+            case " $labels " in
+              *" $l "*) remove="$remove --remove-label $l" ;;
+            esac
+          done
+
+          reason=$(printf '%s' "$BODY" | sed -n 's/^[^ ]*[[:space:]]*//p' | head -1)
+
+          if [ "$action" = "approve" ]; then
+            # shellcheck disable=SC2086
+            gh issue edit "$ISSUE" --repo "$REPO" $remove \
+              --add-label "status:available"
+            gh issue comment "$ISSUE" --repo "$REPO" \
+              --body "Approved — promoted to \`status:available\`. A work run will claim it. (Handled by proposal-issue.yml from a reviewer comment.)"
+          else
+            # shellcheck disable=SC2086
+            gh issue edit "$ISSUE" --repo "$REPO" $remove \
+              --add-label "wontfix"
+            gh issue close "$ISSUE" --repo "$REPO" \
+              --comment "Declined${reason:+ — reason: $reason}. \`wontfix\` recorded; no work was committed, so \`status:done\` would be dishonest. (Handled by proposal-issue.yml from a reviewer comment.)"
+          fi
+
+          echo "issue #$ISSUE: $action applied."
